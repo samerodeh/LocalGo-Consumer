@@ -47,3 +47,6 @@ backend/__pycache__/
 backend/**/__pycache__/
 # Generated at first index build (embeddings, ~MBs) — rebuilt on startup.
 backend/app/goer/chroma_db/
+
+# Agent/editor config - kept locally, excluded from git and EAS builds
+.claude/
