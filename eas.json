@@ -8,7 +8,7 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://sxednzdbbfjxdvezmouf.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_BoYOpwDXRF6b9UOR8d3z6Q_qq-xkcyX",
-        "EXPO_PUBLIC_API_URL": "https://localgo-backend-kjfz.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://localgo-backend-md2s.onrender.com"
       },
       "android": {
         "buildType": "apk"
@@ -19,7 +19,7 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://sxednzdbbfjxdvezmouf.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_BoYOpwDXRF6b9UOR8d3z6Q_qq-xkcyX",
-        "EXPO_PUBLIC_API_URL": "https://localgo-backend-kjfz.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://localgo-backend-md2s.onrender.com"
       },
       "android": {
         "buildType": "app-bundle"
