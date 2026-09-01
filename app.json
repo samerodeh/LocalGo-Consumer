@@ -45,7 +45,13 @@
           "color": "#F97316"
         }
       ],
-      "@stripe/stripe-react-native"
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.samerodeh.localgo",
+          "enableGooglePay": false
+        }
+      ]
     ],
     "extra": {
       "router": {},
