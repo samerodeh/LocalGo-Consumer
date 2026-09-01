@@ -1,0 +1,68 @@
+# What EAS Build leaves out of the uploaded project tarball.
+#
+# IMPORTANT: when this file exists, EAS uses it INSTEAD OF .gitignore — not in
+# addition to it. So it has to repeat everything .gitignore excludes, or
+# node_modules and secrets would start riding along to the build servers.
+# Keep the two in sync when you edit either.
+#
+# It exists because of `.claude/`: those files are tracked in git (project
+# config, not junk), so they can't be gitignored, but EAS's shallow clone on
+# Windows fails to clean them up afterwards:
+#   EPERM: operation not permitted, rmdir '...-shallow-clone\.claude'
+# They are editor/agent config and have no business in an Android build anyway.
+
+# Agent + editor config — tracked in git, excluded from builds (see above)
+.claude/
+.vscode/
+.idea/
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files — never upload these; the build reads eas.json's `env` block
+# instead (see the EAS Build section of CLAUDE.md)
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# FastAPI backend — deployed separately to Render, not bundled into the app.
+# Excluding the whole directory keeps the tarball small and keeps backend
+# secrets away from the build servers entirely.
+backend/
+
+# Docs and release paperwork — not part of the app
+LIST.md
+PLAY-SETUP.md
+privacy-policy.html

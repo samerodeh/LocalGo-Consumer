@@ -56,8 +56,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "62df4e41-4483-4c59-acc1-a39c1d45b627"
+        "projectId": "840af6f4-0f2d-46dd-9078-2e5899d1068d"
       }
-    }
+    },
+    "owner": "samerodeh"
   }
 }
