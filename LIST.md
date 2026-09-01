@@ -142,7 +142,7 @@ typecheck or lint script, and no backend tests under `backend/`.
       auto-increment and Play rejects a repeat.
 - [ ] Commit the 24 uncommitted files (incl. untracked `backend/app/goer/`) so the build is
       reproducible and you know what shipped.
-- [ ] **Move the backend off Render free tier.** `localgo-backend-md2s.onrender.com` spins down
+- [ ] **Move the backend off Render free tier.** `localgo-backend-kjfz.onrender.com` spins down
       when idle; a reviewer's first order eats a cold start and may look like a hang.
 - [ ] Verify the production AAB installs and runs before uploading:
       `npx eas build --platform android --profile production`
