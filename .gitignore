@@ -41,7 +41,12 @@ yarn-error.*
 /android
 
 # FastAPI backend
+# Covers .env, .env.bak, .env.local — anything but the committed template.
+# A stray backend/.env.bak holding a live STRIPE_SECRET_KEY was one `git add -A`
+# away from being committed before this pattern existed.
 backend/.env
+backend/.env.*
+!backend/.env.example
 backend/.venv/
 backend/__pycache__/
 backend/**/__pycache__/

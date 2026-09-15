@@ -10,24 +10,35 @@ import {
   type OrderTrackingItem,
 } from '../store/useOrderTracking';
 
-/** The three customer-visible milestones of a delivery, in order. */
+/** The customer-visible milestones of a delivery, in order. Each one is also a
+ *  push notification, so this timeline is the visual form of the same sequence
+ *  the customer gets on their lock screen. */
 const STEPS: { key: DeliveryStatus; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'accepted', label: 'Accepted', icon: 'restaurant' },
   { key: 'picked_up', label: 'Picked up', icon: 'bicycle' },
-  { key: 'delivered', label: 'Arrived', icon: 'home' },
+  { key: 'nearby', label: 'Nearby', icon: 'navigate' },
+  { key: 'arrived', label: 'At your door', icon: 'home' },
 ];
 
 const STEP_INDEX: Record<DeliveryStatus, number> = {
   available: -1,
   accepted: 0,
   picked_up: 1,
-  delivered: 2,
+  nearby: 2,
+  arrived: 3,
+  // Delivered completes the last step rather than adding a fifth: by the time
+  // the driver marks it, the customer has the food in their hands.
+  delivered: 3,
 };
 
 function headline(status: DeliveryStatus): string {
   switch (status) {
     case 'picked_up':
       return 'Your order is on the way! 🛵';
+    case 'nearby':
+      return 'Your driver is almost there! 🛵';
+    case 'arrived':
+      return 'Your driver is here! 🎉';
     case 'delivered':
       return 'Your order has arrived! 🎉';
     default:
@@ -67,9 +78,10 @@ export function OrderTrackingStack({
 
             <Text style={styles.orderNo}>
               Order {order.orderNumber}
-              {order.deliveryStatus !== 'delivered'
-                ? ` · arriving in about ${min}–${max} min`
-                : ''}
+              {order.deliveryStatus === 'arrived' || order.deliveryStatus === 'delivered'
+                ? // An ETA is noise once the driver is standing outside.
+                  ' · at your drop-off spot'
+                : ` · arriving in about ${min}–${max} min`}
             </Text>
 
             {/* Progress timeline. */}

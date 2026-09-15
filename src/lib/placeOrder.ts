@@ -107,7 +107,12 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       paymentIntentID = `pi_demo_${Crypto.randomUUID().slice(0, 12)}`;
     }
 
+    // Recorded under the SAME id it was paid and dispatched under, so local
+    // history, the driver's row, the chat thread, and any push about this order
+    // all name one thing. The order number arrives from dispatch below.
     await useOrdersStore.getState().record({
+      id: orderId,
+      orderNumber: null,
       lines,
       subtotal,
       deliveryFee,
@@ -145,6 +150,14 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     });
 
     useCartStore.getState().clear();
+
+    // "#LG-1234" — the reference the customer sees on the confirmation screen
+    // and in every push about this delivery.
+    if (dispatched?.orderNumber) {
+      useOrdersStore
+        .getState()
+        .updateFromServer(orderId, { orderNumber: dispatched.orderNumber });
+    }
 
     if (!dispatched) {
       // Deliberately still `ok`: the charge went through and the order is in

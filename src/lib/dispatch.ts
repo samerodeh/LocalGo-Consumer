@@ -33,13 +33,22 @@ export interface DispatchOrderInput {
   customerId: string | null;
 }
 
+export interface DispatchResult {
+  id: string;
+  /** The human-facing "#LG-1234" the backend assigned. Null on a duplicate
+   *  publish, where the row already had one and the anon role can't read it
+   *  back — the app's next status sync fills it in. */
+  orderNumber: string | null;
+}
+
 /**
- * One attempt at publishing. Returns the order id, or null on any failure.
- * Swallows all errors — the caller's local order record is the source of truth.
+ * One attempt at publishing. Returns the dispatch result, or null on any
+ * failure. Swallows all errors — the caller's local order record is the source
+ * of truth.
  */
 async function attemptPublish(
   input: DispatchOrderInput,
-): Promise<string | null> {
+): Promise<DispatchResult | null> {
   if (!API_URL) return null;
 
   const { lines, deliveryAddress } = input;
@@ -76,7 +85,8 @@ async function attemptPublish(
       console.warn('[dispatch] order publish failed:', res.status, text.slice(0, 200));
       return null;
     }
-    return id;
+    const payload = (await res.json().catch(() => ({}))) as { order_number?: string };
+    return { id, orderNumber: payload.order_number ?? null };
   } catch (err) {
     console.warn('[dispatch] order publish threw:', err);
     return null;
@@ -93,12 +103,12 @@ async function attemptPublish(
  */
 export async function publishOrderToDispatch(
   input: DispatchOrderInput,
-): Promise<string | null> {
+): Promise<DispatchResult | null> {
   const delaysMs = [0, 800, 2500];
   for (const delay of delaysMs) {
     if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
-    const id = await attemptPublish(input);
-    if (id) return id;
+    const result = await attemptPublish(input);
+    if (result) return result;
   }
   console.warn('[dispatch] giving up after retries for order', input.orderId);
   return null;

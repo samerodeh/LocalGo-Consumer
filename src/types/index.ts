@@ -94,6 +94,18 @@ export type OrderStatus =
   | 'Delivered'
   | 'Cancelled';
 
+/** How far a delivery has progressed, as the driver reports it. Mirrors the
+ *  shared `orders.delivery_status` column; 'available' means no driver has
+ *  claimed it yet. Kept separate from `OrderStatus` (the local record's own
+ *  coarse state) because this one is owned by the server. */
+export type DeliveryStatus =
+  | 'available'
+  | 'accepted'
+  | 'picked_up'
+  | 'nearby'
+  | 'arrived'
+  | 'delivered';
+
 export interface OrderItemRecord {
   id: string;
   menuItemID: string;
@@ -105,12 +117,25 @@ export interface OrderItemRecord {
 
 /** One placed order. Money in cents so totals can't drift from float rounding. */
 export interface OrderRecord {
+  /** The SAME id the order was dispatched under — the shared `orders` row's
+   *  primary key, the Stripe metadata's `order_id`, and the chat thread id.
+   *  One id end to end is what lets local history be matched up with live
+   *  delivery progress and with a tapped push notification. */
   id: string;
   ownerEmail: string;
   restaurantID: string;
   restaurantName: string;
   placedAt: string;
   status: OrderStatus;
+  /** Human-facing order number from the backend ("#LG-1234"), shown to the
+   *  customer and quoted in every push. Null for orders placed with no backend
+   *  configured, where nothing ever assigns one. */
+  orderNumber: string | null;
+  /** Latest delivery progress mirrored from the server, refreshed by
+   *  `ordersStore.syncDeliveryStatus()`. Null until a driver claims it. */
+  deliveryStatus: DeliveryStatus | null;
+  /** The photo the driver took of this order at pickup, if they've got there. */
+  pickupPhotoURL: string | null;
   currency: string;
   subtotalCents: number;
   deliveryFeeCents: number;

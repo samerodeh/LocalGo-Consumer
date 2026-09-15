@@ -3,12 +3,17 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { useCartStore } from '../../src/store/cartStore';
+import { useOrdersStore } from '../../src/store/ordersStore';
+import { isInFlight } from '../../src/lib/orderFormat';
 // Goer chatbot disabled for now.
 // import { GoerSheet } from '../../src/components/goer/GoerSheet';
 
 export default function TabsLayout() {
   const { colors } = useTheme();
   const itemCount = useCartStore((s) => s.itemCount());
+  // Badges the Orders tab while something is still on its way, so a customer
+  // waiting on a delivery has one obvious place to look.
+  const activeOrders = useOrdersStore((s) => s.orders.filter(isInFlight).length);
 
   return (
     <View style={{ flex: 1 }}>
@@ -29,6 +34,15 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="orders"
+        options={{
+          title: 'Orders',
+          tabBarBadge: activeOrders > 0 ? activeOrders : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.orange },
+          tabBarIcon: ({ color, size }) => <Ionicons name="receipt" color={color} size={size} />,
         }}
       />
       <Tabs.Screen

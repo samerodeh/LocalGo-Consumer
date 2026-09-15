@@ -77,6 +77,10 @@ def health():
         "pushConfigured": bool(config.SUPABASE_SERVICE_ROLE_KEY),
         "goerConfigured": config.GOER_CONFIGURED,
         "goerModel": config.GOER_MODEL,
+        # Whether the pickup-photo receipt can actually be mailed. Same
+        # reasoning as stripeConfigured: silently-off email is invisible from
+        # the outside, and the only symptom is a customer who never got a photo.
+        "emailConfigured": config.EMAIL_CONFIGURED,
         # Whether real payments are live. False means checkout silently runs in
         # demo mode and takes no money — the single most important thing to be
         # able to check on a deployed instance, and impossible to tell from the

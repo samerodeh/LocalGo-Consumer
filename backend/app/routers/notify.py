@@ -22,9 +22,35 @@ NotifyKind = Literal[
     "new_order",
     "order_accepted",
     "order_picked_up",
+    "order_nearby",
+    "order_arrived",
     "order_delivered",
     "new_message",
 ]
+
+# The customer-facing delivery milestones, in order. Each is a plain
+# (title, body-template) pair keyed by notify kind; the template gets the order
+# row's fields. Keeping them in one table makes the progression readable as a
+# sequence — which is the point of it, since the customer experiences these as
+# four beats of one story rather than four unrelated alerts.
+_CUSTOMER_MILESTONES: dict[str, tuple[str, str]] = {
+    "order_picked_up": (
+        "Your order is on the way!",
+        "{order_number} has been picked up and is on its way to you.",
+    ),
+    "order_nearby": (
+        "Your driver is almost there",
+        "{order_number} is a few minutes away — please be ready to collect it.",
+    ),
+    "order_arrived": (
+        "Your driver is here!",
+        "{order_number} has arrived at your drop-off spot.",
+    ),
+    "order_delivered": (
+        "Your order has arrived!",
+        "{order_number} has been delivered to your drop-off spot. Enjoy!",
+    ),
+}
 
 
 class NotifyBody(BaseModel):
@@ -90,22 +116,12 @@ async def send_notification(body: NotifyBody) -> JSONResponse:
             if eta
             else f"A driver accepted {order['order_number']} and is heading to the restaurant."
         )
-    elif body.kind == "order_picked_up":
+    elif body.kind in _CUSTOMER_MILESTONES:
         if not order.get("customer_id"):
             return _json(200, {"sent": 0, "reason": "order has no customer_id"})
         recipient_ids = [order["customer_id"]]
-        title = "Your order is on the way!"
-        message_body = (
-            f"{order['order_number']} has been picked up and is on its way to you."
-        )
-    elif body.kind == "order_delivered":
-        if not order.get("customer_id"):
-            return _json(200, {"sent": 0, "reason": "order has no customer_id"})
-        recipient_ids = [order["customer_id"]]
-        title = "Your order has arrived!"
-        message_body = (
-            f"{order['order_number']} has been delivered to your drop-off spot. Enjoy!"
-        )
+        title, template = _CUSTOMER_MILESTONES[body.kind]
+        message_body = template.format(order_number=order["order_number"])
     else:  # new_message: notify whichever participant did NOT send it.
         if not body.senderId:
             return _json(400, {"error": "senderId required for new_message"})

@@ -199,3 +199,15 @@ export function menuItemsForRestaurant(restaurantId: string): MenuItem[] {
 export function menuCategoriesForRestaurant(restaurantId: string): string[] {
   return restaurantId === 'chateau-kabab' ? chateauKababMenuCategories : menuCategories;
 }
+
+/** Look one item up by id across every catalog — ids are unique app-wide
+ *  ('ck-' prefixes Chateau Kabab's). Used to put a photo next to a line on a
+ *  past order's receipt, where all the record itself kept was the id, name and
+ *  price. Undefined for an item that has since left the menu, which callers
+ *  must handle: an old receipt has to keep rendering. */
+export function menuItemById(id: string): MenuItem | undefined {
+  return (
+    menuItems.find((item) => item.id === id) ??
+    chateauKababMenuItems.find((item) => item.id === id)
+  );
+}

@@ -64,7 +64,26 @@ STRIPE_SECRET_KEY = _env("STRIPE_SECRET_KEY")
 STRIPE_PUBLISHABLE_KEY = _env("STRIPE_PUBLISHABLE_KEY")
 STRIPE_WEBHOOK_SECRET = _env("STRIPE_WEBHOOK_SECRET")
 
+# ── Outbound email (delivery receipts) ────────────────────────────────────────
+# Used for exactly one thing today: mailing the customer the photo the driver
+# took of their order at pickup. Plain SMTP over stdlib `smtplib` rather than a
+# provider SDK — one dependency-free module, and any provider (Gmail app
+# password, SES, Resend, Postmark, Mailgun) speaks it.
+SMTP_HOST = _env("SMTP_HOST")
+SMTP_PORT = _env_int("SMTP_PORT", 587)
+SMTP_USER = _env("SMTP_USER")
+SMTP_PASSWORD = _env("SMTP_PASSWORD")
+# Envelope sender. Falls back to SMTP_USER, which is what most providers require
+# the From address to match anyway.
+SMTP_FROM = _env("SMTP_FROM") or SMTP_USER
+SMTP_FROM_NAME = _env("SMTP_FROM_NAME") or "LocalGO"
+# STARTTLS on 587 (the default) vs. implicit TLS on 465.
+SMTP_USE_SSL = _env("SMTP_USE_SSL").lower() in ("1", "true", "yes")
+
 SUPABASE_CONFIGURED = bool(SUPABASE_URL and SUPABASE_ANON_KEY)
+# Every piece must be present: a half-configured mailer would raise inside the
+# status endpoint on every pickup instead of quietly skipping the receipt.
+EMAIL_CONFIGURED = bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD and SMTP_FROM)
 GOER_CONFIGURED = bool(GROQ_API_KEY)
 # Checkout needs both halves of the pair: the secret to create the intent, the
 # publishable to let the app's PaymentSheet talk to Stripe directly.

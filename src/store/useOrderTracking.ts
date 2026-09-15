@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import type { DeliveryStatus } from '../types';
 import { useAuthStore } from './authStore';
+import { useOrdersStore } from './ordersStore';
 
 /** How far a delivery has progressed, mirrored from the driver onto the shared
  *  orders row. 'available' never reaches the customer as a live order. */
-export type DeliveryStatus = 'available' | 'accepted' | 'picked_up' | 'delivered';
+export type { DeliveryStatus };
 
 /** One of the customer's in-flight orders, shown as a live tracking card. */
 export interface OrderTrackingItem {
@@ -68,7 +70,17 @@ export function useOrderTracking(): {
 
   const upsert = useCallback((row: OrderRow) => {
     const item = toItem(row);
-    if (!item || dismissedRef.current.has(item.id)) return;
+    if (!item) return;
+
+    // Mirror progress onto the customer's own order history, so the Orders
+    // screen is up to date even for a card they've dismissed here. Runs before
+    // the dismissed check for exactly that reason.
+    useOrdersStore.getState().updateFromServer(item.id, {
+      orderNumber: item.orderNumber,
+      deliveryStatus: item.deliveryStatus,
+    });
+
+    if (dismissedRef.current.has(item.id)) return;
     setOrders((prev) => {
       // Once delivered, remove it from the live stack.
       const withoutThis = prev.filter((o) => o.id !== item.id);

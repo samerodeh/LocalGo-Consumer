@@ -1,0 +1,7 @@
+# Test-only dependencies. NOT installed on Render — render.yaml's build command
+# reads requirements.txt only, so the deployed image stays lean.
+#
+#   pip install -r requirements.txt -r requirements-dev.txt
+#   pytest
+-r requirements.txt
+pytest==8.4.2

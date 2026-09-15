@@ -1,0 +1,48 @@
+# Gate on the backend test suite.
+#
+# Render auto-deploys every push to main, so without this nothing stands
+# between a bad commit and a production service that takes payments. A red run
+# here does not block Render on its own — see the branch-protection note in
+# LIST.md — but it does tell you immediately, and it blocks a PR merge once
+# protection is switched on.
+#
+# Only backend paths trigger it: Render's Root Directory is `backend`, so app
+# changes can't affect the deployed service.
+
+name: backend tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-tests.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-tests.yml"
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Matches render.yaml's PYTHON_VERSION. 3.14 breaks httpx/asyncio
+          # for this project, so do not float this.
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run tests
+        # No secrets are set, deliberately: the suite is hermetic and any test
+        # that reaches the network is a bug worth failing on.
+        run: python -m pytest

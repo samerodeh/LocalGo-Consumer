@@ -25,6 +25,7 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from .. import config
+from ..mailer import customer_email, send_pickup_photo_email
 from ..postgrest import REST_URL, bearer_from, client, headers, jwt_sub
 from .notify import NotifyBody, send_notification
 
@@ -148,9 +149,11 @@ async def place_order(body: PlaceOrderBody):
     # payment never produces a row the drivers can see.
     charged_total = _verify_payment(order_id, body)
 
+    order_number = f"#LG-{str(int(time.time() * 1000))[-4:]}"
+
     row: dict[str, Any] = {
         "id": order_id,
-        "order_number": f"#LG-{str(int(time.time() * 1000))[-4:]}",
+        "order_number": order_number,
         "restaurant_name": body.restaurant_name,
         "restaurant_address": body.restaurant_address,
         "customer_name": body.customer_name,
@@ -178,6 +181,10 @@ async def place_order(body: PlaceOrderBody):
         # already published. The app retries dispatch after a successful charge
         # (see placeOrder), so treat a replay as success rather than telling a
         # paid customer their order failed.
+        #
+        # No order_number: the row already has one from the first attempt, and
+        # the anon role can't read it back (see the module docstring). The app
+        # picks it up on its next status sync.
         print(f"[orders] duplicate publish ignored for {order_id}")
         return {"id": order_id, "duplicate": True}
     if res.status_code not in (200, 201):
@@ -190,7 +197,9 @@ async def place_order(body: PlaceOrderBody):
     except Exception as exc:  # noqa: BLE001
         print(f"[orders] new_order notify failed: {exc}")
 
-    return {"id": order_id}
+    # order_number is returned so the app can show the customer the same
+    # reference the drivers and every push notification use.
+    return {"id": order_id, "order_number": order_number}
 
 
 def _map_row(row: dict[str, Any], overlay: dict[str, Any] | None) -> dict[str, Any]:
@@ -295,15 +304,37 @@ async def accept_order(order_id: str, authorization: str | None = Header(default
 
 
 class StatusBody(BaseModel):
-    status: Literal["accepted", "picked_up", "delivered", "declined"]
+    status: Literal["accepted", "picked_up", "nearby", "arrived", "delivered", "declined"]
     # Proof photo URL (order-photos bucket): the order at pickup, or dropped at
-    # the customer's location. Optional so 'accepted'/'declined' can omit it.
+    # the customer's location. Optional so the statuses without a camera step
+    # ('accepted'/'nearby'/'arrived'/'declined') can omit it.
     photo_url: str | None = None
 
 
-# Which customer-facing push fires for each driver status change, and which
-# shared-orders columns mirror it so the customer's realtime feed sees progress.
-_STATUS_NOTIFY = {"picked_up": "order_picked_up", "delivered": "order_delivered"}
+# Which customer-facing push fires for each driver status change. Membership in
+# this map is also what marks a status as customer-visible: those are exactly
+# the ones mirrored onto the shared orders row. 'declined' is deliberately
+# absent — a driver passing on an order is private to that driver, and the
+# order simply stays available to everyone else.
+_STATUS_NOTIFY = {
+    "picked_up": "order_picked_up",
+    "nearby": "order_nearby",
+    "arrived": "order_arrived",
+    "delivered": "order_delivered",
+}
+
+# The column stamped with `now` for each milestone, so the customer's history
+# can show when each beat happened rather than just where the order got to.
+_STATUS_TIMESTAMP = {
+    "picked_up": "picked_up_at",
+    "nearby": "nearby_at",
+    "arrived": "arrived_at",
+    "delivered": "delivered_at",
+}
+
+# Which photo column a proof shot belongs in. Only the two ends of the trip
+# have a camera step; nearby/arrived are one-tap.
+_STATUS_PHOTO_COLUMN = {"picked_up": "pickup_photo_url", "delivered": "dropoff_photo_url"}
 
 
 async def _mirror_status_to_order(
@@ -315,14 +346,12 @@ async def _mirror_status_to_order(
     if not config.SUPABASE_SERVICE_ROLE_KEY:
         return
     patch: dict[str, Any] = {"delivery_status": status}
-    if status == "picked_up":
-        patch["picked_up_at"] = now
-        if photo_url:
-            patch["pickup_photo_url"] = photo_url
-    elif status == "delivered":
-        patch["delivered_at"] = now
-        if photo_url:
-            patch["dropoff_photo_url"] = photo_url
+    stamp = _STATUS_TIMESTAMP.get(status)
+    if stamp:
+        patch[stamp] = now
+    photo_column = _STATUS_PHOTO_COLUMN.get(status)
+    if photo_column and photo_url:
+        patch[photo_column] = photo_url
     res = await client.patch(
         f"{REST_URL}/orders",
         headers=headers(service=True, prefer="return=minimal"),
@@ -333,27 +362,125 @@ async def _mirror_status_to_order(
         print(f"[orders] status mirror failed {res.status_code} {res.text[:300]}")
 
 
+async def _email_pickup_photo(order_id: str) -> None:
+    """Mail the customer the photo their driver just took of the order.
+
+    Runs only at pickup, and only with both mail and the service-role key
+    configured. Reads the order back with the service role because the photo URL
+    was written a moment ago by the mirror and the customer's address lives in
+    Auth, not in any table we can join.
+    """
+    if not config.EMAIL_CONFIGURED or not config.SUPABASE_SERVICE_ROLE_KEY:
+        return
+
+    res = await client.get(
+        f"{REST_URL}/orders",
+        headers=headers(service=True),
+        params={
+            "id": f"eq.{order_id}",
+            "select": "id,order_number,restaurant_name,customer_id,eta_minutes,pickup_photo_url",
+            "limit": "1",
+        },
+    )
+    rows = res.json() if res.status_code == 200 else []
+    if not rows:
+        print(f"[orders] pickup email skipped: order {order_id} not readable")
+        return
+    order = rows[0]
+    if not order.get("customer_id"):
+        return
+
+    to_email = await customer_email(order["customer_id"])
+    if not to_email:
+        print(f"[orders] pickup email skipped: no address for order {order_id}")
+        return
+
+    await send_pickup_photo_email(to_email, order, order.get("pickup_photo_url"))
+
+
 @router.post("/orders/{order_id}/status")
 async def update_status(
     order_id: str,
     body: StatusBody,
     authorization: str | None = Header(default=None),
 ):
-    """Everything except the accept-claim (decline / picked_up / delivered).
-    Writes the driver's private overlay row, mirrors forward progress onto the
-    shared orders row so the customer can follow it, and pushes the customer a
-    'on the way' / 'arrived' notification."""
+    """Everything except the accept-claim (decline / picked_up / nearby /
+    arrived / delivered). Writes the driver's private overlay row, mirrors
+    forward progress onto the shared orders row so the customer can follow it,
+    and pushes the customer the milestone notification for that step.
+
+    The four customer-visible milestones are one narrative — 'picked up' →
+    'almost there' → 'here' → 'delivered' — so they all take the same path;
+    only 'declined' stays private to the driver."""
     _require_supabase()
     bearer, driver_id = _require_driver(authorization)
     now = datetime.now(timezone.utc).isoformat()
     await _upsert_overlay(bearer, driver_id, order_id, body.status, now)
 
-    if body.status in ("picked_up", "delivered"):
+    kind = _STATUS_NOTIFY.get(body.status)
+    if kind:
         await _mirror_status_to_order(order_id, body.status, now, body.photo_url)
-        kind = _STATUS_NOTIFY[body.status]
         try:
             await send_notification(NotifyBody(orderId=order_id, kind=kind))  # type: ignore[arg-type]
         except Exception as exc:  # noqa: BLE001
             print(f"[orders] {kind} notify failed: {exc}")
 
+        # Pickup also mails the customer the photo the driver just took. Runs
+        # after the mirror so the URL is already on the row, and is best-effort
+        # for the same reason the push is: a mail relay being down must never
+        # leave a driver unable to advance a delivery they've already made.
+        if body.status == "picked_up":
+            try:
+                await _email_pickup_photo(order_id)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[orders] pickup email failed: {exc}")
+
     return {"ok": True, "updatedAt": now}
+
+
+@router.get("/orders/history")
+async def order_history(
+    scope: Literal["today", "all"] = "all",
+    authorization: str | None = Header(default=None),
+):
+    """Every delivery this driver has completed — today's, or all time.
+
+    Reads `driver_orders` with the driver's OWN token: its self-only RLS
+    policies are what scope the result to this driver. Deliberately not filtered
+    by the unverified `sub` from the JWT (see postgrest.jwt_sub) — that would be
+    forgeable, and this endpoint returns customer names and addresses.
+
+    The `orders(...)` embed relies on the driver_orders → orders foreign key.
+    """
+    _require_supabase()
+    bearer, _ = _require_driver(authorization)
+
+    params: dict[str, str] = {
+        "select": "order_id,status,updated_at,orders(*)",
+        "status": "eq.delivered",
+        "order": "updated_at.desc",
+        "limit": "500",
+    }
+    if scope == "today":
+        # Local midnight would need the driver's timezone, which the backend
+        # doesn't know; the app re-filters to the device's own day boundary.
+        start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        params["updated_at"] = f"gte.{start.isoformat()}"
+
+    res = await client.get(f"{REST_URL}/driver_orders", headers=headers(bearer), params=params)
+    if res.status_code != 200:
+        print(f"[orders] history fetch failed {res.status_code} {res.text[:300]}")
+        raise HTTPException(502, "Could not fetch your delivery history")
+
+    deliveries = []
+    for row in res.json():
+        order = row.get("orders")
+        if not order:
+            # The order row was deleted (or is unreadable) — skip rather than
+            # emit a half-empty card.
+            continue
+        mapped = _map_row(order, {"status": row["status"], "updated_at": row["updated_at"]})
+        mapped["deliveredAt"] = row["updated_at"]
+        deliveries.append(mapped)
+
+    return {"orders": deliveries}

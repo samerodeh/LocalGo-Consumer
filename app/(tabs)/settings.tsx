@@ -68,6 +68,13 @@ export default function SettingsScreen() {
 
         {/* Account */}
         <Section title="Account" styles={styles}>
+          <SettingsRow
+            icon="receipt-outline"
+            label="Your Orders"
+            onPress={() => router.push('/(tabs)/orders')}
+            styles={styles}
+            colors={colors}
+          />
           <SettingsRow icon="notifications-outline" label="Notifications" styles={styles} colors={colors} />
           <SettingsRow
             icon="card-outline"

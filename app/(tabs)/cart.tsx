@@ -93,8 +93,9 @@ export default function CartScreen() {
         Alert.alert('Order placed', result.warning);
       }
       // Replace (not push) so the hardware back button can't return to the
-      // now-paid, cleared cart.
-      router.replace('/order-confirmed');
+      // now-paid, cleared cart. The id lets the confirmation screen show this
+      // exact order rather than guessing at the newest one.
+      router.replace({ pathname: '/order-confirmed', params: { id: result.orderId } });
     } else if (result.canceled) {
       // User dismissed the payment sheet. Nothing was charged and the cart is
       // untouched — say nothing and leave them on it.

@@ -15,6 +15,7 @@ import { usePaymentStore } from '../src/store/paymentStore';
 // import { useGoerStore } from '../src/goer/goerStore';
 import { parseAuthLink } from '../src/lib/authDeepLink';
 import { onNotificationTapped, registerForPushNotifications } from '../src/lib/notifications';
+import { ORDER_PROGRESS_KINDS, type NotifyKind } from '../src/lib/notifyPush';
 import { warmImageCache } from '../src/lib/imagePrefetch';
 
 function RootNavigator() {
@@ -26,6 +27,7 @@ function RootNavigator() {
   const restoreSession = useAuthStore((s) => s.restoreSession);
   const beginPasswordRecovery = useAuthStore((s) => s.beginPasswordRecovery);
   const configureOrders = useOrdersStore((s) => s.configure);
+  const syncDeliveryStatus = useOrdersStore((s) => s.syncDeliveryStatus);
   const configureAddresses = useAddressStore((s) => s.configure);
   const configureCards = usePaymentStore((s) => s.configure);
   // const configureGoer = useGoerStore((s) => s.configure);
@@ -54,14 +56,24 @@ function RootNavigator() {
     if (isLoggedIn) warmImageCache();
   }, [isLoggedIn]);
 
-  // Tapping a "new message" push opens that order's chat directly.
+  // Tapping a push opens what it was about: a delivery update opens that
+  // order, a chat message opens that thread. Before the progress kinds were
+  // named, every order push landed in the chat screen.
   useEffect(() => {
     return onNotificationTapped((data) => {
-      if (typeof data.orderId === 'string') {
-        router.push({ pathname: '/chat', params: { orderId: data.orderId } });
+      const orderId = typeof data.orderId === 'string' ? data.orderId : null;
+      if (!orderId) return;
+      const kind = data.kind as NotifyKind | undefined;
+      if (kind && ORDER_PROGRESS_KINDS.includes(kind)) {
+        // Refresh first: the push is the notice that something changed, and the
+        // screen it opens should already show it.
+        void syncDeliveryStatus();
+        router.push({ pathname: '/order/[id]', params: { id: orderId } });
+        return;
       }
+      router.push({ pathname: '/chat', params: { orderId } });
     });
-  }, [router]);
+  }, [router, syncDeliveryStatus]);
 
   // Catches the deep link a password-reset email opens (localgo://reset-password#access_token=...),
   // exchanges the tokens for a live session, then routes to the set-new-password screen.
@@ -96,6 +108,7 @@ function RootNavigator() {
           <Stack.Screen name="address" options={{ presentation: 'modal' }} />
           <Stack.Screen name="payment" options={{ presentation: 'modal' }} />
           <Stack.Screen name="chat" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="order/[id]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen
             name="order-confirmed"
             options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }}
