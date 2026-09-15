@@ -171,3 +171,114 @@ COVID-19 contact tracing: **No**. Government app: **No**. Health: **No**.
 - The Settings → **Notifications** row is inert (no `onPress`). It renders without a chevron and is
   disabled, so it is not as bad as a fake button, but it still goes nowhere.
 - No profile editing — Settings only displays name and email.
+
+---
+
+# Console walkthrough — the forms, question by question
+
+Google reworks this wizard's wording periodically, so match on meaning rather than exact phrasing.
+Every answer below is derived from the code, and the reasoning is given so you can defend it if a
+reviewer pushes back.
+
+## Step 0 — Create the reviewer account first
+
+Everything else assumes it exists. Reviewers cannot sign up unaided, and checkout is gated on a
+verified delivery address.
+
+1. Supabase → **Authentication → Users → Add user → Create new user**
+2. Email `reviewer@localgo.app` (or any address you control), a strong password, and tick
+   **Auto Confirm User** — otherwise the account is stuck unverified and the reviewer is locked out.
+3. Sign in on a device once yourself and **save a Montréal delivery address** on it. The account
+   works without this, but it removes the step most likely to get the app rejected as untestable.
+4. Put the credentials in **App content → App access**, with the instruction text from
+   `STORE-LISTING.md`.
+
+Do not use your personal account. It gets shared with reviewers.
+
+## Step 1 — Data safety (the long one)
+
+A four-stage wizard: overview → data types → per-type details → security practices.
+
+**Overview**
+
+| Question | Answer | Why |
+|---|---|---|
+| Does your app collect or share any of the required user data types? | **Yes** | |
+| Is all user data encrypted in transit? | **Yes** | every call is HTTPS |
+| Do you provide a way for users to request data deletion? | **Yes** | Settings → Delete Account, plus the policy URL |
+
+**Data types to tick**
+
+Personal info → *Name*, *Email address*, *Address* · Financial info → *Purchase history* ·
+Location → *Approximate location*, *Precise location* · Messages → *Other in-app messages* ·
+Photos and videos → *Photos* · App activity → *Other actions* · Device IDs → *Device or other IDs*
+
+**Per type**, every one is **Collected: Yes**, **Processed ephemerally: No**, **Required: Yes**
+(the app cannot deliver without them), and **Purpose: App functionality** — with *Account
+management* added for Name and Email. The only column that varies is Shared:
+
+| Type | Shared | To whom |
+|---|---|---|
+| Name | No | — |
+| Email address | **Yes** | your SMTP provider, for the pickup receipt |
+| Address | **Yes** | Photon (geocoding) and the driver |
+| Purchase history | No | — |
+| Approximate / Precise location | **Yes** | Photon |
+| Other in-app messages | **Yes** | Groq, which writes the assistant's replies |
+| Photos | **Yes** | your SMTP provider, attached to the receipt |
+| Other actions | No | — |
+| Device or other IDs | No | Expo delivers the push, but the token is not shared onward |
+
+**Do not tick Payment info.** Card details are entered inside Stripe's own sheet and never reach
+your code. See the judgement-call note earlier in this file.
+
+**Security practices:** data encrypted in transit **Yes**; users can request deletion **Yes**;
+committed to Play Families policy **No**; independent security review **No** (say no — it's honest
+and carries no penalty).
+
+## Step 2 — Content rating
+
+Answer the questionnaire as a **Utility / Productivity / Communication** app, not a game.
+
+| Question | Answer |
+|---|---|
+| Violence, sexual content, profanity, drugs, gambling | **No** to all |
+| Does the app let users interact or exchange content? | **Yes** — customer↔driver chat exists |
+| Can users share their location with others? | **Yes** — the delivery address reaches the driver |
+| Does the app allow purchases of physical goods? | **Yes** |
+| User-generated content shared publicly? | **No** — chat is private to one order |
+
+Being straight about the chat and the address is the right call. Under-declaring is a far bigger
+problem later than the rating you get, and this still lands at **Everyone / PEGI 3**.
+
+## Step 3 — Remaining App content items
+
+Ads: **No**. News app: **No**. COVID-19 contact tracing: **No**. Government app: **No**.
+Financial features: **No** — you deliver food; taking card payment for goods is not a financial
+product. Health: **No**. Target audience: **18+ only**, appeals to children **No**.
+
+## Step 4 — Screenshots
+
+Minimum 2, and none exist. On the device with the app installed, press **Power + Volume Down**, then
+pull the PNGs off the phone.
+
+Worth capturing now that tracking and the orders tab exist:
+
+1. **Home** — both restaurants visible, so it doesn't look empty
+2. **Al Taib menu** — scrolled to real food photography
+3. **Cart** — a few items with the total broken down
+4. **Goer chat** — mid-conversation; it's the most distinctive thing in the app
+5. **Order tracking** — a live order with its status
+6. **Order confirmed** — showing the `#LG-…` number
+
+Use the reviewer account, not your own, so no real address or email is in frame.
+
+## Permissions — already clean
+
+Checked in both apps; nothing is requested that isn't used, which is the usual rejection trigger:
+
+- **Consumer** — `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`, used by `app/address.tsx`;
+  notifications, used by `src/lib/notifications.ts`
+- **Driver** — camera and photo access, now genuinely used by `src/lib/orderPhotos.ts` for the
+  pickup photo (this was an unjustified permission in September and the feature closed the gap);
+  notifications. No location permission is requested at all.
