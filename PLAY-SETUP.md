@@ -35,6 +35,9 @@ The rule is *erase the person, keep the transaction*:
 | `auth.users` | deleted last, via the Auth admin API |
 | AsyncStorage | orders, addresses, saved cards, chat history, session — all cleared |
 
+Delivery photos stay attached to the anonymized order rather than being deleted, and a copy sits in
+whatever inbox the receipt reached. The policy says so; don't claim a clean wipe you don't perform.
+
 Orders are retained deliberately: CRA wants business records ~6 years, and both PIPEDA and Law 25
 permit retention for legal and accounting obligations as long as you disclose it. The policy
 discloses it.
@@ -102,6 +105,7 @@ the hosted privacy-policy URL as the deletion URL.
 | Purchase history | Yes | No | Yes | App functionality | `orders` table |
 | Other in-app messages | Yes | **Yes** | Yes | App functionality | Goer chat → Groq |
 | Device or other IDs | Yes | No | Yes | App functionality | Expo push token → `push_tokens` |
+| **Photos** | Yes | **Yes** | Yes | App functionality | driver pickup/drop-off photo → `order-photos` |
 
 **Why three rows say "shared":** Google counts a transfer to a third party as sharing.
 
@@ -111,6 +115,21 @@ the hosted privacy-policy URL as the deletion URL.
   rebuilt into every system prompt.
 - Drivers receive the customer's name and dropoff address — arguably app functionality rather than
   sharing, but be ready to justify it.
+- **Your email provider** (whatever `SMTP_*` points at) receives the customer's email address, the
+  order summary, and the pickup photo, for the receipt in `backend/app/mailer.py`.
+
+**Photos — new, and the row people get wrong.** The driver's pickup photo is collected *by the
+driver about the customer's order*, and it is still the customer's data. Declare it under
+**Photos and videos → Photos**, collected and shared (it leaves for the email provider).
+
+Also be ready to answer honestly about how it's stored: the `order-photos` Supabase bucket is
+`public = true` with an open `select` policy, so the photo is readable by anyone holding the URL.
+The keys are unguessable UUIDs, which is why this is defensible, but it is **not** access-controlled
+and you should not describe it as such. Section 2 of the privacy policy now says this plainly.
+
+If that trade-off stops being acceptable — a doorstep photo is more sensitive than a bag on a
+counter — the fix is a private bucket plus signed URLs with an expiry, and the email attaching the
+image inline (which `mailer.py` already does) rather than linking it.
 
 **Payment info — judgment call.** Card details go through Stripe's PaymentSheet UI and never touch
 your servers or your code. Google's guidance says data collected directly by a payment processor

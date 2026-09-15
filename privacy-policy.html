@@ -249,6 +249,8 @@
           <tr><td>Order history</td><td>Shows past orders and lets us handle problems with them</td><td>Each time you order</td></tr>
           <tr><td>Notification token</td><td>Delivers order updates to your device</td><td>If you allow notifications</td></tr>
           <tr><td>Assistant messages</td><td>What you type to the in-app assistant, so it can answer</td><td>When you use the assistant</td></tr>
+          <tr><td>Delivery photos</td><td>Proof your order was picked up and where it was left</td><td>Taken by your driver, not by you</td></tr>
+          <tr><td>Delivery timestamps</td><td>When your driver was nearby and when they arrived</td><td>During delivery</td></tr>
         </tbody>
       </table>
     </div>
@@ -256,6 +258,17 @@
       <strong>We never see your card number.</strong> Payments are handled inside Stripe's own
       secure payment sheet. Your card details go directly to Stripe and are never sent to, stored
       by, or visible to LocalGO. We keep only a reference to the transaction and its amount.
+    </div>
+
+    <h3>About delivery photos</h3>
+    <p>Your driver photographs your order when they collect it, and may photograph where they left
+      it. We email that photo to you and post it into your order's chat, so you can see your food
+      left the restaurant and where it ended up.</p>
+    <div class="callout">
+      <strong>These photos are stored at an unlisted web address.</strong> The link is a long random
+      string nobody can guess, and we never publish it — but it is not password-protected, so anyone
+      you forward the link or the email to can open the photo. Bear that in mind before sharing one,
+      particularly if it shows your door or your building.
     </div>
   </section>
 
@@ -289,6 +302,7 @@
           <tr><td>Photon (Komoot)</td><td>Addresses you type; coordinates when you use current location</td><td>Address search and lookup</td></tr>
           <tr><td>Groq</td><td>Assistant messages, plus your current cart and delivery address</td><td>Powering the assistant's replies</td></tr>
           <tr><td>Expo</td><td>Notification token</td><td>Delivering push notifications</td></tr>
+          <tr><td>Our email provider</td><td>Your email address, order details, the pickup photo</td><td>Sending your pickup receipt</td></tr>
           <tr><td>Delivery drivers</td><td>Your name, delivery address, order contents</td><td>Completing your delivery</td></tr>
         </tbody>
       </table>
@@ -323,6 +337,8 @@
         address, and account link removed from them. We keep accurate business and tax records; we
         do not keep your identity attached to them.</li>
       <li><strong>Notification token</strong> — until you turn off notifications or delete your account.</li>
+      <li><strong>Delivery photos</strong> — kept with the order they belong to. Once we email you a
+        copy it also sits in your inbox, which is yours to delete.</li>
       <li><strong>Order and address history on your phone</strong> — stored on the device itself and
         removed when you uninstall the app.</li>
     </ul>
@@ -348,7 +364,9 @@
       profile, your saved addresses and payment cards, your assistant chat history, and your
       notification token.</p>
     <p>Past orders are kept as business records, with your name, address, and account link stripped
-      off them, as described in section 7. Your own messages to a driver are deleted.</p>
+      off them, as described in section 7. Your own messages to a driver are deleted. Delivery photos
+      stay attached to the anonymized order, and any copy already emailed to you stays in your inbox
+      — ask us if you want a specific photo removed.</p>
     <p>If you can no longer sign in, email <span class="fill">YOUR CONTACT EMAIL</span> from the
       address your account uses, with the subject "Delete my account", and we will do it for you
       within <strong>30 days</strong>.</p>
