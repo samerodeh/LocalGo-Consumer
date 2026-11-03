@@ -101,3 +101,78 @@ def merchant_menu(merchant_id: str) -> list[Product]:
 
 def get_product(product_id: str) -> Product | None:
     return _repository.get_product(product_id)
+
+
+def merchant_ids() -> list[str]:
+    return sorted({product["merchant_id"] for product in load_catalog()})
+
+
+# ---------------------------------------------------------------------------
+# Compact views for agent tools. Prices are formatted here, in Python, so the
+# model never converts cents to dollars itself.
+# ---------------------------------------------------------------------------
+
+def product_summary(product: Product) -> Product:
+    return {
+        "product_id": product["product_id"],
+        "merchant_id": product["merchant_id"],
+        "name": product["name"],
+        "category": product.get("category"),
+        "price_cents": product["price_cents"],
+        "currency": product["currency"],
+        "display_price": format_cents(product["price_cents"], product["currency"]),
+        "has_options": bool(product.get("option_groups")),
+    }
+
+
+def product_detail(product: Product) -> Product:
+    return {
+        **product_summary(product),
+        "description": product.get("description", ""),
+        "allows_notes": product.get("allows_notes", False),
+        "option_groups": product.get("option_groups", []),
+        "image_url": product.get("image_url"),
+    }
+
+
+def search_results(
+    product_name: str,
+    merchant_id: str | None = None,
+    limit: int = 10,
+) -> Product:
+    matches = search_products(product_name, merchant_id)
+    return {
+        "total": len(matches),
+        "returned": min(len(matches), limit),
+        "results": [
+            {**product_summary(p), "description": p.get("description", "")}
+            for p in matches[:limit]
+        ],
+    }
+
+
+def menu_overview(merchant_id: str) -> Product | None:
+    """Categories with product names and prices; details via get_product."""
+    products = merchant_menu(merchant_id)
+    if not products:
+        return None
+
+    categories: dict[str, list[Product]] = {}
+    for product in products:
+        categories.setdefault(product.get("category") or "Other", []).append(
+            {
+                "product_id": product["product_id"],
+                "name": product["name"],
+                "display_price": format_cents(
+                    product["price_cents"], product["currency"]
+                ),
+            }
+        )
+
+    return {
+        "merchant_id": merchant_id,
+        "product_count": len(products),
+        "categories": [
+            {"name": name, "items": items} for name, items in categories.items()
+        ],
+    }
