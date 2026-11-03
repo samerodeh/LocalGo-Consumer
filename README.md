@@ -149,10 +149,9 @@ The [architecture plan](docs/goer-agentic-architecture-plan.md) describes the br
 
 ## CrewAI project
 
-The new `goer_localgo/` project is the CrewAI-based implementation path. It
-was scaffolded with `crewai create flow goer_localgo`, includes the copied
-LocalGo catalog, typed CrewAI menu tools, a discovery crew, a CrewAI Flow, and a
-FastAPI adapter.
+The runnable app now lives in `goer_localgo/`, a self-contained CrewAI project.
+It contains the copied LocalGo catalog, typed CrewAI menu tools, discovery
+crew, CrewAI Flow, FastAPI adapter, browser chat UI, and environment template.
 
 Run it from the repository root:
 
@@ -165,7 +164,8 @@ uv run uvicorn goer_localgo.api.main:app --reload
 
 Its tests and per-tool smoke tests are documented in
 [`goer_localgo/README.md`](goer_localgo/README.md). The current root
-`backend/` prototype remains unchanged as a reference during migration.
+`backend/` prototype remains as a historical reference; run the transferred
+CrewAI app from `goer_localgo/`.
 
 ## Troubleshooting
 
