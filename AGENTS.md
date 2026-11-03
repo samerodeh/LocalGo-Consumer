@@ -20,7 +20,6 @@ Update it whenever you start, change, validate, or finish work.
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Copilot | 2026-11-03 | `docs/openai-fastapi-localgo-architecture-plan.md`, `AGENTS.md` | Make OpenAI Python SDK usage mandatory and replace raw dictionary tool definitions with typed SDK/Pydantic contracts | In progress; updating provider and tool-boundary requirements |
 | Copilot | 2026-11-03 | `backend/app/web.py`, `backend/app/web/index.html`, `README.md` | Add a browser UI and FastAPI endpoint for testing Goer prompts | Complete; committed as `43af98f` |
 | Copilot | 2026-11-03 | `docs/goer-agentic-architecture-plan.md`, `AGENTS.md` | Commit pending documentation changes and push the project to `dev` | Complete; documentation committed as `9de06c8`; pushing `dev` |
 | Copilot | 2026-11-03 | `AGENTS.md` | Add strict one-change-per-commit workflow rule | Complete; committed as `a64833f` |
@@ -40,3 +39,7 @@ Update it whenever you start, change, validate, or finish work.
 - 2026-11-03: Added the required per-tool smoke-test convention under
   `tools/try-out-tools` and top-level `Tests/unit` plus `Tests/integration`
   coverage requirements to the OpenAI/FastAPI architecture plan.
+- 2026-11-03: Made the target implementation OpenAI Python SDK-only, with
+  `AsyncOpenAI`, Responses API, Pydantic-generated schemas, typed SDK tool
+  parameters, and no hand-written raw tool dictionaries. Committed as
+  `142f832`; current Groq prototype remains unchanged until migration work.
