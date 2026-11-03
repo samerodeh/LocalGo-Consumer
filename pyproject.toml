@@ -27,3 +27,4 @@ type = "flow"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+filterwarnings = ["ignore::DeprecationWarning:crewai.*"]
