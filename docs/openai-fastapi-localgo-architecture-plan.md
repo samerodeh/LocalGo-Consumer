@@ -205,6 +205,57 @@ Each tool has a Pydantic input/output model, ownership check, business-rule
 validation, stable error codes, and an audit record. Tools return compact
 records with stable IDs; they do not return entire tables or unbounded menus.
 
+### Tool implementation and test convention
+
+Every new agent tool must be delivered with its own executable smoke test:
+
+```text
+backend/app/agent_tools/
+  search_menu.py
+  get_product.py
+  tools/
+    try-out-tools/
+      search_menu_smoke.py
+      get_product_smoke.py
+```
+
+The `tools/try-out-tools` directory is for fast, deterministic checks that
+exercise the tool through its public input/output contract. Each smoke test
+must cover a valid call, an empty/not-found result where applicable, and
+invalid arguments or an authorization failure where the tool supports those
+guards. Smoke tests must not call OpenAI, payment providers, or production
+services; use fixtures or mocked repositories.
+
+The repository also requires a top-level test suite separated by purpose:
+
+```text
+Tests/
+  unit/
+    test_catalog_tools.py
+    test_cart_service.py
+    test_quote_service.py
+    test_tool_schemas.py
+  integration/
+    test_chat_api.py
+    test_cart_checkout_flow.py
+    test_order_dispatch_flow.py
+    test_deployment_health.py
+```
+
+Unit tests validate pure domain logic, Pydantic schemas, tool dispatch, policy
+checks, money calculations, and error mapping without network access.
+Integration tests run the FastAPI application against isolated test
+dependencies and verify authentication, database/repository boundaries,
+OpenAI tool-loop orchestration, idempotency, and deployment health. External
+OpenAI, payment, notification, and dispatch calls must be mocked or replaced
+with test adapters; a deployment smoke environment may use sandbox credentials
+only in an explicitly configured CI job.
+
+No tool is considered complete until its smoke test, focused unit tests, and
+the relevant integration path pass in CI. The CI pipeline should run unit
+tests on every change and integration/deployment tests on pull requests and
+release candidates.
+
 ## Data ownership and migration strategy
 
 1. **Catalog adapter:** replace the JSON loader with a repository interface.
