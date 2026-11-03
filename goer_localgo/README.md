@@ -14,7 +14,7 @@ $env:UV_LINK_MODE = "copy"
 uv sync
 ```
 
-Set the model credentials in `.env`. The default agent configuration uses:
+Copy `.env.example` to `.env` and set the model credentials:
 
 ```dotenv
 OPENAI_API_KEY=your_key_here
@@ -31,13 +31,14 @@ Run the CrewAI Flow:
 uv run kickoff
 ```
 
-Start the FastAPI adapter:
+Start the FastAPI adapter and browser UI:
 
 ```powershell
 uv run uvicorn goer_localgo.api.main:app --reload
 ```
 
-The API exposes `GET /health` and `POST /v1/chat`:
+Open `http://127.0.0.1:8000` for the browser chat. The API exposes
+`GET /health`, `POST /v1/chat`, and the browser-compatible `POST /api/chat`:
 
 ```powershell
 Invoke-RestMethod `
@@ -46,6 +47,13 @@ Invoke-RestMethod `
   -ContentType "application/json" `
   -Body '{"message":"Find me a sandwich at Al-Taib."}'
 ```
+
+## Transferred Goer app
+
+The former repository-level `backend/` prototype is represented here by the
+CrewAI Flow, FastAPI adapter, browser client, environment template, catalog,
+and menu tools. The app now has one runnable project under `goer_localgo/`;
+the old `backend/` directory remains only as historical reference.
 
 ## LocalGo data and tools
 
