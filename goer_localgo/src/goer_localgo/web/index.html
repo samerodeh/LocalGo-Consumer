@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Goer AI</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #f5f2ec; color: #24211d; }
+      main { width: min(760px, 100%); min-height: 100vh; margin: auto; padding: 28px 16px; display: flex; flex-direction: column; }
+      header { margin-bottom: 18px; }
+      h1 { margin: 0 0 5px; font-size: 30px; }
+      header p { margin: 0; color: #756d62; }
+      #messages { flex: 1; display: flex; flex-direction: column; gap: 12px; padding: 18px 0; }
+      .message { max-width: 82%; padding: 12px 15px; border-radius: 16px; line-height: 1.45; white-space: pre-wrap; }
+      .assistant { align-self: flex-start; background: white; border: 1px solid #e6dfd4; }
+      .user { align-self: flex-end; background: #276749; color: white; }
+      form { display: flex; gap: 9px; }
+      input { flex: 1; border: 1px solid #cfc6ba; border-radius: 12px; padding: 13px 14px; font: inherit; background: white; }
+      button { border: 0; border-radius: 12px; padding: 0 20px; font: inherit; font-weight: 700; color: white; background: #276749; cursor: pointer; }
+      button:disabled { opacity: .55; cursor: wait; }
+      .hint { margin-top: 10px; color: #81786c; font-size: 13px; }
+      .error { color: #a33a2b; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Goer AI</h1>
+        <p>Ask about food from Al-Taib and Château Kabab.</p>
+      </header>
+      <section id="messages" aria-live="polite">
+        <div class="message assistant">Hi! Try “Find me a sandwich at Al-Taib.”</div>
+      </section>
+      <form id="chat-form">
+        <input id="prompt" autocomplete="off" placeholder="What are you hungry for?" />
+        <button id="send" type="submit">Send</button>
+      </form>
+      <div class="hint">Examples: “Show me the menu at Château Kabab” · “Find a falafel”</div>
+    </main>
+    <script>
+      const form = document.querySelector("#chat-form");
+      const input = document.querySelector("#prompt");
+      const send = document.querySelector("#send");
+      const messagesEl = document.querySelector("#messages");
+      const messages = [];
+
+      function addMessage(role, content, className = role) {
+        const el = document.createElement("div");
+        el.className = `message ${className}`;
+        el.textContent = content;
+        messagesEl.appendChild(el);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const content = input.value.trim();
+        if (!content || send.disabled) return;
+        input.value = "";
+        messages.push({ role: "user", content });
+        addMessage("user", content);
+        send.disabled = true;
+        try {
+          const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages }),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || "Request failed.");
+          messages.push({ role: "assistant", content: data.message });
+          addMessage("assistant", data.message);
+        } catch (error) {
+          addMessage("assistant", error.message, "assistant error");
+        } finally {
+          send.disabled = false;
+          input.focus();
+        }
+      });
+    </script>
+  </body>
+</html>
