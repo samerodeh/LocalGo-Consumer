@@ -50,3 +50,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# crewai test storage
+tests/.crewai-test-storage/
