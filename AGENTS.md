@@ -120,6 +120,10 @@ All AI agents working on this project **must adhere to these rules without excep
 
 ## 5. Recent Work
 
+- 2026-11-03: Verified local runtime environment and app startup. Built and
+  synced root package `goer-localgo` with `uv sync` (installing `hf-xet==1.8.0`),
+  validated catalog operations via smoke tests, and verified live FastAPI chat
+  server startup and health probe response (`GET /health`) on port 8000.
 - 2026-11-03: Expanded `AGENTS.md` with complete project architecture,
   directory map, command cheat-sheet, deterministic tool boundaries, test
   conventions, and strict commit-on-every-small-change rules for agents.
