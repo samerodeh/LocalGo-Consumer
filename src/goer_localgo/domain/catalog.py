@@ -10,6 +10,12 @@ import json
 from pathlib import Path
 from typing import Any, Protocol
 
+from goer_localgo.domain.money import (
+    DEFAULT_CURRENCY,
+    format_cents,
+    normalize_currency,
+)
+
 
 CATALOG_PATH = Path(__file__).resolve().parent.parent / "data_menu.json"
 
@@ -34,6 +40,11 @@ class JsonCatalogRepository:
         if self._products is None:
             with self._path.open(encoding="utf-8") as file:
                 products: list[Product] = json.load(file)
+            for product in products:
+                # The LocalGo snapshot stores "cad"; expose ISO codes ("CAD").
+                product["currency"] = normalize_currency(
+                    product.get("currency", DEFAULT_CURRENCY)
+                )
             self._by_id = {product["product_id"]: product for product in products}
             self._products = products
         return self._products
