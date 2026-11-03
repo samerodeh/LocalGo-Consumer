@@ -18,9 +18,13 @@ Update it whenever you start, change, validate, or finish work.
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
 | Copilot | 2026-11-03 | `backend/app/web.py`, `backend/app/web/index.html`, `README.md` | Add a browser UI and FastAPI endpoint for testing Goer prompts | Complete; committed as `43af98f` |
+| Copilot | 2026-11-03 | `docs/goer-agentic-architecture-plan.md`, `AGENTS.md` | Commit pending documentation changes and push the project to `dev` | Complete; documentation committed as `9de06c8`; pushing `dev` |
 
 ## Recent work
 
 - 2026-11-03: Added the browser chat UI, `/api/chat`, and `/health`. The UI
   reuses the existing Groq model flow and menu tools. It requires
   `backend/.env` with `GROQ_API_KEY`.
+- 2026-11-03: Updated the delivery-agent architecture plan with guard,
+  orchestrator, specialist agents, cart, checkout, payment, order lifecycle,
+  persistence, and observability design. Committed as `9de06c8`.
