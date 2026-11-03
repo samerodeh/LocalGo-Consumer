@@ -1,27 +1,39 @@
-# Goer OpenAI SDK + FastAPI Architecture Plan
+# Goer CrewAI + FastAPI Architecture Plan
 
 ## Goal
 
-Evolve Goer from the current Groq-backed menu prototype into a FastAPI service
-that can safely use the data and workflows already present in LocalGo. The
-first release should preserve the existing LocalGo contracts instead of
-creating a second catalog, cart, address book, payment record, or order system.
+Evolve Goer from the current Groq-backed menu prototype into a CrewAI Flow
+served by FastAPI that can safely use the data and workflows already present in
+LocalGo. The first release should preserve the existing LocalGo contracts
+instead of creating a second catalog, cart, address book, payment record, or
+order system.
 
 The target is a modular monolith: one deployable FastAPI application with
-explicit domain services, the official OpenAI Python SDK as the only model
-integration, and Supabase/Postgres as the authoritative persistence layer.
+explicit domain services, a CrewAI Flow for stateful orchestration, and
+Supabase/Postgres as the authoritative persistence layer.
 
-## Non-negotiable SDK policy
+## Non-negotiable CrewAI policy
 
-All model and tool-calling code in the target project must use the official
-`openai` Python SDK. Do not add Groq, Anthropic, LangChain, LiteLLM, custom HTTP
-calls to an LLM endpoint, or provider-specific client libraries to the
-application runtime.
+All agent orchestration, task execution, model calls, structured output, and
+tool registration in the target project must use CrewAI abstractions. Use a
+CrewAI Flow as the application workflow and CrewAI `Agent`, `Task`, `Crew`,
+`LLM`, and `BaseTool` APIs as appropriate. Do not import `openai` directly in
+application code, hand-roll an OpenAI tool loop, or add LangChain-based agent
+logic.
 
 The current Groq prototype is compatibility/reference code only. Before the
-new architecture is implemented, replace its client and model loop with
-`AsyncOpenAI` and the OpenAI Responses API. The final FastAPI application must
-not import `groq` or contain a second provider path.
+new architecture is implemented, replace its client and model loop with a
+CrewAI Flow. The model provider is configured through CrewAI's `LLM` interface
+and environment settings; domain code must not depend on a provider SDK.
+
+Start implementation by scaffolding with:
+
+```bash
+crewai create flow goer_localgo
+```
+
+Do not manually recreate the CrewAI scaffold. Modify the generated Flow,
+`pyproject.toml`, package structure, and configuration after scaffolding.
 
 ## Existing LocalGo data to preserve
 
@@ -50,10 +62,11 @@ Client
   -> FastAPI API
      -> Auth/context middleware
      -> Conversation service
-     -> Goer orchestration service
+     -> Goer CrewAI Flow
         -> Input policy checks
-        -> OpenAI SDK adapter (Responses API + function tools)
-        -> Typed tool gateway
+        -> CrewAI router/orchestrator
+        -> CrewAI agents and tasks
+        -> Typed CrewAI tool gateway
            -> Catalog service
            -> Cart service
            -> Checkout/quote service
@@ -63,92 +76,101 @@ Client
   -> Payment and dispatch integrations
 ```
 
-Keep the model boundary narrow. OpenAI may select a tool and compose text, but
-FastAPI owns authentication, authorization, validation, pricing, persistence,
-idempotency, and state transitions.
+Keep the model boundary narrow. CrewAI agents may reason, select registered
+tools, and compose text, but FastAPI and domain services own authentication,
+authorization, validation, pricing, persistence, idempotency, and state
+transitions.
 
 ## FastAPI package layout
 
 ```text
-backend/app/
-  main.py                 # app creation, middleware, routers
-  config.py               # environment and feature flags
+goer_localgo/
+  src/goer_localgo/
+    main.py               # Flow entry point and chat turn adapter
+    flow/
+      goer_flow.py        # state, routing, persistence, limits
+    crews/
+      discovery_crew/
+      cart_crew/
+      checkout_crew/
+      support_crew/
+    tools/
+      catalog_tools.py
+      cart_tools.py
+      checkout_tools.py
+      order_tools.py
+      try-out-tools/
+    domain/
+      catalog/
+      cart/
+      checkout/
+      orders/
+      conversations/
+    integrations/
+      supabase.py
+      payments.py
+      dispatch.py
+    schemas/
+      chat.py
+      catalog.py
+      cart.py
+      checkout.py
+      orders.py
   api/
-    chat.py               # conversation turns and streaming
-    catalog.py            # optional direct catalog endpoints
-    cart.py
-    checkout.py
-    orders.py
-  auth/
-    dependencies.py       # Supabase JWT verification and user context
-  domain/
-    catalog/
-    cart/
-    checkout/
-    orders/
-    conversations/
-  integrations/
-    openai_client.py      # official AsyncOpenAI SDK adapter
-    supabase.py           # PostgREST/database gateway
-    payments.py
-    dispatch.py
-  agent/
-    orchestrator.py       # bounded tool loop
-    prompts.py
-    tools.py              # OpenAI tool definitions and dispatch map
-    policies.py           # input/output and mutation gates
-  schemas/
-    chat.py
-    catalog.py
-    cart.py
-    checkout.py
-    orders.py
+    main.py               # FastAPI adapter
+    routes/
+      chat.py
+      catalog.py
+      cart.py
+      checkout.py
+      orders.py
+  Tests/
+    unit/
+    integration/
+  pyproject.toml
 ```
 
-Use Pydantic models at every API, tool, and integration boundary. Keep
-database-row models separate from client response models so legacy LocalGo
-field names can be adapted without leaking storage details into prompts.
+Use Pydantic models at every API, CrewAI tool, Flow state, and integration
+boundary. Keep database-row models separate from client response models so
+legacy LocalGo field names can be adapted without leaking storage details into
+prompts.
 
-## OpenAI SDK boundary
+## CrewAI boundary
 
-`OpenAIModel` should expose one application-facing operation:
+`GoerFlow` should expose one application-facing operation:
 
 ```python
-async def run_turn(
-    *,
-    messages: list[dict],
-    tools: list[dict],
-    user_id: str,
-    trace_id: str,
-) -> ModelTurn:
+async def handle_turn(
+    self,
+    message: str,
+    session_id: str,
+) -> ChatResponse:
     ...
 ```
 
-The adapter should:
+The Flow should:
 
-- use `openai.AsyncOpenAI` and the Responses API with a configurable model;
-- use SDK/Pydantic structured output for routing and response envelopes;
-- use typed SDK tool parameter objects generated from Pydantic models;
-- enforce request timeout, maximum tool rounds, and token limits;
-- record request ID, latency, usage, and finish reason;
-- normalize provider errors into application error types;
-- use `OPENAI_API_KEY` from server-side configuration only.
+- use structured Pydantic state with a stable session/conversation ID;
+- route each turn to discovery, cart, checkout, or support handling;
+- call purpose-built CrewAI agents or crews with only the allowed tools;
+- persist and restore conversation state through the Flow persistence strategy;
+- enforce maximum handoffs, tool calls, iterations, latency, and output size;
+- return a typed `ChatResponse` to the FastAPI adapter;
+- record CrewAI events, task outputs, tool outcomes, and trace metadata.
 
-Start with one capable model and one bounded orchestration loop. Add a smaller
-guard/classifier model only after evaluation demonstrates a benefit. The model
-must never receive service credentials, raw payment data, or unrestricted
-database access.
+Use one CrewAI `LLM` configuration initially. Add a smaller guard/classifier
+agent only after evaluation demonstrates a benefit. Agents must never receive
+service credentials, raw payment data, or unrestricted database access.
 
-### Typed tool definitions
+### Typed CrewAI tools
 
-Agent tools must not be authored as hand-written raw dictionaries such as
-`{"type": "function", "function": {...}}`. Define every tool input and output
-as Pydantic models, then build the OpenAI SDK request using typed SDK objects
-and the model-generated JSON schema:
+Agent tools must not be authored as raw OpenAI dictionaries. Define each tool
+as a CrewAI `BaseTool` with a Pydantic `args_schema`, or use the CrewAI
+`@tool` decorator when a small function is sufficient. The tool executes
+deterministic Python service code:
 
 ```python
-from openai import AsyncOpenAI
-from openai.types.responses import ResponseFunctionToolParam
+from crewai.tools import BaseTool
 from pydantic import BaseModel, ConfigDict
 
 
@@ -158,25 +180,23 @@ class SearchMenuInput(BaseModel):
     merchant_id: str | None = None
 
 
-def search_menu_tool() -> ResponseFunctionToolParam:
-    return ResponseFunctionToolParam(
-        type="function",
-        name="search_menu",
-        description="Search LocalGo menu items by name.",
-        parameters=SearchMenuInput.model_json_schema(),
-        strict=True,
-    )
+class SearchMenuTool(BaseTool):
+    name: str = "search_menu"
+    description: str = "Search LocalGo menu items by name."
+    args_schema: type[BaseModel] = SearchMenuInput
+
+    def _run(self, product_name: str, merchant_id: str | None = None) -> str:
+        return search_menu_service(product_name, merchant_id)
 ```
 
-The exact SDK type names must be verified against the pinned `openai` package
-version during implementation. If the SDK exposes a generated helper or
-`responses.parse` path for the selected feature, use that official typed
-interface instead of falling back to manually assembled provider payloads.
-Tool dispatch must map the validated function name to a typed Python handler;
-the model never supplies executable code or arbitrary URLs.
+The exact CrewAI tool signatures must be verified against the pinned CrewAI
+version during implementation. Use `crewai.tools.BaseTool`, not
+`crewai_tools.BaseTool`. Tool dispatch is handled by CrewAI; domain services
+still validate ownership, business rules, and mutation authorization.
 
-The `tools/try-out-tools` smoke tests must call these typed tool factories and
-Pydantic validators, not inspect or construct raw schema dictionaries.
+The `tools/try-out-tools` smoke tests must instantiate the CrewAI tool and call
+its public `run`/execution contract with fixtures. They must not inspect or
+construct raw OpenAI schema dictionaries.
 
 ## Chat contract
 
@@ -296,10 +316,10 @@ Unit tests validate pure domain logic, Pydantic schemas, tool dispatch, policy
 checks, money calculations, and error mapping without network access.
 Integration tests run the FastAPI application against isolated test
 dependencies and verify authentication, database/repository boundaries,
-OpenAI tool-loop orchestration, idempotency, and deployment health. External
-OpenAI, payment, notification, and dispatch calls must be mocked or replaced
-with test adapters; a deployment smoke environment may use sandbox credentials
-only in an explicitly configured CI job.
+CrewAI Flow routing, agent/task orchestration, idempotency, and deployment
+health. Model calls, payment, notification, and dispatch calls must be mocked
+or replaced with test adapters; a deployment smoke environment may use sandbox
+credentials only in an explicitly configured CI job.
 
 No tool is considered complete until its smoke test, focused unit tests, and
 the relevant integration path pass in CI. The CI pipeline should run unit
@@ -367,16 +387,20 @@ payment or order creation blindly.
 
 ## Implementation sequence
 
-1. Replace the Groq dependency and raw tool dictionaries with the official
-   OpenAI SDK, typed Pydantic inputs/outputs, and the Responses API while
-   keeping the current menu fixture working.
-2. Extract catalog repository interfaces and map LocalGo menu/options.
-3. Add authenticated conversation endpoints and the versioned response envelope.
-4. Add Supabase-backed catalog, conversation, and audit persistence.
-5. Add read-only tools and evaluation cases for restaurant/product grounding.
-6. Move cart reads/mutations behind FastAPI with revision checks.
-7. Add deterministic quotes, explicit confirmation, and payment integration.
-8. Add order creation, dispatch integration, status reads, and cancellation
+1. Scaffold a CrewAI Flow with `crewai create flow goer_localgo`; pin CrewAI
+   and FastAPI versions and configure the selected CrewAI LLM.
+2. Replace the Groq dependency and raw tool dictionaries with typed CrewAI
+   `BaseTool` implementations while keeping the current menu fixture working.
+3. Extract catalog repository interfaces and map LocalGo menu/options.
+4. Add authenticated FastAPI conversation endpoints backed by the Flow and the
+   versioned response envelope.
+5. Add Supabase-backed catalog, conversation, and audit persistence.
+6. Add read-only agents/tools and evaluation cases for restaurant/product
+   grounding.
+7. Move cart reads/mutations behind FastAPI and CrewAI tools with revision
+   checks.
+8. Add deterministic quotes, explicit confirmation, and payment integration.
+9. Add order creation, dispatch integration, status reads, and cancellation
    policy.
 9. Add streaming, realtime UX, tracing dashboards, and gradual rollout.
 
@@ -387,6 +411,7 @@ payment or order creation blindly.
   existing client/static catalog be imported first?
 - Should Goer support only authenticated users, or retain an anonymous demo
   mode for development?
-- Which OpenAI model and deployment environment should be the initial default?
+- Which CrewAI-supported LLM and deployment environment should be the initial
+  default?
 - Should the first milestone stop at discovery/cart, or include quote/payment
   and order creation?
