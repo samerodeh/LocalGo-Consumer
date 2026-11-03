@@ -20,7 +20,6 @@ Update it whenever you start, change, validate, or finish work.
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Copilot | 2026-11-03 | `goer_localgo/`, `backend/`, `README.md`, `AGENTS.md` | Recreate the CrewAI project in this repository and transfer the existing Goer app into it | Active; restoring the deleted project and integrating the current app |
 | Copilot | 2026-11-03 | `backend/app/web.py`, `backend/app/web/index.html`, `README.md` | Add a browser UI and FastAPI endpoint for testing Goer prompts | Complete; committed as `43af98f` |
 | Copilot | 2026-11-03 | `docs/goer-agentic-architecture-plan.md`, `AGENTS.md` | Commit pending documentation changes and push the project to `dev` | Complete; documentation committed as `9de06c8`; pushing `dev` |
 | Copilot | 2026-11-03 | `AGENTS.md` | Add strict one-change-per-commit workflow rule | Complete; committed as `a64833f` |
@@ -53,3 +52,8 @@ Update it whenever you start, change, validate, or finish work.
   Flow and FastAPI adapter, and added unit/integration/smoke tests. CrewAI 1.14.4
   is installed; `uv run pytest Tests -q` passes 5 tests. Commits `53594c2` and
   `f58e340`.
+- 2026-11-03: Restored the deleted `goer_localgo` CrewAI project and transferred
+  the Goer browser UI and API routes into it. Added `/`, `/api/chat`, the
+  environment template, migration documentation, and API coverage. `uv run
+  pytest tests -q` passes 7 tests. Commits `15acb94`, `5b5d4d4`, `cd7afd7`,
+  `35fc9d1`, `4f40931`, and `a3a5110`.
