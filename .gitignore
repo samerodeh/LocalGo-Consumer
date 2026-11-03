@@ -3,6 +3,20 @@
 # dependencies
 node_modules/
 
+# local env files
+.env
+.env*.local
+backend/.env
+
+# python & virtual environments
+.venv/
+backend/.venv/
+goer_localgo/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.cache/
+
 # Expo
 .expo/
 dist/
@@ -30,16 +44,9 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
-backend/.env
-
 # typescript
 *.tsbuildinfo
 
 # generated native folders
 /ios
 /android
-__pycache__/
-*.py[cod]
-backend/.venv/
