@@ -114,7 +114,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active agent locks)* | - | - | - | Ready for next task |
+| Claude (Opus 5.5) | 2026-11-03 | `crews/discovery_crew/config/*.yaml`, `domain/catalog.py`, `tools/catalog_tools.py`, `tools/try-out-tools/*`, `tests/unit/*`, `AGENTS.md` | Phase 0 steps 1–3: model from `MODEL` env, cached `CatalogRepository`, compact `get_menu` + new `get_product` tool | Active |
 
 ---
 
