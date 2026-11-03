@@ -119,7 +119,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-03 | `crews/discovery_crew/config/*.yaml`, `domain/catalog.py`, `tools/catalog_tools.py`, `tools/try-out-tools/*`, `tests/unit/*`, `AGENTS.md` | Phase 0 steps 1–3: model from `MODEL` env, cached `CatalogRepository`, compact `get_menu` + new `get_product` tool | Active |
+| Agent | 2026-11-03 | `crews/discovery_crew/config/*.yaml`, `domain/catalog.py`, `tools/catalog_tools.py`, `tools/try-out-tools/*`, `domain/money.py` (new), `data_menu.json`, `tests/unit/*`, `AGENTS.md` | Phase 0 (complete plan): model from `MODEL` env, cached `CatalogRepository`, compact `get_menu` + new `get_product` tool, `CAD` currency + `format_cents`, offline stub-LLM Flow tests | Active |
 
 ---
 
