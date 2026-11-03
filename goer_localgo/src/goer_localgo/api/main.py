@@ -48,10 +48,12 @@ def _latest_message(request: ChatRequest) -> str:
 @app.post("/v1/chat", response_model=ChatResponse)
 @app.post("/api/chat")
 async def chat(request: ChatRequest) -> ChatResponse:
+    user_message = _latest_message(request)
+
     try:
         response = await asyncio.to_thread(
             run_turn,
-            _latest_message(request),
+            user_message,
             request.user_id,
         )
     except Exception as exc:
