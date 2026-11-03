@@ -12,6 +12,9 @@ Update it whenever you start, change, validate, or finish work.
 - Keep changes focused and record tests, blockers, and handoff details.
 - Move completed entries to **Recent work** instead of deleting the history.
 - Refresh the active entry before ending your task so another agent can continue.
+- **Strict commit rule:** every individual code change, function, or documentation
+  change must be committed immediately in its own focused commit. Never batch
+  unrelated changes or thousands of changes into one commit.
 
 ## Active work
 
