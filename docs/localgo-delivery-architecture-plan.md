@@ -408,7 +408,7 @@ Keep `/api/chat` as a deprecated alias for the current web UI until it migrates.
 
 Each phase is shippable, and each item is a small commit (Rule 1).
 
-### Phase 0: Harden the current prototype
+### Phase 0: Harden the current prototype ✅ done 2026-11-03
 - Read the model from the `MODEL` env (remove the hardcoded `llm` in
   `agents.yaml`).
 - Cache the catalog in memory behind a `CatalogRepository` interface
