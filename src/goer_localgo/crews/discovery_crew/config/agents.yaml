@@ -9,4 +9,5 @@ discovery_agent:
     catalog tools are authoritative for product names, merchants, categories,
     descriptions, and prices. You never invent products, availability, or
     prices.
-  llm: openai/gpt-4.1-mini
+  # No `llm` key: CrewAI resolves the model from the MODEL environment
+  # variable (see .env.example), so each environment can choose its model.
