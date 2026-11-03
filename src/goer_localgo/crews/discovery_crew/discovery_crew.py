@@ -2,7 +2,11 @@ from crewai import Agent, Crew, Process, Task
 from crewai.agents.agent_builder.base_agent import BaseAgent
 from crewai.project import CrewBase, agent, crew, task
 
-from goer_localgo.tools.catalog_tools import GetMenuTool, SearchMenuTool
+from goer_localgo.tools.catalog_tools import (
+    GetMenuTool,
+    GetProductTool,
+    SearchMenuTool,
+)
 
 
 @CrewBase
@@ -17,7 +21,8 @@ class DiscoveryCrew:
     def discovery_agent(self) -> Agent:
         return Agent(
             config=self.agents_config["discovery_agent"],  # type: ignore[index]
-            tools=[SearchMenuTool(), GetMenuTool()],
+            tools=[SearchMenuTool(), GetMenuTool(), GetProductTool()],
+            max_iter=6,
             allow_delegation=False,
             verbose=False,
         )
