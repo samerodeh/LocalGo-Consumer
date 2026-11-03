@@ -22,7 +22,7 @@ Update it whenever you start, change, validate, or finish work.
 |---|---|---|---|---|
 | Copilot | 2026-11-03 | `backend/app/web.py`, `backend/app/web/index.html`, `README.md` | Add a browser UI and FastAPI endpoint for testing Goer prompts | Complete; committed as `43af98f` |
 | Copilot | 2026-11-03 | `docs/goer-agentic-architecture-plan.md`, `AGENTS.md` | Commit pending documentation changes and push the project to `dev` | Complete; documentation committed as `9de06c8`; pushing `dev` |
-| Copilot | 2026-11-03 | `AGENTS.md` | Add strict one-change-per-commit workflow rule | In progress |
+| Copilot | 2026-11-03 | `AGENTS.md` | Add strict one-change-per-commit workflow rule | Complete; committed as `a64833f` |
 
 ## Recent work
 
