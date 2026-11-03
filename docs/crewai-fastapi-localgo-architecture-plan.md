@@ -1,5 +1,8 @@
 # Goer CrewAI + FastAPI Architecture Plan
 
+> **Superseded** by [localgo-delivery-architecture-plan.md](localgo-delivery-architecture-plan.md).
+> Kept for history; paths such as `backend/` and `Tests/` are outdated.
+
 ## Goal
 
 Evolve Goer from the current Groq-backed menu prototype into a CrewAI Flow

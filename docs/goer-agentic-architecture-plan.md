@@ -1,5 +1,8 @@
 # Goer AI: Delivery Chatbot Agent Architecture
 
+> **Superseded** by [localgo-delivery-architecture-plan.md](localgo-delivery-architecture-plan.md).
+> Kept for history; references to Groq and `backend/` are outdated.
+
 ## Purpose
 
 Define a practical architecture for Goer, LocalGo's conversational interface for restaurant discovery, ordering, checkout, and order support. The architecture should make the experience feel like one helpful assistant while keeping safety decisions, prices, payments, and order state under deterministic backend control.
