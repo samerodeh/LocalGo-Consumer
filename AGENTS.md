@@ -20,7 +20,6 @@ Update it whenever you start, change, validate, or finish work.
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Copilot | 2026-11-03 | `docs/openai-fastapi-localgo-architecture-plan.md`, `AGENTS.md` | Convert the architecture from direct OpenAI SDK usage to a CrewAI Flow project with FastAPI and LocalGo-compatible tools | In progress; replacing provider adapter and tool architecture with CrewAI abstractions |
 | Copilot | 2026-11-03 | `backend/app/web.py`, `backend/app/web/index.html`, `README.md` | Add a browser UI and FastAPI endpoint for testing Goer prompts | Complete; committed as `43af98f` |
 | Copilot | 2026-11-03 | `docs/goer-agentic-architecture-plan.md`, `AGENTS.md` | Commit pending documentation changes and push the project to `dev` | Complete; documentation committed as `9de06c8`; pushing `dev` |
 | Copilot | 2026-11-03 | `AGENTS.md` | Add strict one-change-per-commit workflow rule | Complete; committed as `a64833f` |
@@ -44,3 +43,7 @@ Update it whenever you start, change, validate, or finish work.
   `AsyncOpenAI`, Responses API, Pydantic-generated schemas, typed SDK tool
   parameters, and no hand-written raw tool dictionaries. Committed as
   `142f832`; current Groq prototype remains unchanged until migration work.
+- 2026-11-03: Converted the architecture plan to a CrewAI Flow + FastAPI
+  project, replacing direct OpenAI SDK/tool-loop ownership with CrewAI agents,
+  tasks, typed `BaseTool` tools, Flow state, and CrewAI scaffolding. Committed
+  as `439d734`; no implementation started.
