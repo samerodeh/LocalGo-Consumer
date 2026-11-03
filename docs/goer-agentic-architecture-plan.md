@@ -157,11 +157,26 @@ Persist conversations and messages, agent runs and handoffs, tool-call audit rec
 
 For mutations, use idempotency keys, transactional writes, and replay-safe event handling. If a request times out after the backend commits, retrieve the recorded outcome rather than repeating the operation. Use signed provider webhooks and reconciliation for payment truth. Keep sensitive payment details in the payment provider's secure UI/tokenization flow, not chat text or language-model context.
 
-## Model and OpenAI SDK boundary
+## Model and CrewAI boundary
 
-Keep the model behind a provider adapter. The adapter should expose a consistent interface for structured responses and tool calls while allowing provider/model changes through configuration. If using an OpenAI SDK, the application communicates through that SDK interface; the selected endpoint and model determine whether requests go to OpenAI or a compatible provider. Goer's current prototype uses the Groq Python SDK with `openai/gpt-oss-20b`, so describe it accurately as an OpenAI-compatible model served by Groq unless the integration is changed.
+Keep model selection, agent execution, structured output, and tool calling
+behind CrewAI. The production implementation should use a CrewAI Flow as the
+stateful application boundary, with `Agent`, `Task`, `Crew`, `LLM`, and typed
+CrewAI `BaseTool` abstractions. FastAPI owns authentication, authorization,
+validation, persistence, pricing, and state transitions; CrewAI owns bounded
+agent reasoning and orchestration.
 
-Use separate model settings by task if useful: a lower-latency classifier/guard check, a capable orchestrator, and constrained specialist calls. Start with a single capable model and distinct prompts/tools; split models only after evaluation shows a clear cost, latency, or quality benefit. Do not assume each specialist needs its own continuously running model or process.
+Do not import the OpenAI SDK directly into application code or hand-write an
+OpenAI tool loop. The selected provider is configured through CrewAI's `LLM`
+interface. Goer's current prototype uses the Groq Python SDK with
+`openai/gpt-oss-20b`; it remains reference code until the CrewAI migration is
+implemented.
+
+Use separate CrewAI agent/LLM settings by task if useful: a lower-latency guard
+check, a capable orchestrator, and constrained specialist calls. Start with a
+single capable model and distinct prompts/tools; split models only after
+evaluation shows a clear cost, latency, or quality benefit. Do not assume each
+specialist needs its own continuously running model or process.
 
 ## Security and privacy controls
 
