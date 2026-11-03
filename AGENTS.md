@@ -44,7 +44,7 @@ goer-ai/
 │   ├── unit/                    # Unit tests for tools, domain logic, and validation schemas
 │   └── integration/             # Integration tests for FastAPI endpoints and request validation
 ├── docs/
-│   └── goer-agentic-architecture-plan.md  # Multi-agent architectural roadmap (cart, checkout, orders)
+│   └── localgo-delivery-architecture-plan.md  # Authoritative phased architecture plan (older plans superseded)
 ├── pyproject.toml               # Project metadata, dependencies, scripts, and pytest config
 ├── uv.lock                      # Dependency lockfile
 ├── .env.example                 # Environment variable template
@@ -114,12 +114,17 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Claude (Opus 5.5) | 2026-11-03 | `docs/localgo-delivery-architecture-plan.md` (new), `docs/goer-agentic-architecture-plan.md`, `docs/crewai-fastapi-localgo-architecture-plan.md`, `AGENTS.md` | Write one consolidated, phased delivery-app architecture plan; mark older plans as superseded | Active |
+| *(No active agent locks)* | - | - | - | Ready for next task |
 
 ---
 
 ## 5. Recent Work
 
+- 2026-11-03: Added `docs/localgo-delivery-architecture-plan.md`, the single
+  authoritative plan: current-state gap audit, chat-vs-direct-action design,
+  router + single-specialist Flow, tool allowlists, Postgres domain model,
+  order lifecycle, API contract, security, evals, and Phases 0–6 roadmap.
+  Older plan docs marked superseded. Commits `f2fe7c0`, `4d18ef9`.
 - 2026-11-03: Verified local runtime environment and app startup. Built and
   synced root package `goer-localgo` with `uv sync` (installing `hf-xet==1.8.0`),
   validated catalog operations via smoke tests, and verified live FastAPI chat
