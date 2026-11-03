@@ -20,7 +20,6 @@ Update it whenever you start, change, validate, or finish work.
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Copilot | 2026-11-03 | `goer_localgo/`, `Tests/`, `AGENTS.md` | Scaffold a CrewAI Flow project, migrate LocalGo menu data/tools, and add FastAPI plus test structure | In progress; CrewAI CLI is installed at 1.14.4, scaffolding project first |
 | Copilot | 2026-11-03 | `backend/app/web.py`, `backend/app/web/index.html`, `README.md` | Add a browser UI and FastAPI endpoint for testing Goer prompts | Complete; committed as `43af98f` |
 | Copilot | 2026-11-03 | `docs/goer-agentic-architecture-plan.md`, `AGENTS.md` | Commit pending documentation changes and push the project to `dev` | Complete; documentation committed as `9de06c8`; pushing `dev` |
 | Copilot | 2026-11-03 | `AGENTS.md` | Add strict one-change-per-commit workflow rule | Complete; committed as `a64833f` |
@@ -48,3 +47,8 @@ Update it whenever you start, change, validate, or finish work.
   project, replacing direct OpenAI SDK/tool-loop ownership with CrewAI agents,
   tasks, typed `BaseTool` tools, Flow state, and CrewAI scaffolding. Committed
   as `439d734`; no implementation started.
+- 2026-11-03: Scaffolded `goer_localgo` with the CrewAI CLI, copied the LocalGo
+  menu catalog, migrated menu tools to CrewAI `BaseTool`, added a discovery
+  Flow and FastAPI adapter, and added unit/integration/smoke tests. CrewAI 1.14.4
+  is installed; `uv run pytest Tests -q` passes 5 tests. Commits `53594c2` and
+  `f58e340`.
