@@ -8,8 +8,20 @@ first release should preserve the existing LocalGo contracts instead of
 creating a second catalog, cart, address book, payment record, or order system.
 
 The target is a modular monolith: one deployable FastAPI application with
-explicit domain services, an OpenAI SDK adapter, and Supabase/Postgres as the
-authoritative persistence layer.
+explicit domain services, the official OpenAI Python SDK as the only model
+integration, and Supabase/Postgres as the authoritative persistence layer.
+
+## Non-negotiable SDK policy
+
+All model and tool-calling code in the target project must use the official
+`openai` Python SDK. Do not add Groq, Anthropic, LangChain, LiteLLM, custom HTTP
+calls to an LLM endpoint, or provider-specific client libraries to the
+application runtime.
+
+The current Groq prototype is compatibility/reference code only. Before the
+new architecture is implemented, replace its client and model loop with
+`AsyncOpenAI` and the OpenAI Responses API. The final FastAPI application must
+not import `groq` or contain a second provider path.
 
 ## Existing LocalGo data to preserve
 
@@ -76,7 +88,7 @@ backend/app/
     orders/
     conversations/
   integrations/
-    openai_client.py      # OpenAI SDK adapter
+    openai_client.py      # official AsyncOpenAI SDK adapter
     supabase.py           # PostgREST/database gateway
     payments.py
     dispatch.py
@@ -114,19 +126,57 @@ async def run_turn(
 
 The adapter should:
 
-- use the OpenAI Python SDK with a configurable model;
-- support structured output for routing and response envelopes;
-- support function tools with strict JSON schemas;
+- use `openai.AsyncOpenAI` and the Responses API with a configurable model;
+- use SDK/Pydantic structured output for routing and response envelopes;
+- use typed SDK tool parameter objects generated from Pydantic models;
 - enforce request timeout, maximum tool rounds, and token limits;
 - record request ID, latency, usage, and finish reason;
 - normalize provider errors into application error types;
-- allow a compatible endpoint through `OPENAI_BASE_URL` without changing
-  domain code.
+- use `OPENAI_API_KEY` from server-side configuration only.
 
 Start with one capable model and one bounded orchestration loop. Add a smaller
 guard/classifier model only after evaluation demonstrates a benefit. The model
 must never receive service credentials, raw payment data, or unrestricted
 database access.
+
+### Typed tool definitions
+
+Agent tools must not be authored as hand-written raw dictionaries such as
+`{"type": "function", "function": {...}}`. Define every tool input and output
+as Pydantic models, then build the OpenAI SDK request using typed SDK objects
+and the model-generated JSON schema:
+
+```python
+from openai import AsyncOpenAI
+from openai.types.responses import ResponseFunctionToolParam
+from pydantic import BaseModel, ConfigDict
+
+
+class SearchMenuInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    product_name: str
+    merchant_id: str | None = None
+
+
+def search_menu_tool() -> ResponseFunctionToolParam:
+    return ResponseFunctionToolParam(
+        type="function",
+        name="search_menu",
+        description="Search LocalGo menu items by name.",
+        parameters=SearchMenuInput.model_json_schema(),
+        strict=True,
+    )
+```
+
+The exact SDK type names must be verified against the pinned `openai` package
+version during implementation. If the SDK exposes a generated helper or
+`responses.parse` path for the selected feature, use that official typed
+interface instead of falling back to manually assembled provider payloads.
+Tool dispatch must map the validated function name to a typed Python handler;
+the model never supplies executable code or arbitrary URLs.
+
+The `tools/try-out-tools` smoke tests must call these typed tool factories and
+Pydantic validators, not inspect or construct raw schema dictionaries.
 
 ## Chat contract
 
@@ -317,8 +367,9 @@ payment or order creation blindly.
 
 ## Implementation sequence
 
-1. Add the provider adapter and configuration while keeping the current menu
-   fixture working.
+1. Replace the Groq dependency and raw tool dictionaries with the official
+   OpenAI SDK, typed Pydantic inputs/outputs, and the Responses API while
+   keeping the current menu fixture working.
 2. Extract catalog repository interfaces and map LocalGo menu/options.
 3. Add authenticated conversation endpoints and the versioned response envelope.
 4. Add Supabase-backed catalog, conversation, and audit persistence.
