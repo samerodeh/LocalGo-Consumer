@@ -1,374 +1,199 @@
-# Goer Agentic Architecture Plan
+# Goer AI: Delivery Chatbot Agent Architecture
 
-## Goal
+## Purpose
 
-Build Goer as LocalGo's conversational ordering interface. A customer should be able to discover products, configure them, manage a cart, confirm checkout, pay, and track an order through the chatbot.
+Define a practical architecture for Goer, LocalGo's conversational interface for restaurant discovery, ordering, checkout, and order support. The architecture should make the experience feel like one helpful assistant while keeping safety decisions, prices, payments, and order state under deterministic backend control.
 
-The language model interprets requests and chooses tools. Backend code remains responsible for catalog data, prices, cart state, validation, payment state, and order state.
+This is a target architecture. The current Goer repository is a terminal prototype with one model-driven assistant and two menu tools (`search_menu` and `get_menu`) over a local JSON catalog. The specialized agents and delivery workflows below are proposed components, not claims about the current implementation.
 
-## Current Progress
+## Design principles
 
-The first discovery workflow is working with Groq:
+1. **One assistant to the customer.** Goer is the consistent voice; internal agents are implementation details.
+2. **Guard before and after orchestration.** Validate incoming requests, agent plans, tool arguments, and outgoing responses.
+3. **Agents recommend actions; services perform them.** Domain services own catalog, cart, quote, payment, fulfillment, and order state.
+4. **Never trust model memory for facts or mutations.** Read authoritative state from services and persist every successful mutation.
+5. **Confirm consequential actions.** Require explicit confirmation of the exact quote before placing an order or starting payment.
+6. **Structured UI events.** Return typed cards and actions alongside conversational text; never make the client parse prose to infer checkout state.
+7. **Bounded and observable execution.** Limit routing depth, tool calls, tokens, latency, retries, and specialist handoffs.
 
-1. The user sends a message to Goer.
-2. Groq chooses a local tool.
-3. The backend executes that tool against `menu.json`.
-4. Tool results are sent back to Groq.
-5. Goer presents a natural-language answer.
+## High-level architecture
 
-Implemented tools:
+```mermaid
+flowchart TD
+    U[Customer: mobile chat] --> API[Chat API / Auth]
+    API --> IN[Input Guard]
+    IN --> ORCH[Goer Orchestrator]
+    ORCH --> DISC[Discovery Agent]
+    ORCH --> CART[Cart Agent]
+    ORCH --> CHECK[Checkout Agent]
+    ORCH --> ORDER[Order Support Agent]
+    ORCH --> HUMAN[Human Support Handoff]
+    DISC --> TOOLS[Typed tool gateway]
+    CART --> TOOLS
+    CHECK --> TOOLS
+    ORDER --> TOOLS
+    TOOLS --> DOM[Domain services]
+    DOM --> CAT[(Catalog & merchant service)]
+    DOM --> CARTDB[(Cart service / database)]
+    DOM --> QUOTE[Pricing & delivery quote]
+    DOM --> PAY[Payment service / provider]
+    DOM --> ORD[(Order service / database)]
+    ORD --> FUL[Merchant fulfillment & driver dispatch]
+    ORCH --> OUT[Output Guard + response composer]
+    OUT --> API
+    API --> UI[Text + typed cards/actions]
+    PAY -. signed events .-> DOM
+    FUL -. status events .-> ORD
+```
 
-- `search_menu(product_name, merchant_id=None)` searches product names, optionally within one merchant.
-- `get_menu(merchant_id)` retrieves a merchant's products.
+## Agent roles
 
-The terminal prototype also keeps conversational history, so follow-ups such as “Which one is cheapest?” and “Do they have falafel?” can use earlier merchant and product context.
+### 1. Guard agent (policy and safety gate)
 
-## Phase 1: Fix Context Management
+Use a guard before orchestration and a final response check after it. It can be implemented as a small model check plus deterministic rules; it should not have domain mutation tools.
 
-The current conversation saves every raw tool result. A complete merchant menu can contain dozens of product dictionaries, so repeated requests eventually exceed Groq's token-per-minute limit.
+**Input checks:** authenticate user; enforce rate and size limits; detect prompt injection and requests outside supported scope; redact or block sensitive payment credentials; attach trusted account, locale, and conversation context.
 
-### Required changes
+**Execution checks:** permit only registered specialists and tool schemas; verify user ownership and authorization; reject malformed or out-of-scope tool calls; require confirmation tokens for consequential actions; apply policy rules to refunds, cancellation, age-restricted goods, and merchant availability.
 
-- Return compact product records from discovery tools.
-- Add a `limit` parameter to tools that may return many products.
-- Add optional category filtering to merchant browsing.
-- Keep user messages and final assistant answers in conversation history.
-- Remove or summarize completed raw tool requests and tool results.
-- Keep enough recent conversational context for references such as “they,” “that one,” and “the cheapest one.”
-- Set a bounded number of model/tool iterations for each user message.
-- Keep a request timeout and handle provider errors without terminating the whole chatbot.
+**Output checks:** ensure claims about prices, stock, payment, and order status are backed by service results; remove secrets and unsafe content; verify that any card/action payload matches a valid schema and the current user's state.
 
-### Target browsing contract
+The guard should return a structured decision such as `allow`, `clarify`, `deny`, or `handoff`, plus a reason code. It must fail closed for payment and order mutations.
 
-`get_menu` should eventually accept:
+### 2. Goer orchestrator agent
 
-- `merchant_id`: required merchant identifier.
-- `category`: optional category filter.
-- `limit`: maximum number of returned products.
+Owns conversation flow and delegates to specialists. It receives a compact state snapshot and allowed-action list, chooses the next specialist, and composes the final answer. It does not calculate prices, write orders, or call payment-provider APIs directly.
 
-For a request such as “Show me Château Kabab desserts,” the backend should return only a small set of Château Kabab dessert products instead of the entire catalog.
+Responsibilities:
 
-## Phase 2: Complete Menu Discovery
+- Classify intent and identify missing details.
+- Select one specialist per step; hand off only the minimum relevant context.
+- Maintain the conversational thread while reading current cart/order state from services.
+- Decide when to ask a clarification, show a card, or escalate to human support.
+- Stop after configured limits and return a useful recovery response.
 
-Add narrowly scoped tools for reliable product retrieval.
+### 3. Discovery agent
 
-### `list_categories`
+Find merchants, categories, menu items, and product details. Uses catalog search, category listing, merchant availability, and product-detail tools. Recommendations must cite returned product IDs and facts; it cannot invent prices, dietary properties, or availability.
 
-Input:
+### 4. Cart agent
 
-- `merchant_id`
+Explains and edits the user's active cart using `view_cart`, `add_item`, `change_quantity`, `remove_item`, and `clear_cart` operations. The cart service validates product IDs, option IDs, merchant consistency, quantities, and prices. The agent never edits cart state from conversation text alone and never computes totals.
 
-Output:
+### 5. Checkout agent
 
-- The categories offered by that merchant.
+Collects delivery address, delivery instructions, tip, and other missing checkout inputs. Requests an authoritative quote and presents a quote card with a stable quote ID, line items, fees, taxes, total, currency, and expiration. After the customer confirms that exact quote, it requests order creation/payment initiation through backend services.
 
-Use this when the user wants to browse but has not chosen a type of food.
+### 6. Order support agent
 
-### Improved `get_menu`
+Retrieves active and historical orders, explains status based on order events, and offers only currently supported actions. Cancellation and refund eligibility come from backend policy/services. It may prepare a request, but cannot claim cancellation/refund completion without a successful service result.
 
-Input:
+### Optional specialists (add when product needs justify them)
 
-- `merchant_id`
-- Optional `category`
-- Bounded `limit`
+- **Merchant selection agent:** helps compare restaurants, delivery zones, and hours.
+- **Support handoff agent:** packages conversation and order context for a human agent.
+- **Voice/transcription adapter:** converts speech to text and text to speech; it is a channel component, not an authority over order state.
 
-Output:
+Start with the core four specialists behind one orchestrator. Avoid separate deployed agent services until load, ownership, or independent release needs justify that complexity. A specialist can initially be a bounded prompt/tool configuration using the same model provider.
 
-- Compact product summaries containing stable IDs, names, categories, prices, and short descriptions.
+## Domain tools and service ownership
 
-### Improved `search_menu`
-
-Input:
-
-- Search phrase or product name
-- Optional `merchant_id`
-- Bounded `limit`
-
-Output:
-
-- Relevant compact product summaries.
-
-Improve matching only when tests show it is needed. Possible later improvements include descriptions, aliases, categories, typo handling, and ranked results.
-
-### `get_product`
-
-Input:
-
-- Exact `product_id`
-
-Output:
-
-- One complete product record, including price and customization requirements.
-
-This tool is required before cart actions. Product names may be similar, while product IDs are stable and unambiguous.
-
-## Phase 3: Restore Product Customizations
-
-The current exported JSON contains empty `option_groups` because the original menu-option mappings are missing.
-
-Before Goer can create valid orders, restore and verify:
-
-- Required sizes
-- Protein choices
-- Side selections
-- Drink selections
-- Add-ons
-- Maximum and minimum selection counts
-- Price changes for each choice
-- Whether free-text notes are permitted
-
-Goer must never guess required options. If required choices are missing, it should ask the customer before adding the item.
-
-## Phase 4: Build Server-Owned Cart State
-
-The cart must be authoritative backend state, not model memory. A model message can express intent, but only backend services may change the cart.
-
-Each cart line should contain:
-
-- A unique `cart_line_id`
-- Merchant ID
-- Product ID
-- Quantity
-- Selected option IDs
-- Notes
-- Server-calculated unit price
-- Server-calculated line total
-
-Use one merchant per cart for the first version. If a user requests a product from another merchant, ask whether to keep the existing cart or begin a separate order.
-
-## Phase 5: Add Cart Tools
-
-### `add_to_cart`
-
-Input:
-
-- Exact `product_id`
-- Quantity
-- Selected option IDs
-- Optional notes
-
-The backend validates that the product exists, belongs to the selected merchant, and has all required choices.
-
-### `view_cart`
-
-Returns current cart lines and backend-calculated totals.
-
-### `change_quantity`
-
-Input:
-
-- Exact `cart_line_id`
-- New quantity
-
-Use the line ID so two differently configured versions of the same product remain distinguishable.
-
-### `remove_from_cart`
-
-Input:
-
-- Exact `cart_line_id`
-
-### `clear_cart`
-
-Requires clear user intent before removing every line.
-
-## Phase 6: Introduce Specialist Agents
-
-Keep one user-facing Goer conversation. Internally, use bounded specialists with different instructions and tools.
-
-### Coordinator
-
-- Interprets the user's intent.
-- Selects the appropriate specialist.
-- Preserves a coherent user-facing conversation.
-- Cannot bypass backend validation or claim an operation succeeded without a successful tool result.
-
-### Discovery specialist
-
-- Uses menu search, category, and product-detail tools.
-- Recommends only products returned by tools.
-- Never invents products, availability, prices, or dietary facts.
-
-### Cart specialist
-
-- Uses cart tools.
-- Resolves quantities, product IDs, option IDs, and cart-line references.
-- Cannot determine prices itself.
-
-### Checkout specialist
-
-- Collects missing delivery information.
-- Requests a server-calculated quote.
-- Presents the final confirmation.
-- Cannot charge or place an order without explicit customer confirmation.
-
-### Order-support specialist
-
-- Retrieves active and past orders.
-- Explains fulfillment and delivery status.
-- Prepares supported cancellation actions.
-
-Specialists should initially be logical prompt/tool configurations inside FastAPI, not separate deployed services.
-
-## Phase 7: Build Checkout
-
-### Address selection
-
-- Retrieve the customer's saved addresses.
-- Allow an address to be selected or added through chat UI.
-- Geocode and validate the delivery zone on the backend.
-
-### Server quote
-
-Create an immutable quote containing:
-
-- Product and customization snapshots
-- Quantities
-- Subtotal
-- Taxes
-- Delivery fee
-- Tip
-- Total
-- Currency
-- Expiration time
-- Cart revision
-
-All prices and totals must be calculated by backend code using authoritative catalog data.
-
-### Explicit confirmation
-
-Display the complete quote in chat. The customer must explicitly confirm that exact quote before payment and order creation.
-
-### Payment
-
-- Create or reuse one Stripe payment attempt per checkout attempt.
-- Use stable idempotency keys to prevent duplicate charges.
-- Use native payment UI for card details and bank authentication.
-- Verify successful payment on the backend through signed provider events and reconciliation.
-- Never treat a client-only success response as final payment authority.
-
-### Canonical order creation
-
-Use one order ID across payment, order history, merchant fulfillment, driver dispatch, chat, and tracking.
-
-## Phase 8: Merchant Fulfillment and Driver Dispatch
-
-Represent restaurant receipt explicitly. Driver acceptance is not proof that the merchant received or accepted the food order.
-
-Define how each merchant receives and acknowledges an order:
-
-- Merchant dashboard
-- Operations workflow
-- Merchant API
-- Another explicit fulfillment integration
-
-Keep payment, merchant fulfillment, and delivery as separate state dimensions.
-
-## Phase 9: Order Tracking and Support
-
-Add tools such as:
-
-- `get_active_orders`
-- `get_order_status`
-- `get_order_history`
-- `get_order_details`
-- `get_cancellation_options`
-- `stage_cancellation`
-
-Order status should distinguish:
-
-- Payment processing
-- Awaiting merchant acknowledgment
-- Merchant accepted or rejected
-- Finding a driver
-- Driver assigned
-- Picked up
-- Delivered
-- Cancellation or refund state
-
-## Phase 10: Connect Goer to the Mobile App
-
-Replace the terminal `input()` loop with authenticated FastAPI conversation endpoints.
-
-The React Native chat should render structured cards for:
-
-- Merchant selection
-- Product results
-- Categories
-- Product options
-- Cart summaries
-- Address selection and entry
-- Quotes
-- Payment launch
-- Order confirmation
-- Tracking status
-
-Native payment or authentication screens may open over the conversation and return to it. Customers should not type sensitive payment data into chat messages.
-
-## Phase 11: Persistence and Recovery
-
-Persist:
-
-- Conversations
-- User and assistant messages
-- Agent runs
-- Tool calls and results
-- Selected merchant
-- Carts and cart revisions
-- Quotes
-- Checkout attempts
-- Orders and order events
-
-If a network request fails after a mutation, recover the recorded result instead of running the mutation again.
-
-## Phase 12: Evaluation and Rollout
-
-Test behavior using representative scenarios, including:
-
-- Similar product names
-- Typos
-- Merchant omitted
-- Merchant changed mid-conversation
-- Required customizations
-- Two versions of the same product
-- Unknown or unavailable products
-- Empty search results
-- Stale prices
-- Duplicate tool calls
-- Duplicate confirmation taps
-- Lost network responses
-- Payment succeeds while the client response is lost
-- Merchant rejection
-- Driver-notification failure
-- Unauthorized order IDs
-- Prompt injection inside catalog descriptions
-
-Measure:
-
-- Task-completion rate
-- Incorrect tool selection
-- Product-resolution accuracy
-- Checkout failures
-- Duplicate prevention
-- Response latency
-- Tokens and model cost per completed order
-- Cart abandonment
-
-Roll out behind a feature flag and begin with a limited test cohort.
-
-## Immediate Implementation Order
-
-1. Fix context management and trim raw tool history.
-2. Add category and limit support to menu browsing.
-3. Add `list_categories`.
-4. Add `get_product` using exact product IDs.
-5. Restore and verify customization data.
-6. Build backend-owned cart state.
-7. Add and validate cart tools.
-8. Introduce discovery and cart specialists behind one Goer coordinator.
-9. Build server quotes, confirmation, and payments.
-10. Add merchant fulfillment, driver dispatch, and order tracking.
-11. Connect structured Goer events to the React Native chat UI.
-12. Add persistence, recovery, evaluations, monitoring, and staged rollout.
-
-The next implementation task is context compaction plus bounded category browsing. Do not begin cart mutations until product details and required customization options are reliable.
+| Capability | Agent-facing tools | Source of truth |
+|---|---|---|
+| Discovery | `search_merchants`, `list_categories`, `search_menu`, `get_product` | Catalog and merchant service |
+| Cart | `view_cart`, `add_item`, `update_item`, `remove_item`, `clear_cart` | Cart service and database |
+| Checkout | `get_addresses`, `create_quote`, `confirm_quote`, `start_payment` | Address, pricing, quote, and payment services |
+| Order support | `list_orders`, `get_order`, `get_cancellation_options`, `request_cancellation` | Order service and event history |
+
+All tools should use typed inputs/outputs, authorization checks, idempotency keys for mutations, and explicit error codes. Tool results should be compact and include stable IDs. The backend—not a language model—validates and commits state transitions.
+
+## Chat response contract for cards
+
+Return a versioned response envelope rather than unstructured text alone:
+
+```json
+{
+  "conversation_id": "...",
+  "message": {"text": "Here are a few options.", "status": "complete"},
+  "cards": [
+    {"type": "product_list", "items": [{"product_id": "...", "name": "...", "price": {"amount": 12.5, "currency": "CAD"}}]},
+    {"type": "cart_summary", "cart_id": "...", "revision": 4, "total": {"amount": 18.25, "currency": "CAD"}}
+  ],
+  "actions": [{"type": "add_to_cart", "label": "Add", "payload": {"product_id": "..."}}],
+  "trace_id": "..."
+}
+```
+
+Suggested card types: `merchant_list`, `category_list`, `product_list`, `product_detail`, `option_picker`, `cart_summary`, `address_picker`, `quote`, `payment_status`, `order_confirmation`, `order_tracking`, and `support_handoff`. The client should render only known card types and should submit actions to authenticated APIs; the model must never forge an authorization token or trusted card state.
+
+## Delivery ordering lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Discovering
+    Discovering --> CartDraft: customer selects product
+    CartDraft --> CartDraft: validated cart mutation
+    CartDraft --> QuoteReady: address and delivery zone valid
+    QuoteReady --> AwaitingConfirmation: show immutable quote
+    AwaitingConfirmation --> CartDraft: customer edits cart
+    AwaitingConfirmation --> PaymentPending: confirms exact quote
+    PaymentPending --> MerchantPending: payment verified
+    PaymentPending --> PaymentFailed: provider declines or expires
+    MerchantPending --> Preparing: merchant accepts
+    MerchantPending --> Cancelled: merchant rejects / policy action
+    Preparing --> DriverAssigned
+    DriverAssigned --> PickedUp
+    PickedUp --> Delivered
+    PaymentFailed --> [*]
+    Cancelled --> [*]
+    Delivered --> [*]
+```
+
+Keep payment state, merchant fulfillment state, and delivery state as separate dimensions in persisted records and events. A driver assignment does not imply merchant acceptance, and a client-side payment callback does not prove payment succeeded.
+
+## Persistence and reliability
+
+Persist conversations and messages, agent runs and handoffs, tool-call audit records, cart revisions, quotes, payment attempts, orders, and order events. Store references and compact summaries in model context, not entire menus or long raw tool histories. Use conversation/user ownership checks on every read and mutation.
+
+For mutations, use idempotency keys, transactional writes, and replay-safe event handling. If a request times out after the backend commits, retrieve the recorded outcome rather than repeating the operation. Use signed provider webhooks and reconciliation for payment truth. Keep sensitive payment details in the payment provider's secure UI/tokenization flow, not chat text or language-model context.
+
+## Model and OpenAI SDK boundary
+
+Keep the model behind a provider adapter. The adapter should expose a consistent interface for structured responses and tool calls while allowing provider/model changes through configuration. If using an OpenAI SDK, the application communicates through that SDK interface; the selected endpoint and model determine whether requests go to OpenAI or a compatible provider. Goer's current prototype uses the Groq Python SDK with `openai/gpt-oss-20b`, so describe it accurately as an OpenAI-compatible model served by Groq unless the integration is changed.
+
+Use separate model settings by task if useful: a lower-latency classifier/guard check, a capable orchestrator, and constrained specialist calls. Start with a single capable model and distinct prompts/tools; split models only after evaluation shows a clear cost, latency, or quality benefit. Do not assume each specialist needs its own continuously running model or process.
+
+## Security and privacy controls
+
+- Authenticate every chat session and bind conversation, cart, address, and order IDs to the authenticated user.
+- Treat user text, menu descriptions, retrieved records, and model output as untrusted input.
+- Validate tool arguments against schemas and business rules; use allowlists for tools and destinations.
+- Keep API keys and payment credentials out of prompts, logs, cards, and client bundles.
+- Use least-privilege service credentials and scoped agent tools.
+- Require explicit confirmation for quote acceptance and destructive actions; apply idempotency and audit logging.
+- Enforce retention, deletion, and access rules for conversation data.
+- Add abuse limits, prompt-injection evaluations, authorization tests, and monitoring for unusual tool behavior.
+
+## Observability and evaluation
+
+Attach a trace ID to each customer turn, model request, specialist handoff, tool call, and domain event. Record latency, token use, tool outcomes, guard decisions, retries, and state transitions while redacting sensitive data.
+
+Evaluate task completion, intent routing, product resolution, unsupported claims, cart correctness, quote confirmation, duplicate mutations, payment recovery, cancellation behavior, response latency, and model cost. Include adversarial cases such as prompt injection in product descriptions, cross-user order IDs, ambiguous products, stale quotes, duplicate taps, and lost responses.
+
+## Suggested implementation sequence
+
+1. Keep the current Goer discovery flow, add bounded context, robust provider errors, and structured API responses.
+2. Introduce authenticated chat endpoint, conversation persistence, catalog service contracts, and the input/output guard.
+3. Add typed product cards and reliable catalog/category/product-detail tools.
+4. Build backend-owned cart state and cart cards; validate every mutation server-side.
+5. Add addresses, delivery-zone checks, immutable server quotes, and explicit quote confirmation.
+6. Integrate tokenized payment flow, signed payment events, idempotency, and reconciliation.
+7. Add canonical order state, merchant acknowledgment, driver dispatch, and tracking events.
+8. Add order-support specialist, cancellation rules, human handoff, evaluations, monitoring, and gradual rollout.
+9. Add more specialists or separate services only where measured product or operational needs justify them.
+
+## Current versus proposed
+
+**Implemented now:** one terminal Goer assistant; Groq Python SDK; `openai/gpt-oss-20b`; `search_menu` and `get_menu`; local JSON catalog; in-memory conversation messages; bounded model decisions per user turn.
+
+**Proposed here:** input/output guard, orchestrator, discovery/cart/checkout/order-support specialists, authenticated API, structured cards, persistence, cart, quote, payment, order lifecycle, merchant/driver integration, observability, and human handoff. These should be described as architecture or roadmap until code and integrations implement them.
