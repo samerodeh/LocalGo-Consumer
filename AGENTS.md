@@ -96,8 +96,9 @@ All AI agents working on this project **must adhere to these rules without excep
   ```powershell
   uv run pytest tests -v
   ```
-- *Environment note for automated sandbox execution*: When running pytest in headless/isolated environments, disable CrewAI telemetry prompts with:
-  `$env:CREWAI_TESTING="true"; $env:CREWAI_DISABLE_TELEMETRY="true"; $env:OTEL_SDK_DISABLED="true"; $env:LOCALAPPDATA="$PWD\.venv"`
+  If the `pytest` launcher fails with `uv trampoline failed to canonicalize script path`, use `uv run python -m pytest tests -v` (same suite).
+- The suite is fully offline: `tests/conftest.py` sets the CrewAI telemetry/tracing switches, blocks non-loopback network access, and isolates CrewAI storage. No API key is needed.
+- Test agents and flows with the deterministic `StubLLM` in `tests/stub_llm.py` (see `tests/unit/test_goer_flow.py`); never call a real model from `tests/`.
 
 ---
 
@@ -109,9 +110,10 @@ All AI agents working on this project **must adhere to these rules without excep
 | Interactive Terminal CLI | `uv run goer` | Interactive chat loop (`exit` or `quit` to end) |
 | One-shot Flow execution | `uv run kickoff` | Runs default food discovery turn |
 | Start FastAPI server & UI | `uv run uvicorn goer_localgo.api.main:app --reload` | Serves web chat at `http://127.0.0.1:8000` |
-| Run all automated tests | `uv run pytest tests -v` | Covers unit and integration tests |
+| Run all automated tests | `uv run pytest tests -v` | Offline; fallback `uv run python -m pytest tests -v` |
 | Run GetMenu smoke test | `uv run python src/goer_localgo/tools/try-out-tools/get_menu_smoke.py` | Deterministic catalog verification |
 | Run SearchMenu smoke test | `uv run python src/goer_localgo/tools/try-out-tools/search_menu_smoke.py` | Deterministic product search verification |
+| Run GetProduct smoke test | `uv run python src/goer_localgo/tools/try-out-tools/get_product_smoke.py` | Product detail + not-found verification |
 
 ---
 
@@ -119,12 +121,22 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-03 | `crews/discovery_crew/config/*.yaml`, `domain/catalog.py`, `tools/catalog_tools.py`, `tools/try-out-tools/*`, `domain/money.py` (new), `data_menu.json`, `tests/unit/*`, `AGENTS.md` | Phase 0 (complete plan): model from `MODEL` env, cached `CatalogRepository`, compact `get_menu` + new `get_product` tool, `CAD` currency + `format_cents`, offline stub-LLM Flow tests | Active |
+| *(No active agent locks)* | - | - | - | Ready for next task |
 
 ---
 
 ## 5. Recent Work
 
+- 2026-11-03: Completed Phase 0 of `docs/localgo-delivery-architecture-plan.md`.
+  Discovery agent model now comes from `MODEL` env; catalog served by a cached
+  `CatalogRepository` (swappable via `set_catalog_repository`); currency
+  normalized to `CAD`; new `domain/money.py` (`format_cents`); compact
+  `get_menu` (~65% smaller), capped `search_menu` (10 results + total), new
+  `get_product` tool, stable tool error codes (`MERCHANT_NOT_FOUND`,
+  `PRODUCT_NOT_FOUND`), all prices preformatted as `display_price`; agent
+  `max_iter=6`. Added offline test harness (`tests/conftest.py`,
+  `tests/stub_llm.py`) and GoerFlow tests. 39 tests + 3 smoke tests pass with
+  no API key. `data_menu.json` was not modified (currency normalized on load).
 - 2026-11-03: Added `docs/localgo-delivery-architecture-plan.md`, the single
   authoritative plan: current-state gap audit, chat-vs-direct-action design,
   router + single-specialist Flow, tool allowlists, Postgres domain model,
