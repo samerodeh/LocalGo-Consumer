@@ -1,29 +1,128 @@
-# Goer AI Agent Coordination
+# Goer AI Agent Guide & Coordination
 
-This file is the shared coordination log for agents working in this repository.
-Update it whenever you start, change, validate, or finish work.
+This document is the authoritative guide, context manual, and coordination log for AI agents working in this repository. Any agent operating in this codebase must read, understand, and strictly follow the rules and architecture documented here.
 
-## Collaboration rules
+---
 
-- Before editing, add an entry under **Active work** with your name, date, files,
-  goal, and status.
-- Do not edit files listed as actively owned by another agent without first
-  coordinating in this file.
-- Keep changes focused and record tests, blockers, and handoff details.
-- Move completed entries to **Recent work** instead of deleting the history.
-- Refresh the active entry before ending your task so another agent can continue.
-- **Strict commit rule:** every individual code change, function, or documentation
-  change must be committed immediately in its own focused commit. Never batch
-  unrelated changes or thousands of changes into one commit.
+## 1. Project Context & Architecture
 
-## Active work
+### What is Goer AI?
+Goer is a conversational restaurant food discovery assistant built for **LocalGo**. It translates natural language customer queries into deterministic searches and menu browsing over a structured local catalog of **138 products across local restaurants** (Al-Taib and Château Kabab).
+
+### Core Technology Stack
+- **Runtime & Package Manager**: Python 3.10–3.13, managed with [`uv`](https://docs.astral.sh/uv/).
+- **Agent Framework**: **CrewAI 1.14.4** (`crewai[tools]==1.14.4`).
+- **Orchestration**: Stateful `CrewAI Flow` (`GoerFlow`) coordinating execution and intent handling.
+- **Agent Specialist**: `DiscoveryCrew` (configured via YAML at `src/goer_localgo/crews/discovery_crew/config/`).
+- **Tools**: Typed subclasses of CrewAI `BaseTool` with Pydantic argument validation (`SearchMenuTool`, `GetMenuTool`).
+- **API & Web Interface**: FastAPI, Uvicorn, and HTML/CSS browser chat client.
+- **Model Provider**: Configured through `MODEL` and `OPENAI_API_KEY` (defaults to `openai/gpt-4.1-mini`).
+
+### Repository Directory Map
+```text
+goer-ai/
+├── src/
+│   └── goer_localgo/
+│       ├── api/
+│       │   └── main.py          # FastAPI application, REST endpoints (/health, /v1/chat, /api/chat)
+│       ├── crews/
+│       │   └── discovery_crew/  # CrewAI discovery crew, agent & task definitions
+│       │       ├── config/
+│       │       │   ├── agents.yaml  # Agent roles, goals, and backstories
+│       │       │   └── tasks.yaml   # Task descriptions and expected outputs
+│       │       └── discovery_crew.py
+│       ├── domain/
+│       │   └── catalog.py       # Catalog query functions and data access logic
+│       ├── tools/
+│       │   ├── catalog_tools.py # CrewAI BaseTool implementations (SearchMenuTool, GetMenuTool)
+│       │   └── try-out-tools/   # Standalone deterministic per-tool smoke tests
+│       ├── web/
+│       │   └── index.html       # Browser chat UI
+│       ├── data_menu.json       # Authoritative LocalGo restaurant catalog snapshot
+│       └── main.py              # CrewAI Flow (GoerFlow), CLI entry points, and interactive loop
+├── tests/
+│   ├── unit/                    # Unit tests for tools, domain logic, and validation schemas
+│   └── integration/             # Integration tests for FastAPI endpoints and request validation
+├── docs/
+│   └── goer-agentic-architecture-plan.md  # Multi-agent architectural roadmap (cart, checkout, orders)
+├── pyproject.toml               # Project metadata, dependencies, scripts, and pytest config
+├── uv.lock                      # Dependency lockfile
+├── .env.example                 # Environment variable template
+└── AGENTS.md                    # Agent coordination log and strict operating rules (this file)
+```
+
+---
+
+## 2. Strict Rules for AI Agents
+
+All AI agents working on this project **must adhere to these rules without exception**:
+
+### Rule 1: Strict Commit Rule — Commit Immediately on Every Small Change
+- **Every individual code change, function addition, bug fix, or documentation change must be committed immediately in its own focused git commit.**
+- **Never batch unrelated changes** across multiple components into one commit.
+- **Never allow large diffs to accumulate** before committing.
+- Use clean, conventional commit messages:
+  - `feat: ...` for new features or capabilities
+  - `fix: ...` for bug fixes or error handling
+  - `test: ...` for new tests or test updates
+  - `refactor: ...` for code restructuring without behavior changes
+  - `docs: ...` for documentation or AGENTS.md updates
+  - `chore: ...` for maintenance or cleanup
+
+### Rule 2: Active Work Coordination Log
+- **Before making any edits**:
+  1. Add an entry under the **Active work** table with your agent name, current date, files to be modified, goal, and status (`Active`).
+  2. Verify that no other agent is currently modifying the same files.
+- **While working**:
+  - Keep changes strictly focused on the stated goal.
+  - Record any blockers, handoff details, or notes in the status column.
+- **Upon completion**:
+  - Refresh the Active work table and move completed entries to **Recent work** instead of deleting historical records.
+  - Commit the updated `AGENTS.md` immediately.
+
+### Rule 3: Deterministic Tools & Model Boundaries
+- **Tools must be deterministic Python functions**: Tools that query the catalog, read stock, calculate prices, or mutate state must never ask the LLM to invent or estimate values.
+- **Prices and Currency**: Prices in `data_menu.json` are stored as integer cents CAD. Display values must convert cents to dollars deterministically.
+- **Domain separation**: Domain validation belongs in Python/FastAPI/Pydantic; agent reasoning belongs in CrewAI.
+
+### Rule 4: Mandatory Testing & Tool Smoke Tests
+- After modifying or adding any tool in `src/goer_localgo/tools/`, run its corresponding smoke test in `src/goer_localgo/tools/try-out-tools/`.
+- Run the full pytest test suite (`tests/unit` and `tests/integration`) to verify no regressions:
+  ```powershell
+  uv run pytest tests -v
+  ```
+- *Environment note for automated sandbox execution*: When running pytest in headless/isolated environments, disable CrewAI telemetry prompts with:
+  `$env:CREWAI_TESTING="true"; $env:CREWAI_DISABLE_TELEMETRY="true"; $env:OTEL_SDK_DISABLED="true"; $env:LOCALAPPDATA="$PWD\.venv"`
+
+---
+
+## 3. Developer & Agent Command Cheat-Sheet
+
+| Action | Command | Notes |
+|---|---|---|
+| Install dependencies | `uv sync` | Use `$env:UV_LINK_MODE = "copy"` on Windows if hardlinks fail |
+| Interactive Terminal CLI | `uv run goer` | Interactive chat loop (`exit` or `quit` to end) |
+| One-shot Flow execution | `uv run kickoff` | Runs default food discovery turn |
+| Start FastAPI server & UI | `uv run uvicorn goer_localgo.api.main:app --reload` | Serves web chat at `http://127.0.0.1:8000` |
+| Run all automated tests | `uv run pytest tests -v` | Covers unit and integration tests |
+| Run GetMenu smoke test | `uv run python src/goer_localgo/tools/try-out-tools/get_menu_smoke.py` | Deterministic catalog verification |
+| Run SearchMenu smoke test | `uv run python src/goer_localgo/tools/try-out-tools/search_menu_smoke.py` | Deterministic product search verification |
+
+---
+
+## 4. Active Work
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Antigravity | 2026-11-03 | `pyproject.toml`, `src/`, `tests/`, `backend/`, `goer_localgo/`, `README.md`, `AGENTS.md` | Promote CrewAI project to repository root, remove legacy backend, add interactive CLI, and update tests/docs | Complete; migrated project to root, all 7 tests passing |
+| *(No active agent locks)* | - | - | - | Ready for next task |
 
-## Recent work
+---
 
+## 5. Recent Work
+
+- 2026-11-03: Expanded `AGENTS.md` with complete project architecture,
+  directory map, command cheat-sheet, deterministic tool boundaries, test
+  conventions, and strict commit-on-every-small-change rules for agents.
 - 2026-11-03: Migrated repository to a root CrewAI project. Promoted
   `src/goer_localgo`, `tests/`, `pyproject.toml`, and `uv.lock` to repository
   root. Added interactive terminal CLI loop (`uv run goer` / `uv run kickoff --interactive`).
