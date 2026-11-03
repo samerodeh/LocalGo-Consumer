@@ -16,6 +16,7 @@ dependencies = [
 kickoff = "goer_localgo.main:kickoff"
 run_crew = "goer_localgo.main:kickoff"
 plot = "goer_localgo.main:plot"
+goer = "goer_localgo.main:interactive_cli"
 
 [build-system]
 requires = ["hatchling"]
