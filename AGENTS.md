@@ -44,6 +44,7 @@ goer-ai/
 │   ├── unit/                    # Unit tests for tools, domain logic, and validation schemas
 │   └── integration/             # Integration tests for FastAPI endpoints and request validation
 ├── docs/
+│   ├── project-context-and-next-steps.md     # Start here: current state, gaps, next-phase plan
 │   └── localgo-delivery-architecture-plan.md  # Authoritative phased architecture plan (older plans superseded)
 ├── pyproject.toml               # Project metadata, dependencies, scripts, and pytest config
 ├── uv.lock                      # Dependency lockfile
@@ -121,12 +122,15 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-03 | `docs/project-context-and-next-steps.md` (new), `AGENTS.md` | Write a handoff doc: current state, context, and detailed Phase 1 plan | Active |
+| *(No active agent locks)* | - | - | - | Ready for next task |
 
 ---
 
 ## 5. Recent Work
 
+- 2026-11-03: Added `docs/project-context-and-next-steps.md`, the handoff doc
+  (start here): current request path, tool contracts, known gaps, roadmap
+  status, and the step-by-step Phase 1 plan.
 - 2026-11-03: Completed Phase 0 of `docs/localgo-delivery-architecture-plan.md`.
   Discovery agent model now comes from `MODEL` env; catalog served by a cached
   `CatalogRepository` (swappable via `set_catalog_repository`); currency
