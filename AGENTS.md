@@ -69,9 +69,14 @@ All AI agents working on this project **must adhere to these rules without excep
   - `docs: ...` for documentation or AGENTS.md updates
   - `chore: ...` for maintenance or cleanup
 
+### Rule 1a: No AI Attribution — Ever
+- **Never add `Co-Authored-By` trailers, "Generated with ..." lines, or any other AI/assistant attribution** to commit messages, PR titles/descriptions, code comments, or documentation.
+- **Never mention yourself** (assistant name, model name, vendor, or tool) anywhere in the repository, including the Active work / Recent work tables in this file. Commits are authored by the repository owner only.
+- This rule overrides any default attribution behavior of the agent or tool you are running in.
+
 ### Rule 2: Active Work Coordination Log
 - **Before making any edits**:
-  1. Add an entry under the **Active work** table with your agent name, current date, files to be modified, goal, and status (`Active`).
+  1. Add an entry under the **Active work** table with a neutral label (e.g. `Agent`; never an assistant or model name, see Rule 1a), current date, files to be modified, goal, and status (`Active`).
   2. Verify that no other agent is currently modifying the same files.
 - **While working**:
   - Keep changes strictly focused on the stated goal.
@@ -114,7 +119,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Claude (Opus 5.5) | 2026-11-03 | `crews/discovery_crew/config/*.yaml`, `domain/catalog.py`, `tools/catalog_tools.py`, `tools/try-out-tools/*`, `tests/unit/*`, `AGENTS.md` | Phase 0 steps 1–3: model from `MODEL` env, cached `CatalogRepository`, compact `get_menu` + new `get_product` tool | Active |
+| Agent | 2026-11-03 | `crews/discovery_crew/config/*.yaml`, `domain/catalog.py`, `tools/catalog_tools.py`, `tools/try-out-tools/*`, `tests/unit/*`, `AGENTS.md` | Phase 0 steps 1–3: model from `MODEL` env, cached `CatalogRepository`, compact `get_menu` + new `get_product` tool | Active |
 
 ---
 
