@@ -85,6 +85,19 @@ With the environment active and your working directory still set to `backend/`:
 python -m app.goer
 ```
 
+### 4. Test with the browser UI
+
+The repository includes a small FastAPI chat UI that sends prompts to the same
+menu tools and model flow:
+
+```bash
+python -m uvicorn app.web:app --reload
+```
+
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The API key must be
+configured in `backend/.env`; the page shows provider errors without exposing
+the key.
+
 The terminal displays `json file loaded!` followed by a `You:` prompt. Try these requests in sequence:
 
 ```text
