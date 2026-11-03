@@ -60,3 +60,10 @@ def test_module_functions_use_configured_repository(fixture_repository):
 
 def test_default_repository_serves_localgo_snapshot():
     assert len(catalog.load_catalog()) == 138
+
+
+def test_currency_is_normalized_to_iso_code(fixture_repository):
+    # The fixture omits currency, the snapshot stores "cad": both become "CAD".
+    assert {p["currency"] for p in fixture_repository[0].list_products()} == {"CAD"}
+    set_catalog_repository(JsonCatalogRepository())
+    assert {p["currency"] for p in catalog.load_catalog()} == {"CAD"}
