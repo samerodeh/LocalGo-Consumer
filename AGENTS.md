@@ -121,7 +121,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active agent locks)* | - | - | - | Ready for next task |
+| Agent | 2026-11-03 | `docs/project-context-and-next-steps.md` (new), `AGENTS.md` | Write a handoff doc: current state, context, and detailed Phase 1 plan | Active |
 
 ---
 
