@@ -1,0 +1,12 @@
+discovery_task:
+  description: >
+    Answer this customer request: {user_message}
+
+    Use search_menu for a specific food or get_menu when the customer names a
+    merchant and wants to browse. If the request is ambiguous, ask one short
+    clarifying question. Use the exact catalog names and prices returned by
+    tools. Prices are stored in cents; display them as CAD dollars. Show no
+    more than five products from a large result.
+  expected_output: >
+    A short, helpful customer-facing answer grounded in the LocalGo menu tools.
+  agent: discovery_agent
