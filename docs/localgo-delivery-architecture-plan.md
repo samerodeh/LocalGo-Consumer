@@ -1,6 +1,8 @@
 # Goer × LocalGo: Delivery App Architecture Plan
 
-> **Status:** authoritative plan as of 2026-11-03. It supersedes
+> **Status:** authoritative plan, updated 2026-11-04. Phase 0 is complete;
+> Phase 1 memory/cards/API/UI foundation is implemented, discovery enhancements
+> and a live-model check remain. It supersedes
 > `goer-agentic-architecture-plan.md` and
 > `crewai-fastapi-localgo-architecture-plan.md`. Those files are kept for
 > history only.
@@ -23,16 +25,16 @@ as the system of record.
 
 | Area | Current state | Gap to fix |
 |---|---|---|
-| Flow | `GoerFlow` in `main.py`: `capture_turn` → `answer_turn` → `DiscoveryCrew` | A **new Flow is built per turn**, so there is no memory between turns. "Add 2 of those" cannot work. |
-| Agent | One `discovery_agent`; model hardcoded in `agents.yaml` (`openai/gpt-4.1-mini`) | YAML `llm` overrides `MODEL` env, so the model is not configurable per environment |
-| Tools | `search_menu` (substring on name), `get_menu` (whole merchant menu) | `get_menu` sends ~70 products plus option groups to the LLM, which is costly and slow. There is no product-detail, restaurant, or category tool. |
-| Catalog | `data_menu.json`, 138 products, 2 merchants; re-read from disk on every call | No repository interface or caching; no restaurant records (hours, zone, fees) |
-| API | `POST /v1/chat`, `/api/chat` → plain text | `user_id` is taken from the request body (not trusted), no conversation ID, no cards or actions |
-| Tests | 7 unit/integration tests, 2 tool smoke tests | No offline Flow/agent tests with a stubbed LLM |
+| Flow | `flow/goer_flow.py`: load context → discovery → compose response | Six recent exchanges and up to five displayed IDs restored from SQLite; router and other specialists remain planned |
+| Agent | One `discovery_agent`, configured through `MODEL` | No cart, checkout, or support capabilities yet |
+| Tools | Compact `search_menu`, `get_menu`, `get_product`; turn-local result collector | Restaurant/category tools and broader/fuzzy search remain pending |
+| Catalog | Cached repository over `data_menu.json`, 138 products, 2 merchants | No authoritative restaurant hours, delivery zones, or availability feed |
+| API | Conversation creation/turns, typed product cards, compatible legacy endpoints | New routes use a shared demo principal; legacy client-supplied identity is still untrusted; JWT required before production |
+| Clients | Browser renders grounded cards and stores session ID; CLI reuses one conversation | Visual browser and real-model follow-up checks remain manual |
+| Tests | 76 offline pytest tests, including Node browser-script tests; 3 tool smoke tests | Live quality evaluation remains separate |
 
-**Conclusion:** the deterministic tool boundary is right; keep it. The first
-step is making conversations stateful and responses structured. Cart and
-checkout come after that.
+**Conclusion:** the memory/card foundation is implemented. Finish discovery
+improvements, then add routing and trusted identity before transactional tools.
 
 ---
 
@@ -149,7 +151,7 @@ src/goer_localgo/
 + flow/
 +   goer_flow.py               # GoerFlow: state, router, specialist dispatch, limits
 +   state.py                   # GoerState, ContextSnapshot, Intent
-+   persistence.py             # Postgres-backed Flow persistence
+    # Conversation persistence lives behind domain/conversations.py repositories.
   crews/
     discovery_crew/            # existing (becomes discovery specialist)
 +   cart_crew/
@@ -186,7 +188,7 @@ logic. They validate arguments, call a service, and serialize compactly.
 
 ```python
 class GoerState(BaseModel):
-    id: str                          # == conversation_id (required for persistence)
+    conversation_id: str             # stable application session ID; Flow adds a separate execution id
     user_id: str                     # from JWT, never from the prompt
     turn: TurnInput | None
     intent: Intent | None
@@ -212,10 +214,16 @@ calls, a wall-clock timeout of about 20 seconds, and an output size cap. If a
 limit is hit, return a graceful "I couldn't finish that; here's what I found"
 response with partial cards.
 
-**Persistence:** the conversation ID is the Flow state `id`. In development,
-use CrewAI's default `@persist` (SQLite). In production, implement a
-Postgres-backed persistence class. Verify the persistence API against the
-pinned CrewAI version (`1.14.4`) before implementing.
+**Persistence (updated decision):** keep application `conversation_id` separate
+from CrewAI's generated execution `id`. The pinned `1.14.4` does not expose the
+newer `restore_from_state_id` kickoff API. Rather than couple sessions to
+version-specific checkpoints, `domain/conversations.py` owns bounded snapshots
+behind `ConversationRepository`. The development SQLite implementation saves
+only after response assembly, with owner-scoped reads and compare-and-swap
+revisions (conflicting turns return HTTP 409). Production replaces it with a
+Postgres repository. `GOER_CONVERSATION_DB` overrides the default
+`~/.localgo/goer/conversations.sqlite3`. Checkpoints, if added, remain separate
+from durable application sessions.
 
 **Tool results feed cards:** tools write their structured results into a
 per-turn collector, and `compose_response` builds cards from that collector.
@@ -421,24 +429,29 @@ Each phase is shippable, and each item is a small commit (Rule 1).
 **Exit:** existing behavior is preserved, there are fewer tokens per turn, and
 tests run fully offline.
 
-### Phase 1: Stateful conversations and the structured envelope
-- `conversation_id` becomes the Flow state `id`; add `@persist` (SQLite in dev),
-  recent turns, and `last_shown_product_ids`.
-- Add `ChatEnvelope` with `product_list` and `product_detail` cards built from
-  tool results.
-- Add the `POST /v1/conversations` and `/turns` endpoints, and update the web UI
-  to render cards.
-- Add `list_restaurants` and `get_menu_categories`; improve search (category
-  and description matching, plus a simple fuzzy match).
+### Phase 1: Stateful conversations and the structured envelope — in progress
+- [x] Application-owned conversation snapshots (SQLite in development), six
+  recent exchanges, ordered `last_shown_product_ids`, ownership and revisions.
+- [x] `ChatEnvelope` with grounded `product_list` and `product_detail` cards;
+  latest successful lookup only, at most five products, text capped at 8,000
+  characters. Clarifications preserve references; empty searches clear them.
+- [x] Conversation creation and turn endpoints; backward-compatible chat
+  responses; session-aware browser cards and terminal chat.
+- [x] Offline tests for multi-turn context, isolation, conflict handling,
+  partial results on agent failure, and browser-script behavior.
+- [ ] `list_restaurants`, `get_menu_categories`, category/description search,
+  and simple fuzzy matching.
+- [ ] Manual visual browser and live-model reference-resolution check.
 
 **Exit:** a multi-turn conversation like "what's at Château Kabab?" → "tell me
-about the second one" works.
+about the second one" works with a live model as well as the scripted tests.
+Stub tests establish wiring, not real-model reasoning quality.
 
 ### Phase 2: Persistence and auth
 - Supabase Postgres schema (catalog, conversations, turns, tool audit), a
   Postgres catalog repository, and a seed script from `data_menu.json`.
 - JWT middleware and RLS; remove the client-supplied `user_id`.
-- A Postgres-backed Flow persistence class.
+- A Postgres-backed `ConversationRepository`; keep Flow execution IDs separate.
 
 **Exit:** conversations survive restarts and are isolated per user.
 
