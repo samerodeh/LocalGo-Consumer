@@ -14,7 +14,8 @@ Goer is a conversational restaurant food discovery assistant built for **LocalGo
 - **Agent Framework**: **CrewAI 1.14.4** (`crewai[tools]==1.14.4`).
 - **Orchestration**: Stateful `CrewAI Flow` (`GoerFlow`) coordinating execution and intent handling.
 - **Agent Specialist**: `DiscoveryCrew` (configured via YAML at `src/goer_localgo/crews/discovery_crew/config/`).
-- **Tools**: Typed subclasses of CrewAI `BaseTool` with Pydantic argument validation (`SearchMenuTool`, `GetMenuTool`).
+- **Tools**: Typed subclasses of CrewAI `BaseTool` with Pydantic argument validation (`SearchMenuTool`, `GetMenuTool`, `GetProductTool`).
+- **Conversation Foundation**: Application-owned SQLite snapshots with revision checks; `flow/` restores bounded context and returns validated product cards via `schemas/chat.py`. Application conversation IDs are separate from CrewAI execution IDs. JWT authentication remains pending; current routes are development-only.
 - **API & Web Interface**: FastAPI, Uvicorn, and HTML/CSS browser chat client.
 - **Model Provider**: Configured through `MODEL` and `OPENAI_API_KEY` (defaults to `openai/gpt-4.1-mini`).
 
@@ -33,13 +34,15 @@ goer-ai/
 │       │       └── discovery_crew.py
 │       ├── domain/
 │       │   └── catalog.py       # Catalog query functions and data access logic
+│       ├── flow/                # GoerFlow and state, separate from CLI
+│       ├── schemas/             # Chat envelope and typed product cards
 │       ├── tools/
 │       │   ├── catalog_tools.py # CrewAI BaseTool implementations (SearchMenuTool, GetMenuTool)
 │       │   └── try-out-tools/   # Standalone deterministic per-tool smoke tests
 │       ├── web/
 │       │   └── index.html       # Browser chat UI
 │       ├── data_menu.json       # Authoritative LocalGo restaurant catalog snapshot
-│       └── main.py              # CrewAI Flow (GoerFlow), CLI entry points, and interactive loop
+│       └── main.py              # Thin CLI entry points and session-aware loop
 ├── tests/
 │   ├── unit/                    # Unit tests for tools, domain logic, and validation schemas
 │   └── integration/             # Integration tests for FastAPI endpoints and request validation
@@ -122,12 +125,26 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-04 | `schemas/`, `domain/cards.py`, `domain/conversations.py`, `flow/`, `main.py`, `api/main.py`, `tools/catalog_tools.py`, discovery task YAML, `web/`, `tests/`, `README.md`, phase documentation | Phase 1 foundation: stateful discovery, grounded product cards, compatible API and UI | Active; implementation complete, 76 tests and 3 smoke tests pass; refreshing handoff documentation |
+| *(No active agent locks)* | - | - | - | Ready for next task |
 
 ---
 
 ## 5. Recent Work
 
+- 2026-11-04: Implemented the Phase 1 conversation foundation: extracted
+  `flow/`, strict `schemas/chat.py`, request-local catalog collection and
+  grounded product cards, application-owned SQLite snapshots with ownership
+  checks and compare-and-swap revisions, six-exchange context and ordered
+  product references, new conversation endpoints, compatible legacy chat,
+  session-aware CLI/browser, and safe browser rendering. Conversation IDs
+  remain separate from CrewAI execution IDs (verified pinned 1.14.4 API).
+  Storage defaults to `~/.localgo/goer/conversations.sqlite3`, overridable with
+  `GOER_CONVERSATION_DB`. 76 offline pytest tests (including Node script tests)
+  and all 3 tool smoke tests pass. New routes still use a demo principal:
+  JWTs, routing, transactional specialists, discovery enhancements, visual
+  browser checks, and live-model quality verification remain pending.
+  Updated README, authoritative plan, and handoff. No infrastructure or live
+  model calls were used.
 - 2026-11-03: Added `docs/project-context-and-next-steps.md`, the handoff doc
   (start here): current request path, tool contracts, known gaps, roadmap
   status, and the step-by-step Phase 1 plan.
