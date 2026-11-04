@@ -4,6 +4,7 @@ from typing import Any, Type
 from crewai.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field
 
+from goer_localgo.domain.cards import record_catalog_result
 from goer_localgo.domain.catalog import (
     get_product,
     menu_overview,
@@ -13,7 +14,9 @@ from goer_localgo.domain.catalog import (
 )
 
 
-def _dump(payload: Any) -> str:
+def _dump(payload: Any, tool: str | None = None) -> str:
+    if tool is not None:
+        record_catalog_result(tool, payload)
     return json.dumps(payload, ensure_ascii=False)
 
 
@@ -38,7 +41,7 @@ class SearchMenuTool(BaseTool):
     args_schema: Type[BaseModel] = SearchMenuInput
 
     def _run(self, product_name: str, merchant_id: str | None = None) -> str:
-        return _dump(search_results(product_name, merchant_id))
+        return _dump(search_results(product_name, merchant_id), self.name)
 
 
 class GetMenuInput(BaseModel):
@@ -63,7 +66,7 @@ class GetMenuTool(BaseTool):
                 f"No merchant with id {merchant_id!r}.",
                 known_merchant_ids=merchant_ids(),
             )
-        return _dump(overview)
+        return _dump(overview, self.name)
 
 
 class GetProductInput(BaseModel):
@@ -87,4 +90,4 @@ class GetProductTool(BaseTool):
                 "PRODUCT_NOT_FOUND",
                 f"No product with id {product_id!r}. Use search_menu to find IDs.",
             )
-        return _dump(product_detail(product))
+        return _dump(product_detail(product), self.name)
