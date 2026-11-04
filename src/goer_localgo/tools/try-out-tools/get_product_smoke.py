@@ -2,7 +2,7 @@ import json
 
 from pydantic import ValidationError
 
-from goer_localgo.tools.catalog_tools import GetProductInput, GetProductTool
+from goer_localgo.tools.catalog.get_product import GetProductInput, GetProductTool
 
 
 def main() -> None:

@@ -2,7 +2,7 @@ import json
 
 from pydantic import ValidationError
 
-from goer_localgo.tools.catalog_tools import GetMenuInput, GetMenuTool
+from goer_localgo.tools.catalog.get_menu import GetMenuInput, GetMenuTool
 
 
 def main() -> None:
