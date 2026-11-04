@@ -14,7 +14,7 @@ Goer is a conversational restaurant food discovery assistant built for **LocalGo
 - **Agent Framework**: **CrewAI 1.14.4** (`crewai[tools]==1.14.4`).
 - **Orchestration**: Stateful `CrewAI Flow` (`GoerFlow`) coordinating execution and intent handling.
 - **Agent Specialist**: `DiscoveryCrew` (configured via YAML at `src/goer_localgo/crews/discovery_crew/config/`).
-- **Tools**: Typed subclasses of CrewAI `BaseTool` with Pydantic argument validation (`SearchMenuTool`, `GetMenuTool`, `GetProductTool`).
+- **Tools**: Typed subclasses of CrewAI `BaseTool` with Pydantic argument validation (`SearchMenuTool`, `GetMenuTool`, `GetProductTool`). Keep each tool and its input schema in its own file, grouped by capability (currently `tools/catalog/`); shared helpers belong in separate modules. `tools/catalog_tools.py` is compatibility imports only.
 - **Conversation Foundation**: Application-owned SQLite snapshots with revision checks; `flow/` restores bounded context and returns validated product cards via `schemas/chat.py`. Application conversation IDs are separate from CrewAI execution IDs. JWT authentication remains pending; current routes are development-only.
 - **API & Web Interface**: FastAPI, Uvicorn, and HTML/CSS browser chat client.
 - **Model Provider**: Configured through `MODEL` and `OPENAI_API_KEY` (defaults to `openai/gpt-4.1-mini`).
@@ -125,12 +125,21 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-04 | `tools/catalog/`, `tools/catalog_tools.py`, discovery crew imports, tool smoke tests, `tests/unit/test_tool_layout.py`, handoff documentation | Prepare one-tool-per-file structure and verify existing LocalGo cart integration boundary | Active; LocalGo cart is client-side, not REST-backed; no cart writes until integration direction is agreed |
+| *(No active agent locks)* | - | - | - | Ready for next task |
 
 ---
 
 ## 5. Recent Work
 
+- 2026-11-04: Split catalog tools into `tools/catalog/search_menu.py`,
+  `get_menu.py`, and `get_product.py`, with shared serialization separate and
+  backward-compatible imports in `catalog_tools.py`. Discovery and smoke tests
+  use individual modules. 79 pytest tests and 3 smoke tests pass. Read-only
+  audit of `../LocalGo-Consumer-RN` found that cart state/execution lives in
+  the mobile Zustand store, with backend action proposals rather than cart
+  REST endpoints. Recorded the integration decision in the handoff; no sibling
+  files changed and no shadow cart or cart mutations introduced. Cart-agent
+  integration awaits agreement on client-action bridge versus server-side API.
 - 2026-11-04: Restored `resume.tex` to the original supplied content,
   including the original two Goer project bullets and bullet formatting.
 - 2026-11-04: Restored the closing brace in the resume wrapping macro;
