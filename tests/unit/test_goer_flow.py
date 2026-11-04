@@ -144,3 +144,55 @@ def test_turn_rejects_invalid_message_before_model_call(use_stub, message):
     with pytest.raises(ValidationError):
         run_conversation_turn(message)
     assert not stub.calls
+
+
+def test_clarification_keeps_references_but_empty_search_clears_them(use_stub):
+    stub = use_stub(StubLLM(responses=[
+        tool_call("get_menu", {"merchant_id": "al-taib"}), final("First five."),
+        final("What would you like to know?"),
+        tool_call("search_menu", {"product_name": "no-such-food-xyz"}), final("No matches."),
+        final("Please choose a product."),
+    ]))
+    conversation_id = create_conversation()
+    first = run_conversation_turn("menu", conversation_id)
+    ids = [item.product_id for item in first.cards[0].items]
+    run_conversation_turn("clarify please", conversation_id)
+    assert get_conversation_repository().load(conversation_id, "demo-user").snapshot["last_shown_product_ids"] == ids
+    run_conversation_turn("search for no-such-food-xyz", conversation_id)
+    run_conversation_turn("the second one", conversation_id)
+    assert '"last_shown_products": []' in prompt_text(stub.calls[-1])
+
+
+def test_simultaneous_turns_cannot_overwrite_each_other(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from types import SimpleNamespace
+
+    from goer_localgo.domain.conversations import ConversationConflict
+    from goer_localgo.tools.catalog_tools import SearchMenuTool
+
+    barrier = Barrier(2)
+
+    class ConcurrentCrew:
+        def kickoff(self, inputs):
+            barrier.wait(timeout=10)
+            SearchMenuTool()._run("pizza")
+            return SimpleNamespace(raw=inputs["user_message"])
+
+    monkeypatch.setattr(DiscoveryCrew, "crew", lambda self: ConcurrentCrew())
+    conversation_id = create_conversation()
+
+    def send(message):
+        try:
+            return run_conversation_turn(message, conversation_id)
+        except ConversationConflict:
+            return None
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(send, ["first", "second"]))
+    successful = [response for response in responses if response is not None]
+    assert len(successful) == 1
+    assert successful[0].cards[0].items
+    saved = get_conversation_repository().load(conversation_id, "demo-user")
+    assert saved.revision == 1
+    assert saved.snapshot["recent_turns"][0]["text"] == successful[0].text
