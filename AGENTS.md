@@ -122,7 +122,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-03 | `schemas/`, `domain/cards.py`, `domain/conversations.py`, `flow/`, `main.py`, `api/main.py`, `tools/catalog_tools.py`, discovery task YAML, `web/index.html`, `tests/`, phase documentation | Phase 1 foundation: stateful discovery, grounded product cards, compatible API and UI | Active; no overlapping locks |
+| Agent | 2026-11-04 | `schemas/`, `domain/cards.py`, `domain/conversations.py`, `flow/`, `main.py`, `api/main.py`, `tools/catalog_tools.py`, discovery task YAML, `web/`, `tests/`, `README.md`, phase documentation | Phase 1 foundation: stateful discovery, grounded product cards, compatible API and UI | Active; implementation complete, 76 tests and 3 smoke tests pass; refreshing handoff documentation |
 
 ---
 
