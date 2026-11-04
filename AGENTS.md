@@ -23,6 +23,12 @@
 - Chat checkout must remain confirmation-gated: stage an order first, then place it only through the explicit confirmation flow. No server action may place an order. Do not bypass the stale-cart or duplicate-placement guards.
 - After editing `src/data/menu.ts`, re-run `backend/scripts/build_menu_dataset.py` so the agents' menu matches the app's.
 
+## Active work
+
+| Label | Date | Files | Goal | Status |
+|---|---|---|---|---|
+| Agent | 2026-11-04 | `backend/app/cart/`, `backend/app/auth.py`, `backend/app/routers/cart.py`, `backend/app/main.py`, price generator/artifact, SQL migration, backend tests/docs | Authenticated server-owned carts with revisions and idempotency; separate Goer service integration | Active; no mobile changes or live migrations |
+
 ## Verification
 
 - Run the narrowest relevant check after changes. For app-flow changes, start Expo and exercise the affected route when feasible.
