@@ -125,12 +125,14 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-04 | `resume.tex` | Repair bullet macro syntax and verify PDF compilation | Active; no overlapping locks |
+| *(No active agent locks)* | - | - | - | Ready for next task |
 
 ---
 
 ## 5. Recent Work
 
+- 2026-11-04: Restored the closing brace in the resume wrapping macro;
+  verified successful `pdflatex` compilation to a two-page PDF in temporary storage.
 - 2026-11-04: Shortened Goer resume content to four single-line bullets and
   removed forced word stretching from resume bullet formatting.
 - 2026-11-04: Saved `resume.tex` with the supplied resume and four updated
