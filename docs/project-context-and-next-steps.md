@@ -51,6 +51,7 @@ Browser / CLI
 | `main.py` | Thin CLI; one conversation per interactive session |
 | `web/index.html`, `web/chat.js` | Session-aware browser, card rendering, New chat button |
 | `domain/catalog.py`, `domain/money.py` | Cached catalog views, cents formatting |
+| `tools/catalog/{search_menu,get_menu,get_product}.py` | One catalog tool and its input schema per file; `catalog_tools.py` retains compatibility imports |
 | `tests/conftest.py`, `tests/stub_llm.py` | Network guard, test-only storage, shared stub-model fixture |
 
 Paths in this table are under `src/goer_localgo/` unless starting with `tests/`.
@@ -123,7 +124,7 @@ Other remaining gaps:
 
 ## 5. Verification
 
-**76 pytest tests pass**, plus **3 tool smoke tests**, with no live model calls.
+**79 pytest tests pass**, plus **3 tool smoke tests**, with no live model calls.
 The suite covers typed cards, tool collection/isolation, durable snapshots,
 owner checks, concurrent conflicts, bounded history, reference context, failure
 fallback, API compatibility, and CLI session reuse.
@@ -134,6 +135,31 @@ browser, and are skipped if Node is absent. A Starlette/httpx deprecation warnin
 remains unrelated to this work.
 
 ## 6. Next steps
+
+### LocalGo integration audit (2026-11-04)
+
+Inspected the sibling `../LocalGo-Consumer-RN` repository read-only:
+- `src/store/cartStore.ts` owns the cart in Zustand on the phone.
+- `src/goer/tools/executors.ts` implements `add_to_cart`, `remove_from_cart`,
+  `set_quantity`, `view_cart`, and `clear_cart` against that store.
+- `backend/app/goer/cart_agent.py` returns action proposals for those client
+  executors, not server-side cart mutations.
+- `backend/app/routers/goer.py` exposes chat/menu/recommendation routes; this
+  inspected backend has no server-side cart REST contract to connect here.
+
+The current Goer repository has not added a shadow cart, invented HTTP endpoints,
+modified the sibling app, or enabled cart mutations. The integration decision
+needs confirmation: preserve client-side execution with typed action proposals
+and explicit result acknowledgments, or first add an authoritative server-side
+cart API to LocalGo. The latter matches the target architecture but requires
+cross-repository work and authenticated ownership. A client snapshot must never
+be treated as authoritative checkout pricing. Existing client executors also
+need revision/idempotency handling before automatic retries are introduced.
+
+All new tools must use one implementation per file, grouped by capability,
+with shared transport/serialization helpers separate from tool classes.
+
+### Remaining roadmap
 
 1. Finish Phase 1 discovery improvements: `list_restaurants`,
    `get_menu_categories`, category/description ranking and fuzzy matching;
