@@ -40,11 +40,11 @@
 
 \newcommand{\bluelink}[2]{\textcolor{MidnightBlue}{\underline{\href{#1}{#2}}}}
 \newcommand{\resumeItem}[1]{
-  \item\small{\makebox[\linewidth][s]{#1}\vspace{-2pt}}
+  \item\small{\makebox[\linewidth][l]{#1}\vspace{-2pt}}
 }
 \newcommand{\resumeItemWrap}[1]{
   \item\small{\rightskip=0pt\parfillskip=0pt\emergencystretch=1em\hyphenpenalty=10000\exhyphenpenalty=10000 #1\par}\vspace{-2pt}
-}
+  \item\small{\raggedright\emergencystretch=1em\hyphenpenalty=10000\exhyphenpenalty=10000 #1\par}\vspace{-2pt}
 \newcommand{\resumeSubheading}[4]{
   \vspace{-2pt}\item
   \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
@@ -142,10 +142,10 @@
   \resumeProjectHeading
     {\textbf{Goer AI} $|$ \emph{Python, CrewAI, OpenAI} $|$ \bluelink{https://github.com/samerodeh/goer-ai}{\emph{GitHub}} $|$ \bluelink{https://github.com/samerodeh/goer-ai-no-framework-voodoo}{\emph{No Framework Voodoo}}}{Jun. 2026}
   \resumeItemListStart
-    \resumeItemWrap{Built \textbf{Goer AI}, a conversational food-discovery assistant that searches restaurant menus and answers product questions over a catalog of \textbf{138 products}.}
-    \resumeItemWrap{Orchestrated catalog-grounded tool calling with \textbf{CrewAI Flows}, \textbf{OpenAI} models, and \textbf{Pydantic}-validated tools, keeping prices and product data under deterministic Python control.}
-    \resumeItemWrap{Implemented \textbf{FastAPI} conversation endpoints, revision-checked \textbf{SQLite} persistence, bounded message history, and product cards generated directly from tool results.}
-    \resumeItemWrap{Verified conversation isolation, follow-up context, concurrent updates, and API compatibility through \textbf{76 offline Pytest tests} and \textbf{3 deterministic tool smoke tests}.}
+    \resumeItem{Built \textbf{Goer AI}, a food-discovery assistant for menu search and questions across \textbf{138 products}.}
+    \resumeItem{Built catalog tools with \textbf{CrewAI}, \textbf{OpenAI}, and \textbf{Pydantic}, keeping prices under Python control.}
+    \resumeItem{Added \textbf{FastAPI} endpoints, \textbf{SQLite} conversation memory, revision checks, and grounded product cards.}
+    \resumeItem{Verified isolation, follow-up context, and concurrency with \textbf{76 offline tests} and \textbf{3 tool smoke tests}.}
   \resumeItemListEnd
 
   \resumeProjectHeading
