@@ -7,9 +7,10 @@ lost context updates across processes; rejected turns have no persisted effect.
 import json
 import os
 import sqlite3
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Iterator, Protocol
 from uuid import uuid4
 
 
@@ -45,8 +46,15 @@ class SQLiteConversationRepository:
                 revision INTEGER NOT NULL DEFAULT 0, snapshot TEXT NOT NULL
             )""")
 
-    def _connect(self) -> sqlite3.Connection:
-        return sqlite3.connect(self.path, timeout=10)
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        db = sqlite3.connect(self.path, timeout=10)
+        try:
+            with db:
+                yield db
+        finally:
+            # A connection's own context manager commits but does not close it.
+            db.close()
 
     def create(self, user_id: str) -> Conversation:
         conversation = Conversation(str(uuid4()), user_id, 0, {})

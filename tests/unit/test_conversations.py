@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 
 from goer_localgo.domain.conversations import (
@@ -33,3 +35,24 @@ def test_stale_write_is_rejected_without_overwriting(tmp_path):
     with pytest.raises(ConversationConflict):
         repo.save(other, {"winner": False})
     assert repo.load(conversation.id, "alice").snapshot == {"winner": True}
+
+
+def test_repository_closes_connections_even_on_conflict(tmp_path, monkeypatch):
+    connections = []
+    original = sqlite3.connect
+
+    def track(*args, **kwargs):
+        connection = original(*args, **kwargs)
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(sqlite3, "connect", track)
+    repo = SQLiteConversationRepository(tmp_path / "conversations.db")
+    conversation = repo.create("alice")
+    repo.save(conversation, {})
+    with pytest.raises(ConversationConflict):
+        repo.save(conversation, {})
+    repo.load(conversation.id, "alice")
+    for connection in connections:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+            connection.execute("SELECT 1")
