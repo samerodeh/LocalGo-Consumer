@@ -125,7 +125,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active agent locks)* | - | - | - | Ready for next task |
+| Agent | 2026-11-04 | `resume.tex` | Restore the original user-supplied resume content and formatting | Active; no overlapping locks |
 
 ---
 
