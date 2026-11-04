@@ -125,12 +125,14 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-04 | `resume.tex` | Save the supplied resume with updated Goer project bullets | Active; no overlapping locks |
+| *(No active agent locks)* | - | - | - | Ready for next task |
 
 ---
 
 ## 5. Recent Work
 
+- 2026-11-04: Saved `resume.tex` with the supplied resume and four updated
+  Goer project bullets covering discovery, typed tools, persistence, and tests.
 - 2026-11-04: Implemented the Phase 1 conversation foundation: extracted
   `flow/`, strict `schemas/chat.py`, request-local catalog collection and
   grounded product cards, application-owned SQLite snapshots with ownership
