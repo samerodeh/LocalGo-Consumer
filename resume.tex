@@ -1,0 +1,172 @@
+%-------------------------
+% Resume in LaTeX
+% Author : Jake Gutierrez (template)
+% Updated for ATS compatibility and blue styling
+%-------------------------
+\documentclass[letterpaper,11pt]{article}
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{xcolor}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage[T1]{fontenc}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large\color{MidnightBlue}
+}{}{0em}{}[\color{MidnightBlue}\titlerule \vspace{-5pt}]
+
+\ifdefined\pdfgentounicode\pdfgentounicode=1\fi
+
+\newcommand{\bluelink}[2]{\textcolor{MidnightBlue}{\underline{\href{#1}{#2}}}}
+\newcommand{\resumeItem}[1]{
+  \item\small{\makebox[\linewidth][s]{#1}\vspace{-2pt}}
+}
+\newcommand{\resumeItemWrap}[1]{
+  \item\small{\rightskip=0pt\parfillskip=0pt\emergencystretch=1em\hyphenpenalty=10000\exhyphenpenalty=10000 #1\par}\vspace{-2pt}
+}
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+  \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+    \textbf{#1} & #2 \\
+    \textit{\small #3} & \textit{\small #4} \\
+  \end{tabular*}\vspace{-7pt}
+}
+\newcommand{\resumeProjectHeading}[2]{
+  \item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    \small #1 & #2 \\
+  \end{tabular*}\vspace{-7pt}
+}
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    \textbf{\Huge \scshape Samer Odeh} \\ \vspace{4pt}
+    \small
+    Montreal, QC, Canada $|$ 514-246-4894 $|$
+    \href{mailto:samerodeh.dev@gmail.com}{\underline{\textcolor{MidnightBlue}{samerodeh.dev@gmail.com}}} \\ \vspace{2pt}
+    \bluelink{https://www.linkedin.com/in/samer-odeh-1265b1343/}{linkedin.com/in/samer-odeh-1265b1343} $|$
+    \bluelink{https://github.com/samerodeh}{github.com/samerodeh} $|$
+    \bluelink{https://samerodehdev.netlify.app}{samerodeh.dev}
+\end{center}
+\vspace{-18pt}
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {\textbf{Concordia University}}{Montreal, QC}
+    {Bachelor of Engineering in Computer Engineering}{Sep. 2024 -- Sep. 2029 (Expected)}
+\resumeSubHeadingListEnd
+
+%-----------EXPERIENCE-----------
+\section{Experience}
+\resumeSubHeadingListStart
+  \resumeProjectHeading
+    {\textbf{Co-Founder \& Software Engineer} $|$ \bluelink{https://github.com/samerodeh/LocalGo-Consumer-RN}{LocalGo Consumer} $|$ \bluelink{https://github.com/samerodeh/LocalGo-driver}{LocalGo Driver}}{Jan. 2026 -- Present $|$ Remote}
+    \resumeItemListStart
+      \resumeItem{Built full-stack ordering, dispatch, and tracking flows with \textbf{React Native}, \textbf{TypeScript}, \textbf{FastAPI}, and \textbf{Postgres}.}
+      \resumeItem{Integrated \textbf{Goer AI}, an \textbf{agentic AI} assistant using \textbf{OpenAI} tool calling for menu search and product questions.}
+      \resumeItem{Added \textbf{Pytest} to \textbf{GitHub Actions} CI, tested API endpoints in \textbf{Postman}, and tested user flows in \textbf{Playwright}.}
+      \resumeItem{Load-tested APIs with \textbf{JMeter}, sent metrics to \textbf{Prometheus}, and visualized performance results in \textbf{Grafana}.}
+      \resumeItem{Designed a \textbf{multi-agent architecture} for discovery, carts, checkout, and support with backend-owned order state.}
+      \resumeItem{Containerized \textbf{FastAPI} services with \textbf{Docker} and \textbf{Docker Compose} for repeatable builds and app deployment.}
+      \resumeItem{Built iOS and Android releases with \textbf{Expo/EAS}, using \textbf{GitHub Actions} for type checks and automated tests.}
+      \resumeItem{Provisioned infrastructure with \textbf{Terraform} and \textbf{Ansible}, enabling repeatable deployments and service rollback.}
+      \resumeItem{Deployed services on \textbf{Kubernetes}, packaged builds with \textbf{Helm}, and monitored application health with \textbf{Datadog}.}
+    \resumeItemListEnd
+
+  \resumeProjectHeading
+    {\textbf{Software Engineering Intern} $|$ CopyPasta}{Feb. 2026 -- May 2026 $|$ Remote}
+    \resumeItemListStart
+      \resumeItem{Built offline file conversion in \textbf{Swift}/\textbf{SwiftUI} for ClipTex, a native macOS \textbf{OCR} app using Apple's \textbf{Vision} API.}
+      \resumeItem{Built a \textbf{26-format} image, document, audio, and video engine using \textbf{AVFoundation}, \textbf{ImageIO}, and \textbf{PDFKit}.}
+      \resumeItem{Added automated conversion tests to the \textbf{CI/CD} pipeline and organized file-processing logic into \textbf{Swift} classes.}
+      \resumeItem{Kept document and media conversion entirely on-device, enabling offline use without sending user files to servers.}
+      \resumeItem{Managed \textbf{App Sandbox} entitlements and security-scoped file access for \href{https://apps.apple.com/app/id6746349745}{\textcolor{MidnightBlue}{\underline{CopyPasta}}}, a live macOS App Store app.}
+    \resumeItemListEnd
+
+  \resumeProjectHeading
+    {\textbf{IEEE Lab Supervisor} $|$ IEEE Concordia}{Aug. 2026 -- Present $|$ Montreal, QC}
+    \resumeItemListStart
+      \resumeItem{Supervised daily engineering lab operations, maintaining workstations, tools, and electronic component inventory.}
+      \resumeItem{Mentored students through circuit debugging and microcontroller projects while enforcing engineering lab safety.}
+    \resumeItemListEnd
+
+  \resumeProjectHeading
+    {\textbf{Full-Stack Software Engineer} $|$ Freelancer (\bluelink{https://purebranded.vercel.app/}{PureBranded}, \bluelink{https://singer-heley-0001.vercel.app/}{Singer Haley})}{2025 -- Present $|$ Remote}
+    \resumeItemListStart
+      \resumeItem{Shipped custom web applications and REST backends for small businesses, from database design to deployment.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+  \resumeProjectHeading
+    {\textbf{Repo Investigator} $|$ \emph{TypeScript, LangGraph, LangChain, Langfuse} $|$ \bluelink{https://github.com/samerodeh/repo-investigator}{\emph{GitHub}}}{Oct. 2026}
+  \resumeItemListStart
+    \resumeItemWrap{Built a \textbf{TypeScript} repository-investigation agent on a bounded \textbf{LangGraph} ReAct loop that autonomously selects from \textbf{13 tools}, including code search, Git history and diffs, and test discovery, to give evidence-based answers.}
+    \resumeItemWrap{Engineered tool safety controls with \textbf{Zod} input schemas, path validation confining reads to the target repo, an allowlist limiting command execution to test/build/lint, and secret filtering for \textbf{.env} and private-key files.}
+    \resumeItemWrap{Wrote \textbf{Vitest} unit and integration suites that run the real agent tool loop against a stub chat model, delivering \textbf{28} deterministic tests that need no API credentials, plus \textbf{13} repository-tool smoke tests and TypeScript build checks.}
+    \resumeItemWrap{Instrumented the agent with \textbf{Langfuse} and \textbf{OpenTelemetry}, tracing model generations, tool calls, and nested execution spans, capturing \textbf{23} observations in a verified run, with tracing enabled only when credentials exist.}
+  \resumeItemListEnd
+
+  \resumeProjectHeading
+    {\textbf{Goer AI} $|$ \emph{Python, CrewAI, OpenAI} $|$ \bluelink{https://github.com/samerodeh/goer-ai}{\emph{GitHub}} $|$ \bluelink{https://github.com/samerodeh/goer-ai-no-framework-voodoo}{\emph{No Framework Voodoo}}}{Jun. 2026}
+  \resumeItemListStart
+    \resumeItemWrap{Built \textbf{Goer AI}, a conversational food-discovery assistant that searches restaurant menus and answers product questions over a catalog of \textbf{138 products}.}
+    \resumeItemWrap{Orchestrated catalog-grounded tool calling with \textbf{CrewAI Flows}, \textbf{OpenAI} models, and \textbf{Pydantic}-validated tools, keeping prices and product data under deterministic Python control.}
+    \resumeItemWrap{Implemented \textbf{FastAPI} conversation endpoints, revision-checked \textbf{SQLite} persistence, bounded message history, and product cards generated directly from tool results.}
+    \resumeItemWrap{Verified conversation isolation, follow-up context, concurrent updates, and API compatibility through \textbf{76 offline Pytest tests} and \textbf{3 deterministic tool smoke tests}.}
+  \resumeItemListEnd
+
+  \resumeProjectHeading
+    {\textbf{Jarvis - Home Automation System} $|$ \emph{Python, FastAPI, CrewAI, ESP32, Vosk} $|$ \bluelink{https://github.com/samerodeh/jarvis}{\emph{GitHub}}}{Mar. 2026}
+  \resumeItemListStart
+    \resumeItem{Built Jarvis, a voice-controlled home automation system using \textbf{CrewAI} and \textbf{Vosk} for offline speech recognition.}
+    \resumeItem{Wrote \textbf{C/C++} firmware for \textbf{ESP32} nodes and custom PCBs over UART/I2C, driving \textbf{SG90} servos and relays.}
+    \resumeItem{Deployed across \textbf{4+ rooms}, turning spoken intent into low-latency servo and relay commands on \textbf{ESP32} nodes.}
+  \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\begin{itemize}[leftmargin=0.15in, label={}]
+\small{
+\item{
+\textbf{Languages:} C/C++, Python, TypeScript, JavaScript, Java, Swift, SQL, Bash \\
+\textbf{Cloud \& DevOps:} AWS, Docker, Kubernetes, Helm, Datadog, Linux, CI/CD (GitHub Actions) \\
+\textbf{Dev Environment:} Cursor, UV, Herdr (TMUX), vim/neovim, Pi coding agent, Claude Code CLI
+}}
+\end{itemize}
+
+\end{document}
