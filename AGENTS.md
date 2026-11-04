@@ -125,7 +125,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active agent locks)* | - | - | - | Ready for next task |
+| Agent | 2026-11-04 | `resume.tex` | Remove stretched bullet spacing and shorten Goer to four single-line bullets | Active; no overlapping locks |
 
 ---
 
