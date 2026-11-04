@@ -19,7 +19,7 @@ import pytest  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
-def offline(monkeypatch):
+def offline(monkeypatch, tmp_path):
     """Fail fast if any test tries to reach a real LLM or other network host.
 
     Loopback stays allowed: on Windows every asyncio event loop connects an
@@ -33,6 +33,7 @@ def offline(monkeypatch):
             return real_connect(sock, address, *args, **kwargs)
         raise RuntimeError(f"test tried to use the network: {address!r}")
 
+    monkeypatch.setenv("GOER_CONVERSATION_DB", str(tmp_path / "conversations.sqlite3"))
     monkeypatch.setattr(socket.socket, "connect", guarded_connect)
     # Agents resolve their default LLM at construction; a dummy key keeps that
     # from failing before tests swap in the stub.
