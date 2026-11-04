@@ -125,7 +125,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active agent locks)* | - | - | - | Ready for next task |
+| Agent | 2026-11-04 | `tools/catalog/`, `tools/catalog_tools.py`, discovery crew imports, tool smoke tests, `tests/unit/test_tool_layout.py`, handoff documentation | Prepare one-tool-per-file structure and verify existing LocalGo cart integration boundary | Active; LocalGo cart is client-side, not REST-backed; no cart writes until integration direction is agreed |
 
 ---
 
