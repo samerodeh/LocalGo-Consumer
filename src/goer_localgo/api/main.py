@@ -48,6 +48,11 @@ def index() -> FileResponse:
     return FileResponse(web_dir / "index.html")
 
 
+@app.get("/chat.js", include_in_schema=False)
+def chat_script() -> FileResponse:
+    return FileResponse(web_dir / "chat.js", media_type="text/javascript")
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "framework": "crewai", "api": "fastapi"}
