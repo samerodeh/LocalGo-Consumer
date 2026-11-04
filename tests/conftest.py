@@ -38,3 +38,23 @@ def offline(monkeypatch, tmp_path):
     # Agents resolve their default LLM at construction; a dummy key keeps that
     # from failing before tests swap in the stub.
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-used")
+
+
+@pytest.fixture
+def use_stub(monkeypatch):
+    """Use the real discovery crew and tools, with only the model replaced."""
+    from goer_localgo.crews.discovery_crew.discovery_crew import DiscoveryCrew
+
+    original = DiscoveryCrew.crew
+
+    def install(stub):
+        def crew_with_stub(self):
+            crew = original(self)
+            for agent in crew.agents:
+                agent.llm = stub
+            return crew
+
+        monkeypatch.setattr(DiscoveryCrew, "crew", crew_with_stub)
+        return stub
+
+    return install

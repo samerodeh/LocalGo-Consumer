@@ -12,25 +12,6 @@ from goer_localgo.flow.goer_flow import create_conversation, run_conversation_tu
 from goer_localgo.domain.conversations import get_conversation_repository
 
 
-@pytest.fixture
-def use_stub(monkeypatch):
-    """Swap the stub into every agent the DiscoveryCrew builds."""
-
-    def install(stub: StubLLM) -> StubLLM:
-        original = DiscoveryCrew.crew
-
-        def crew_with_stub(self):
-            crew = original(self)
-            for agent in crew.agents:
-                agent.llm = stub
-            return crew
-
-        monkeypatch.setattr(DiscoveryCrew, "crew", crew_with_stub)
-        return stub
-
-    return install
-
-
 def final(text: str) -> str:
     return f"Thought: I can answer now.\nFinal Answer: {text}"
 
