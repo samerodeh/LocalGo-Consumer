@@ -31,7 +31,7 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-05 | src/goer/goerStore.ts; tests/client/goerReset.test.cjs; AGENTS.md | Keep reset fence until final completion, including synchronous subscribers | Active; final narrow regression |
+| *(No active locks)* | - | - | - | Code/tests/docs complete; connected development activation awaits private credentials/admin access |
 
 ## Recent work
 
@@ -40,7 +40,9 @@
   explicit Retry pending turn. Completed responses persist before cloud history;
   outage/restart retry does not resend cart work. Added migration
   `202611050001_goer_history.sql`, generation-fenced/serialized session storage,
-  A-B-A async isolation and synchronous reset locking. Historical cart cards are
+  A-B-A async isolation and synchronous reset locking through final callbacks,
+  including synchronous subscribers. Final 22 Node cases and TypeScript reran
+  successfully after that last fence check. Historical cart cards are
   display-only. UI keeps its latest 50 messages; older in-thread paging is absent.
   Latest checks: 22 mobile/SQL Node cases (zero skips), TypeScript, Android JS/assets
   export, 116 pinned backend tests; sibling Goer 127 tests. All three migrations
