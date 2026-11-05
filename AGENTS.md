@@ -115,15 +115,22 @@ The sibling repository contains three connected-project-unapplied migrations:
 Isolated PostgreSQL tests execute actual functions and verify owner RLS, RPC
 grants, immutable history/cart replay, revisions, checkout locks, frozen quotes
 and one-time consumption. Connected Supabase/concurrency still need verification.
-Read-only checks confirmed Auth availability and Stripe `livemode=false`;
-no signup, real model, PaymentIntent/charge or native app runtime was exercised.
+Read-only checks confirmed Auth availability and Stripe `livemode=false`.
+Two real-model guest browser turns now pass (pizza cards/prices and ordinal
+follow-up in the same conversation). No signup, PaymentIntent/charge or native
+app runtime was exercised.
 
 **Latest results (2026-11-05):** 127 Goer tests (including 4 browser Node cases),
 116 pinned backend tests, 22 mobile/SQL Node cases (zero skips), mobile TypeScript
 and Android JS/assets export passed. Exporting JS is **not a native build or
 PaymentSheet test**. The 8 tool smoke scripts passed previously; tools did not
 change this session. Verify localhost services next session instead of assuming
-the old guest server still runs at `http://127.0.0.1:8000`.
+the servers remain running. Latest startup checks: Goer `127.0.0.1:8000`,
+LocalGo backend port 8100 and Expo/Metro 8081 pass; the canonical catalog has
+145 products, unsigned session is 401 and cart stays feature-gated (503).
+Metro Android manifest/bundle both return 200. Mobile launch uses a temporary
+`EXPO_PUBLIC_API_URL` override to the current Wi-Fi address on port 8100; no
+`.env` files changed. This is not proof of native sign-in/payment functionality.
 
 ### Next session: smallest complete path
 
@@ -218,12 +225,30 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-05 | AGENTS.md | Record actual running-service and live browser smoke results | Active; no source, credentials, migrations or flags changed |
+| *(No active locks)* | - | - | - | Running-service/browser verification complete; native/authenticated journey still blocked |
 
 ---
 
 ## 5. Recent Work
 
+- 2026-11-05: Started Goer (8000), pinned LocalGo backend (8100) and Expo
+  dev-client/Metro (8081). Real headless Edge/live-model smoke passed: Al-Taib
+  pizza discovery renders five grounded cards/prices; ordinal follow-up renders
+  the first product's details in the same conversation. Browser screenshot is
+  `%TEMP%/goer-live-browser.png`. Reran all offline checks: 127 Goer tests,
+  116 pinned backend tests, 22 mobile/SQL cases (zero skips), TypeScript passed.
+  Live Expo Android manifest/bundle return 200 (12,037,042-byte bundle); this
+  does not run native SDKs. Canonical catalog returns 145 products; unsigned
+  session is 401, disabled cart is 503. Backend requires its `uv run` environment;
+  directly invoking the cached interpreter failed with `No pyvenv.cfg file`.
+  Persistent Windows launch used hidden-console PowerShell `Start-Process`;
+  detached-console PowerShell exited without launching. Logs are under `%TEMP%`
+  (`goer-app.*.log`, `localgo-backend-3.*.log`, `localgo-mobile.*.log` and
+  `*-run-app-*.log`). No Android SDK/emulator/device is available. Backend
+  service-role/admin access and connected migrations are still missing; no
+  real account history/checkout, payment, migration, secret or flag changes.
+  Mobile API URL override exists only in the running process. Verify services
+  again next session rather than assuming detached processes survived.
 - 2026-11-05: Finished mobile account-linked Supabase display history in the
   sibling repository: immutable owned publication, history picker, New conversation,
   explicit pending retry, cached completed envelopes and display-only historical
