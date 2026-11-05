@@ -68,6 +68,13 @@ test('restores stored ID and clears an expired session without replaying the tur
   assert.equal(b.elements['#send'].disabled, false);
 });
 
+test('renders server cart totals and item names without interpreting HTML', () => {
+  const b = browser();
+  vm.runInContext(`renderCards(messagesEl, [{type:'cart_summary', cart:{merchant_id:'al-taib',lines:[{quantity:2,name:'<b>Pizza</b>'}]}, display_subtotal:'$11.00',display_delivery_fee:'$5.00',display_total:'$16.00'}]);`, b.context);
+  assert.match(allText(b.elements['#messages']), /2 × <b>Pizza<\/b>/);
+  assert.match(allText(b.elements['#messages']), /Total before tip: \$16\.00 CAD/);
+});
+
 test('ignores unknown card types and permits only HTTPS product images', () => {
   const b = browser();
   vm.runInContext(`renderCards(messagesEl, [{type:'unknown'}, {type:'product_detail', product:{name:'Pizza', display_price:'$5.50', currency:'CAD', merchant_id:'al-taib', image_url:'https://example.com/pizza.jpg'}}]);`, b.context);

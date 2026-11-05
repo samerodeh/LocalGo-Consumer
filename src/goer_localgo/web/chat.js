@@ -57,6 +57,13 @@ function renderCards(parent, cards = []) {
       const element = renderProduct(parent, card.product);
       addText(element, "p", card.description || "");
       if (card.allows_notes) addText(element, "p", "Special instructions are allowed.", "product-meta");
+    } else if (card.type === "cart_summary" && card.cart && Array.isArray(card.cart.lines)) {
+      const element = addText(parent, "article", "", "product-card");
+      addText(element, "strong", card.cart.merchant_id || "Empty cart");
+      for (const line of card.cart.lines) addText(element, "p", `${line.quantity} × ${line.name}`);
+      addText(element, "p", `Subtotal: ${card.display_subtotal}`);
+      addText(element, "p", `Delivery: ${card.display_delivery_fee}`);
+      addText(element, "strong", `Total before tip: ${card.display_total} CAD`);
     }
     // Unknown card types and unimplemented actions are intentionally ignored.
   }
