@@ -1,6 +1,6 @@
 # Authenticated cart integration: setup and recovery
 
-Updated 2026-11-04. This is the operational companion to section 16 of
+Updated 2026-11-05. This is the operational companion to section 16 of
 [the architecture plan](localgo-delivery-architecture-plan.md), not a new roadmap.
 
 ## Status
@@ -26,9 +26,18 @@ The five integration milestones are implemented in code:
    the exact paid amount and consumes the locked cart. Cancellation verifies
    Stripe cancellation before releasing the lock.
 
-**Not activated or live-verified:** no SQL migration, deployment, real-model
-call, native-app session, or Stripe sandbox payment was performed in this work.
-All flags remain false in templates; no local secret files were changed.
+The selected client is the **existing LocalGo mobile app**, using its existing
+**development-only** Supabase project. Account-linked display history, conversation
+selection, explicit pending-turn retry and New conversation are also implemented.
+A completed response is cached before cloud publication; a history-only retry
+never sends another Goer/cart request. Historical cart cards never update a cart.
+
+**Not activated or live-verified:** the connected Supabase migrations have not been
+applied; no real-model call, native-app session or Stripe sandbox payment was
+performed. Read-only checks verified Supabase Auth availability and a Stripe test
+account (`livemode=false`). The backend service-role key is empty and no database
+admin connection is configured. Supply credentials privately in backend `.env`,
+never in chat or mobile configuration. No secret files or activation flags changed.
 
 Guest browser/CLI discovery still uses the 138-product JSON fixture. Signed-in
 Goer turns use LocalGo's canonical 145-product catalog, scoped per request so
@@ -77,20 +86,28 @@ src/
   store/cartStore.ts                  server cache + serialized mutations
   lib/checkoutSession.ts              stable checkout IDs and recovery
   lib/{payments,placeOrder,dispatch}.ts explicit confirmation/payment flow
-  goer/authenticatedClient.ts          persisted request IDs, no offline replay
+  goer/authenticatedClient.ts          persisted request IDs and completed-response recovery
+  goer/history.ts                     owned cloud transcript transport/validation
+  components/goer/GoerHistory.tsx     conversation list and selection
   goer/tools/serverCartExecutors.ts    old executors use the same cart API
   components/CartNotice.tsx            pending-request and checkout recovery UI
 supabase/migrations/
   202611040001_customer_carts.sql
   202611040002_cart_checkout.sql
+  202611050001_goer_history.sql
 ```
 
 ## Activation order
 
 ### 1. Prepare staging storage (manual, owner-controlled)
 
-Review and apply both migrations in order to a **staging** LocalGo Supabase
-project. They were parsed for SQL syntax but not executed locally. Verify:
+Review and apply all three migrations above, in order, to the **existing
+development** LocalGo Supabase project; do not create a second project or use
+production. A service-role HTTP key alone cannot apply DDL: use the owner's
+Supabase SQL Editor or a private PostgreSQL/admin connection. All three execute
+in isolated PGlite PostgreSQL tests, including RPC/RLS assertions, but have not
+been applied to connected Supabase. Real deployment/concurrency verification
+is still required. Verify:
 
 - Authenticated users can read only their own cart and cannot write directly.
 - Cart/checkout RPCs are executable by the service role only.
@@ -98,7 +115,10 @@ project. They were parsed for SQL syntax but not executed locally. Verify:
 - Checkout lock prevents edits; consuming a checkout clears that exact revision
   once, never a later cart. Receipt replay remains safe while checkout is locked.
 - Canceled/processing/succeeded payment cases release/retain locks correctly.
-- Account deletion cascades the new cart/receipt/checkout rows.
+- Account deletion cascades cart/receipt/checkout and cloud history rows.
+- History SELECTs are owner-only; direct table writes and anonymous RPCs fail.
+- `save_goer_history_turn` binds `auth.uid()`, accepts immutable exact replay,
+  rejects changed messages/envelopes, and cannot overwrite another account.
 
 Do not deploy against production merely because offline tests pass. No migration
 is automatically run at startup.
@@ -155,6 +175,8 @@ SQLite files on multiple service hosts are not a shared journal.** Use a
 transactional shared store before multi-host production. Back up/encrypt this
 file and define retention/account-deletion cleanup for Goer history before
 using real customer data; backend account deletion does not delete Goer's file.
+Supabase display history is separate from this authoritative reasoning/command
+store: deleting or losing the SQLite file is not repaired by a cloud transcript.
 
 ### 4. Configure the mobile app
 
@@ -183,6 +205,20 @@ The Goer launcher is shown in the tab layout only when server-cart mode and
 `EXPO_PUBLIC_GOER_API_URL` are configured. Legacy force-fallback settings are
 for the old demo pipeline; server cart mutations must not be replayed offline.
 Demo cart contents are not silently merged into a signed-in cart.
+
+### 5. Verify account-linked history
+
+Sign in, complete a turn, restart/reinstall the app and open **History**. Select
+an older conversation, then use **New conversation**: old history must remain
+available. Lists page 20 conversations; transcript loading is bounded to 50 recent
+turns and the UI retains its latest 50 messages. Earlier messages are not currently
+paged within a conversation. Resuming reasoning still requires the original Goer
+SQLite database, not just a Supabase transcript.
+
+Interrupt cloud history publication after a confirmed cart response. **Retry
+pending turn** must publish the exact cached envelope without another Goer/cart
+HTTP call. App restarts and A-B-A account switches must preserve that request ID.
+Do not allow a new turn, reset or conversation switch while recovery is pending.
 
 ## Runtime contracts
 
@@ -214,8 +250,13 @@ Demo cart contents are not silently merged into a signed-in cart.
   old responses/transcripts from entering the new account. Recovery records
   remain scoped to their original account. Recreated accounts cannot execute
   a pending button request owned by another UUID.
-- **New chat:** the app refuses to discard an unresolved turn. After completion,
-  New chat clears the conversation reference instead of reusing hidden history.
+- **History publication failure:** use **Retry pending turn**. The completed
+  response is retained locally before publication, so this retries only the
+  history RPC. Do not clear application data while recovery is pending.
+- **New conversation:** the app refuses to discard an unresolved turn and locks
+  synchronously against sends/restoration. It starts a new server conversation
+  without deleting saved cloud history. **History** restores an owned transcript;
+  restored cart cards are display snapshots, never executable cart state.
 - **Checkout lock:** finish the same checkout or choose **Cancel unfinished
   checkout**. Cancellation refuses paid/processing intents and verifies provider
   cancellation before unlocking. Never bypass the lock with a local clear.
@@ -233,10 +274,27 @@ Demo cart contents are not silently merged into a signed-in cart.
 
 ## Verification and remaining gates
 
-Completed offline checks: **127 Goer tests**, **116 LocalGo backend tests**,
-**8 tool smoke scripts**, **3 mobile cart-state Node tests**, **4 browser-script
-Node tests**, and the mobile TypeScript check. SQL syntax was parsed; the tests
-mock Supabase/Stripe/HTTP and are not proof of live database or native SDK flows.
+Latest checks (2026-11-05): **127 Goer tests**, **116 pinned LocalGo backend tests**,
+**22 mobile/SQL Node cases** (zero skips), mobile TypeScript and an Android
+JavaScript/assets export passed. Goer's suite includes the 4 browser-script cases.
+The 8 individual tool smoke scripts passed in the previous implementation session;
+no tools changed in this session. The Android export is not a native build or
+PaymentSheet runtime test.
+
+The SQL case executes all three real migrations and tests owner RLS, restricted
+RPC grants, immutable history replay, cart receipts/revisions, checkout locks,
+quote/payment binding and one-time consumption in isolated PGlite PostgreSQL.
+It does not verify connected Supabase, concurrent sessions or real Stripe. To run
+that optional case without a project dependency (from the mobile repository):
+
+```powershell
+npm install --prefix "$env:TEMP\localgo-pg-check" --ignore-scripts @electric-sql/pglite@0.5.15
+$env:LOCALGO_PGLITE_MODULE = "$env:TEMP\localgo-pg-check\node_modules\@electric-sql\pglite"
+node --test tests/client/*.test.cjs
+```
+
+Without `LOCALGO_PGLITE_MODULE`, the database case explicitly skips; do not report
+it as passed. Other Node cases use fake HTTP/storage with the real client modules.
 
 Run staging scenarios before activation: real sign-in and expiry, cross-user
 IDs, menu/search follow-ups, chat/button parity, rapid quantity edits, mixed
