@@ -33,26 +33,32 @@ policies in `../../LocalGODriverRN/supabase/schema.sql` apply unchanged.
 
 ## Server-owned carts (new, opt-in integration)
 
-The new cart API is separate from the existing phone-owned cart. It is **not
-wired into the mobile store, existing Goer action executors, or checkout yet**.
-Do not activate a server-side cart assistant in the app until all those callers
-read the same cart; otherwise the phone and server will show different contents.
+The new cart API is wired into the mobile store, normal buttons, old cart
+executors, and checkout **behind closed-by-default feature flags**. In server
+mode Zustand is a cache, not an independent cart. The separate CrewAI Goer
+service authenticates via `/v1/session`, plans with read tools only, and executes
+persisted commands through these endpoints. No live activation was performed.
 
 ### Deployment prerequisites
 
-1. Review and apply `supabase/migrations/202611040001_customer_carts.sql` from
-   the repository root to the shared Supabase project. It creates two new
-   tables and an atomic commit RPC; it does not modify existing order tables.
+1. Review and apply both `202611040001_customer_carts.sql` and
+   `202611040002_cart_checkout.sql` in `supabase/migrations/`, in order, to a
+   staging Supabase project. They create cart/receipt/checkout tables and atomic
+   cart/checkout RPCs; existing order tables are not modified.
 2. Configure `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and
    `SUPABASE_SERVICE_ROLE_KEY` on this backend only. Never send the service key
    to Goer, the mobile app, or a browser.
-3. Every request must carry the customer's real Supabase Auth access token.
+3. Set backend `SERVER_CART_ENABLED=true` only after migration verification.
+   Goer needs its own `GOER_CART_ENABLED`, and the mobile app needs
+   `EXPO_PUBLIC_SERVER_CART_ENABLED` plus `EXPO_PUBLIC_GOER_API_URL`. Templates
+   leave the flags false; backend cart routes return 503 while disabled.
+4. Every cart request must carry the customer's real Supabase Auth access token.
    The backend resolves it through `/auth/v1/user`; request bodies cannot set
    an owner. RLS allows authenticated users to read only their cart. All direct
    user writes and execution of the commit RPC are revoked; the backend alone
    commits validated snapshots with the service role.
 
-This migration was syntax-parsed locally, **not applied to a live database**.
+Both migrations were syntax-parsed locally, **not applied to a live database**.
 Repository/RPC behavior is mocked in the offline suite. Validate the migration,
 RLS, and concurrent commits against a staging Supabase/PostgreSQL instance
 before deployment. No infrastructure was provisioned.
@@ -79,8 +85,24 @@ Responses contain `revision`, `merchant_id`, `currency: CAD`, `lines`,
 (the stable line identity), quantities, names, and integer-cent unit/line prices.
 LocalGo recomputes prices on every edit using `app/pricing.py` and explicit
 restaurant metadata in `app/menu_prices.json`. Reading returns the last committed
-snapshot; checkout must still reprice and bind to the cart revision when it is
-integrated. The existing payment/order flow is unchanged.
+snapshot. In server mode payment creation accepts `cart_revision` instead of
+client item lists, locks that owned revision, and persists the server-priced
+quote before creating a Stripe intent. Its owner/order/revision/fingerprint and
+exact paid amount are verified before publication; canonical server items are
+used and the cart is consumed atomically. Normal explicit confirmation and
+PaymentSheet remain required; no model tool can create a payment or order.
+
+`GET /v1/cart/checkout` and `GET /payments/cart/{order_id}` expose owned recovery
+state. `POST /payments/cart/{order_id}/cancel` verifies provider cancellation
+before unlocking; paid/processing intents cannot be released this way. Mobile
+checkout retains its order ID through retries/restarts, reuses succeeded intents,
+and records history idempotently. Do not disable enforcement with pending paid
+checkouts: the legacy order path refuses server-bound payments.
+
+`GET /v1/session` returns only the verified user UUID. Public
+`GET /v1/catalog/products` serves the canonical 145-product ID/name/price/category/
+description snapshot used by signed-in Goer turns, avoiding the older fixture's
+retired IDs.
 
 V1 supports single-restaurant carts, quantities 1–99, at most 50 distinct lines,
 and the existing $1,000 order limit. Unsupported options, notes, client prices,
@@ -92,18 +114,24 @@ Regenerate the price artifact after menu changes with
 
 Errors use `detail: {code, message}` for cart business/storage failures:
 `CART_REVISION_CONFLICT`, `IDEMPOTENCY_CONFLICT`, `CART_MERCHANT_MISMATCH`,
-`CART_LINE_NOT_FOUND`, `ITEM_UNAVAILABLE`, `CART_LIMIT_EXCEEDED`, or
-`CART_UNAVAILABLE`. Authentication failures are 401, unavailable authentication
+`CART_LINE_NOT_FOUND`, `ITEM_UNAVAILABLE`, `CART_LIMIT_EXCEEDED`,
+`CART_CHECKOUT_LOCKED`, or `CART_UNAVAILABLE`. Authentication failures are 401, unavailable authentication
 or storage is 503, and invalid input is 422. There is no local-state fallback.
 
 Structure: `app/auth.py` verifies identity; `app/cart/models.py` defines schemas;
 `service.py` is pure pricing/validation; `manager.py` handles request replay;
 `repository.py` calls PostgREST; `app/routers/cart.py` is the HTTP surface.
 
-Verification: **109 backend tests pass** under the pinned requirements with
+Verification: **116 backend tests pass** under the pinned requirements with
 stubbed Auth/PostgREST/Stripe calls. Run `python -m pytest tests -o addopts='' -q`.
-The new cross-repository CrewAI integration lives in `../goer-ai` relative to
-this repository root, not in the older `app/goer/` implementation.
+The mobile type check and 3 Node cart-state cases also pass (`node --test
+tests/client/serverCart.test.cjs` from the repository root). These are not real
+native SDK or staging database tests.
+
+The separate CrewAI service lives in sibling `../goer-ai` relative to this
+repository root, not in the older `app/goer/` implementation. Read its
+`docs/cart-integration-runbook.md` for the complete activation/recovery sequence,
+remaining privacy/tax/production gates, and feature-flag configuration.
 
 ## Run
 
