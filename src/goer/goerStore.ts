@@ -96,6 +96,7 @@ interface GoerState {
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let ownerGeneration = 0;
+export const goerOwnerGeneration = () => ownerGeneration;
 
 function schedulePersist(get: () => GoerState) {
   if (persistTimer) clearTimeout(persistTimer);

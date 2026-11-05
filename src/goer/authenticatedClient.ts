@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { customerToken, serverCartEnabled, validateCart, type ServerCart } from '../lib/serverCart';
 import { useCartStore } from '../store/cartStore';
-import { goerMsg, useGoerStore } from './goerStore';
+import { goerMsg, goerOwnerGeneration, useGoerStore } from './goerStore';
 import type { ServerProduct } from './types';
 
 const GOER_URL = process.env.EXPO_PUBLIC_GOER_API_URL?.replace(/\/+$/, '');
@@ -22,13 +22,14 @@ export async function resetAuthenticatedConversation(email: string): Promise<voi
 
 export async function runAuthenticatedGoerTurn(message: string): Promise<void> {
   if (!GOER_URL) throw new Error('The authenticated Goer service is not configured.');
+  const generation = goerOwnerGeneration();
   const email = useGoerStore.getState().ownerEmail;
   if (!email) throw new Error('Sign in before using Goer.');
   const { token, userId } = await customerToken(email);
   const key = `localgo.goer.session:${email.toLowerCase()}:${userId}`;
   const raw = await AsyncStorage.getItem(key);
   const saved = raw ? JSON.parse(raw) as { conversationId?: string; pending?: PendingTurn } : {};
-  const current = () => useGoerStore.getState().ownerEmail === email;
+  const current = () => goerOwnerGeneration() === generation && useGoerStore.getState().ownerEmail === email;
   if (!current()) return;
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
   if (saved.pending && (saved.pending.ownerId !== userId || saved.pending.message !== message)) {

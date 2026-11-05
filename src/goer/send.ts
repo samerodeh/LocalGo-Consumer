@@ -1,5 +1,5 @@
 import { authenticatedGoerEnabled, runAuthenticatedGoerTurn } from './authenticatedClient';
-import { goerMsg, useGoerStore } from './goerStore';
+import { goerMsg, goerOwnerGeneration, useGoerStore } from './goerStore';
 
 /**
  * Single entry point for user input from the chat UI (typed text and
@@ -10,6 +10,7 @@ export async function sendGoerMessage(rawText: string): Promise<void> {
   const text = rawText.trim();
   const store = useGoerStore.getState();
   if (!text || store.isStreaming) return;
+  const generation = goerOwnerGeneration();
 
   store.appendMessage(goerMsg({ kind: 'text', role: 'user', text }));
   store.appendApiMessage({ role: 'user', content: text });
@@ -26,6 +27,7 @@ export async function sendGoerMessage(rawText: string): Promise<void> {
       await runFallbackTurn(text);
     }
   } catch (err) {
+    if (generation !== goerOwnerGeneration()) return;
     console.warn('[goer] turn failed:', err);
     useGoerStore
       .getState()
@@ -37,6 +39,6 @@ export async function sendGoerMessage(rawText: string): Promise<void> {
         }),
       );
   } finally {
-    useGoerStore.getState().setStreaming(false);
+    if (generation === goerOwnerGeneration()) useGoerStore.getState().setStreaming(false);
   }
 }
