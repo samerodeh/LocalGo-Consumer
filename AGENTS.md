@@ -27,7 +27,19 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-04 | `backend/app/cart/`, `backend/app/auth.py`, `backend/app/routers/cart.py`, `backend/app/main.py`, price generator/artifact, SQL migration, backend tests/docs | Authenticated server-owned carts with revisions and idempotency; separate Goer service integration | Active; no mobile changes or live migrations |
+| — | — | — | — | No active work |
+
+## Recent work
+
+- 2026-11-04: Added verified customer Auth helper, pure server-priced cart
+  service, revision/idempotency manager, Supabase repository, `/v1/cart` routes,
+  and migration `supabase/migrations/202611040001_customer_carts.sql`. Price
+  artifact now carries explicit merchant IDs for all 145 menu items. 109 backend
+  tests pass using pinned requirements. SQL syntax parsed; live migration/RLS
+  execution is unverified and no migration was applied. Existing mobile cart,
+  old Goer executors, and checkout remain unchanged; synchronize them before
+  enabling server-cart chat. Separate Goer service has individual HTTP tools
+  and an opt-in CartCrew, not yet enabled on its demo chat routes.
 
 ## Verification
 
