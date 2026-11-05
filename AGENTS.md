@@ -13,7 +13,7 @@ Goer is a conversational restaurant food discovery assistant built for **LocalGo
 - **Runtime & Package Manager**: Python 3.10–3.13, managed with [`uv`](https://docs.astral.sh/uv/).
 - **Agent Framework**: **CrewAI 1.14.4** (`crewai[tools]==1.14.4`).
 - **Orchestration**: Stateful `CrewAI Flow` (`GoerFlow`) coordinating execution and intent handling.
-- **Agent Specialist**: `DiscoveryCrew` (configured via YAML at `src/goer_localgo/crews/discovery_crew/config/`).
+- **Agent Specialists**: `DiscoveryCrew` is wired into chat. `CartCrew` is implemented and offline-tested with injected LocalGo HTTP tools but remains opt-in, disconnected from demo chat until authenticated routing and durable turn retries are built.
 - **Tools**: Typed subclasses of CrewAI `BaseTool` with Pydantic argument validation (`SearchMenuTool`, `GetMenuTool`, `GetProductTool`). Keep each tool and its input schema in its own file, grouped by capability (currently `tools/catalog/`); shared helpers belong in separate modules. `tools/catalog_tools.py` is compatibility imports only.
 - **Conversation Foundation**: Application-owned SQLite snapshots with revision checks; `flow/` restores bounded context and returns validated product cards via `schemas/chat.py`. Application conversation IDs are separate from CrewAI execution IDs. JWT authentication remains pending; current routes are development-only.
 - **API & Web Interface**: FastAPI, Uvicorn, and HTML/CSS browser chat client.
@@ -125,12 +125,27 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-04 | `docs/localgo-delivery-architecture-plan.md`, `docs/project-context-and-next-steps.md` | Document built cart components and the staged integration plan before further application changes | Active; implementation paused at owner request; no code edits, migration application, or test runs in this planning step |
+| *(No active agent locks)* | - | - | - | Ready for next task |
 
 ---
 
 ## 5. Recent Work
 
+- 2026-11-04: Completed the cart integration planning checkpoint (authoritative
+  plan section 16). Application work is paused: next slice is verified Goer
+  identity, followed by durable command staging/retry recovery, routing/cards,
+  mobile cart synchronization, and checkout revision binding. No code changes,
+  migrations, or test suites were run in this documentation-only step.
+- 2026-11-04: Added LocalGo backend customer authentication, pure cart service,
+  revision/idempotency manager, Supabase repository/RPC migration, and REST API
+  in `../LocalGo-Consumer-RN`; its pinned backend suite passed 109 tests.
+  Here, added `integrations/localgo/cart_client.py`, strict cart schemas, five
+  individually filed cart tools, five offline HTTP smoke scripts, and opt-in
+  `CartCrew` with a shared atomic mutation budget. Latest Goer suite: 110 tests
+  passed. Earlier cart smoke runs passed; the final rerun was interrupted.
+  No live migration/model calls or mobile changes. Public chat still uses
+  Discovery only; cart routing awaits authenticated ownership and durable
+  retries. Existing LocalGo checkout and local mobile cart remain unchanged.
 - 2026-11-04: Split catalog tools into `tools/catalog/search_menu.py`,
   `get_menu.py`, and `get_product.py`, with shared serialization separate and
   backward-compatible imports in `catalog_tools.py`. Discovery and smoke tests
