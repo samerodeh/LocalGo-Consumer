@@ -12,6 +12,14 @@ interface Envelope { conversation_id: string; turn_id: string; text: string; car
   type: string; cart?: ServerCart; items?: ServerProduct[]; product?: ServerProduct; description?: string;
 }[] }
 
+export async function resetAuthenticatedConversation(email: string): Promise<void> {
+  const { userId } = await customerToken(email);
+  const key = `localgo.goer.session:${email.toLowerCase()}:${userId}`;
+  const saved = JSON.parse(await AsyncStorage.getItem(key) ?? 'null') as { pending?: PendingTurn } | null;
+  if (saved?.pending) throw new Error('Reconcile the pending turn before starting a new conversation.');
+  await AsyncStorage.removeItem(key);
+}
+
 export async function runAuthenticatedGoerTurn(message: string): Promise<void> {
   if (!GOER_URL) throw new Error('The authenticated Goer service is not configured.');
   const email = useGoerStore.getState().ownerEmail;

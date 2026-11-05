@@ -95,6 +95,7 @@ interface GoerState {
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let ownerGeneration = 0;
 
 function schedulePersist(get: () => GoerState) {
   if (persistTimer) clearTimeout(persistTimer);
@@ -175,6 +176,9 @@ export const useGoerStore = create<GoerState>((set, get) => ({
   close: () => set({ isOpen: false }),
 
   configure: async (email) => {
+    const epoch = ++ownerGeneration;
+    set({ ownerEmail: email, uiMessages: [], apiMessages: [], placedOrders: {}, stagedOrder: null,
+      isOpen: false, isStreaming: false, streamingText: '', unread: 0 });
     if (persistTimer) clearTimeout(persistTimer);
     if (!email) {
       set({
@@ -194,7 +198,8 @@ export const useGoerStore = create<GoerState>((set, get) => ({
       });
       return;
     }
-    const saved = await loadGoerChat(email);
+    const saved = await loadGoerChat(email).catch(() => null);
+    if (epoch !== ownerGeneration) return;
     set({
       ownerEmail: email,
       uiMessages: saved?.uiMessages ?? [],
@@ -385,16 +390,17 @@ export const useGoerStore = create<GoerState>((set, get) => ({
   },
 
   clearChat: () => {
-    set({
-      uiMessages: [],
-      apiMessages: [],
-      activeAgent: 'concierge',
-      stagedOrder: null,
-      chatTip: DEFAULT_TIP,
-      streamingText: '',
-      isStreaming: false,
-      unread: 0,
-    });
-    schedulePersist(get);
+    if (get().isStreaming) return;
+    const owner = get().ownerEmail;
+    const clear = () => {
+      if (get().ownerEmail !== owner) return;
+      set({ uiMessages: [], apiMessages: [], activeAgent: 'concierge', stagedOrder: null,
+        chatTip: DEFAULT_TIP, streamingText: '', isStreaming: false, unread: 0 });
+      schedulePersist(get);
+    };
+    if (serverCartEnabled && process.env.EXPO_PUBLIC_GOER_API_URL && owner) {
+      void import('./authenticatedClient').then(module => module.resetAuthenticatedConversation(owner)).then(clear)
+        .catch(error => { if (get().ownerEmail === owner) get().appendMessage(goerMsg({ kind: 'system_note', text: error.message })); });
+    } else clear();
   },
 }));

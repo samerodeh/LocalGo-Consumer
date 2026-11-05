@@ -54,6 +54,7 @@ export const useCartStore = create<CartState>((set, get) => {
   const sendPending = async (epoch: number, owner: string, pending: CartRequest) => {
     try {
       const cart = await requestCart(owner, pending);
+      if (epoch !== generation) return;
       await AsyncStorage.removeItem(pendingKey(owner));
       if (epoch !== generation) return;
       set({ pending: null, error: null });
@@ -62,7 +63,7 @@ export const useCartStore = create<CartState>((set, get) => {
       const latest = await requestCart(owner);
       if (epoch === generation) get().acceptServerCart(latest);
     } catch (error) {
-      if (error instanceof CartApiError && !error.uncertain) {
+      if (error instanceof CartApiError && !error.uncertain && epoch === generation) {
         await AsyncStorage.removeItem(pendingKey(owner));
         if (epoch === generation) {
           set({ pending: null });
