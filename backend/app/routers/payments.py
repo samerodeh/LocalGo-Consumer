@@ -24,6 +24,9 @@ import uuid
 import stripe
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
+from ..auth import require_customer
+from ..cart.checkout import CheckoutRepository
+from ..cart.models import CartError
 
 from .. import config, pricing
 from ..postgrest import REST_URL, bearer_from, client, headers, jwt_sub
@@ -49,7 +52,8 @@ class IntentBody(BaseModel):
     # Client-generated so the app can reference the order before it's paid for,
     # and so a retry lands on the same Stripe idempotency key.
     order_id: str = Field(min_length=1, max_length=64)
-    items: list[QuoteItem] = Field(min_length=1)
+    items: list[QuoteItem] = Field(default_factory=list, max_length=pricing.MAX_LINES)
+    cart_revision: int | None = Field(default=None, ge=0, strict=True)
     tip_cents: int = Field(default=0, ge=0, le=pricing.MAX_TIP_CENTS)
 
 
@@ -66,6 +70,11 @@ async def create_intent(body: IntentBody, authorization: str | None = Header(def
         uuid.UUID(body.order_id)
     except ValueError:
         raise HTTPException(422, "order_id must be a UUID") from None
+
+    if config.SERVER_CART_ENABLED:
+        return await _server_cart_intent(body, authorization)
+    if body.cart_revision is not None:
+        raise HTTPException(503, "Server cart checkout is not enabled on this backend.")
 
     try:
         quote = pricing.quote([(i.id, i.quantity) for i in body.items], body.tip_cents)
@@ -119,6 +128,68 @@ async def create_intent(body: IntentBody, authorization: str | None = Header(def
         "tip_cents": quote.tip_cents,
         "total_cents": quote.total_cents,
     }
+
+
+async def _server_cart_intent(body: IntentBody, authorization: str | None):
+    from ..cart.payment_binding import verify_intent
+    customer = await require_customer(authorization)
+    if body.cart_revision is None or body.items:
+        raise HTTPException(422, "Server checkout requires cart_revision, not client item lists.")
+    repository = CheckoutRepository()
+    try:
+        record = await repository.lock(customer.user_id, uuid.UUID(body.order_id), body.cart_revision, body.tip_cents)
+        record = await repository.prepare(record)
+        quote = record.priced()
+        metadata = {**quote.as_metadata(), "order_id": str(record.order_id),
+                    "customer_id": str(customer.user_id), "cart_revision": str(record.cart_revision),
+                    "quote_hash": record.fingerprint(), "app": "localgo-server-cart"}
+        try:
+            if record.payment_intent_id:
+                intent = stripe.PaymentIntent.retrieve(record.payment_intent_id)
+            else:
+                intent = stripe.PaymentIntent.create(amount=quote.total_cents, currency=quote.currency,
+                    metadata=metadata, automatic_payment_methods={"enabled": True},
+                    idempotency_key=f"localgo-order-{body.order_id}")
+        except stripe.StripeError:
+            raise HTTPException(502, "Payment result is uncertain. Retry the same checkout order ID.") from None
+        verify_intent(intent, record)
+        if not record.payment_intent_id:
+            await repository.update(record, "attach", payment_id=intent.id)
+        return {"publishable_key": config.STRIPE_PUBLISHABLE_KEY, "client_secret": intent.client_secret,
+                "payment_intent_id": intent.id, "payment_status": intent.status,
+                "cart_revision": record.cart_revision, "currency": quote.currency,
+                "subtotal_cents": quote.subtotal_cents, "delivery_fee_cents": quote.delivery_fee_cents,
+                "tip_cents": quote.tip_cents, "total_cents": quote.total_cents}
+    except CartError as exc:
+        raise HTTPException(exc.status, {"code": exc.code, "message": exc.message}) from None
+
+
+@router.post("/cart/{order_id}/cancel")
+async def cancel_cart_checkout(order_id: uuid.UUID, authorization: str | None = Header(default=None)):
+    _require_stripe()
+    if not config.SERVER_CART_ENABLED:
+        raise HTTPException(503, "Server cart checkout is disabled.")
+    customer = await require_customer(authorization)
+    repository = CheckoutRepository()
+    try:
+        record = await repository.get(customer.user_id, order_id)
+        if record.status == "released":
+            return {"released": True}
+        if record.status == "consumed":
+            raise HTTPException(409, "This checkout is already placed.")
+        if record.payment_intent_id:
+            try:
+                intent = stripe.PaymentIntent.retrieve(record.payment_intent_id)
+                if intent.status in ("succeeded", "processing"):
+                    raise HTTPException(409, "A paid or processing checkout cannot be released. Reconcile the order first.")
+                if intent.status != "canceled":
+                    stripe.PaymentIntent.cancel(intent.id)
+            except stripe.StripeError:
+                raise HTTPException(502, "Could not verify cancellation; the cart remains locked.") from None
+        await repository.update(record, "release", payment_id=record.payment_intent_id)
+        return {"released": True}
+    except CartError as exc:
+        raise HTTPException(exc.status, {"code": exc.code, "message": exc.message}) from None
 
 
 async def _order_exists(order_id: str) -> bool | None:

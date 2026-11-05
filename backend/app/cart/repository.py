@@ -59,6 +59,8 @@ class SupabaseCartRepository:
         try:
             result = response.json()
             status = result["status"]
+            if status == "CART_CHECKOUT_LOCKED":
+                raise CartError(status, "Finish or cancel your current checkout before editing the cart.")
             if status == "CART_REVISION_CONFLICT":
                 raise CartError(status, "The cart changed. Refresh it before retrying.")
             if status == "IDEMPOTENCY_CONFLICT":

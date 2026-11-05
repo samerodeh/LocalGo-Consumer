@@ -36,6 +36,7 @@ def hermetic(monkeypatch):
     Tests that need a configured service opt in via the `stripe_on` /
     `supabase_on` fixtures, which run after this one.
     """
+    monkeypatch.setattr(config, "SERVER_CART_ENABLED", False)
     monkeypatch.setattr(config, "STRIPE_CONFIGURED", False)
     monkeypatch.setattr(config, "STRIPE_SECRET_KEY", "")
     monkeypatch.setattr(config, "STRIPE_PUBLISHABLE_KEY", "")

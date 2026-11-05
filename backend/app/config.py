@@ -80,6 +80,8 @@ SMTP_FROM_NAME = _env("SMTP_FROM_NAME") or "LocalGO"
 # STARTTLS on 587 (the default) vs. implicit TLS on 465.
 SMTP_USE_SSL = _env("SMTP_USE_SSL").lower() in ("1", "true", "yes")
 
+SERVER_CART_ENABLED = _env("SERVER_CART_ENABLED").lower() == "true"
+
 SUPABASE_CONFIGURED = bool(SUPABASE_URL and SUPABASE_ANON_KEY)
 # Every piece must be present: a half-configured mailer would raise inside the
 # status endpoint on every pickup instead of quietly skipping the receipt.

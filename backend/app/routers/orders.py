@@ -28,6 +28,10 @@ from .. import config
 from ..mailer import customer_email, send_pickup_photo_email
 from ..postgrest import REST_URL, bearer_from, client, headers, jwt_sub
 from .notify import NotifyBody, send_notification
+from ..auth import require_customer
+from ..cart.checkout import CheckoutRepository
+from ..cart.models import CartError
+from ..cart.payment_binding import verify_intent
 
 router = APIRouter()
 
@@ -136,7 +140,7 @@ def _verify_payment(order_id: str, body: PlaceOrderBody) -> float | None:
 
 
 @router.post("/orders")
-async def place_order(body: PlaceOrderBody):
+async def place_order(body: PlaceOrderBody, authorization: str | None = Header(default=None)):
     _require_supabase()
 
     problem = _delivery_location_problem(body)
@@ -147,7 +151,39 @@ async def place_order(body: PlaceOrderBody):
 
     # Money gate. Runs before anything is written, so a failed or forged
     # payment never produces a row the drivers can see.
-    charged_total = _verify_payment(order_id, body)
+    checkout = None
+    checkout_repository = None
+    if config.SERVER_CART_ENABLED:
+        if not config.STRIPE_CONFIGURED or not body.id or not body.payment_intent_id:
+            raise HTTPException(503, "Signed-in server-cart checkout requires a verified payment and stable order ID.")
+        customer = await require_customer(authorization)
+        checkout_repository = CheckoutRepository()
+        try:
+            checkout = await checkout_repository.get(customer.user_id, uuid.UUID(order_id))
+        except ValueError:
+            raise HTTPException(422, "order id must be a UUID") from None
+        except CartError as exc:
+            raise HTTPException(exc.status, {"code": exc.code, "message": exc.message}) from None
+        if checkout.payment_intent_id != body.payment_intent_id or checkout.status == "released":
+            raise HTTPException(409, "This payment is not attached to the active checkout.")
+        stripe.api_key = config.STRIPE_SECRET_KEY
+        try:
+            intent = stripe.PaymentIntent.retrieve(body.payment_intent_id)
+        except stripe.StripeError:
+            raise HTTPException(502, "Could not verify checkout payment.") from None
+        verify_intent(intent, checkout, paid=True)
+        quote = checkout.priced()
+        merchants = {"al-taib": ("Al Taib", "2125 Guy St, Montreal"),
+                     "chateau-kabab": ("Château Kabab", "2140 Rue Guy, Montreal, QC")}
+        merchant = merchants.get(checkout.cart.merchant_id)
+        if merchant is None:
+            raise HTTPException(409, "Checkout restaurant is unavailable.")
+        body = body.model_copy(update={"customer_id": str(customer.user_id),
+            "restaurant_name": merchant[0], "restaurant_address": merchant[1],
+            "items": [OrderItem(name=line.name, quantity=line.quantity) for line in quote.lines]})
+        charged_total = quote.total_cents / 100
+    else:
+        charged_total = _verify_payment(order_id, body)
 
     order_number = f"#LG-{str(int(time.time() * 1000))[-4:]}"
 
@@ -185,11 +221,22 @@ async def place_order(body: PlaceOrderBody):
         # No order_number: the row already has one from the first attempt, and
         # the anon role can't read it back (see the module docstring). The app
         # picks it up on its next status sync.
+        if checkout is not None:
+            try:
+                await checkout_repository.update(checkout, "consume", payment_id=body.payment_intent_id)
+            except CartError as exc:
+                raise HTTPException(exc.status, {"code": exc.code, "message": exc.message}) from None
         print(f"[orders] duplicate publish ignored for {order_id}")
         return {"id": order_id, "duplicate": True}
     if res.status_code not in (200, 201):
         print(f"[orders] insert failed {res.status_code} {res.text[:300]}")
         raise HTTPException(502, "Could not publish the order to dispatch")
+
+    if checkout is not None:
+        try:
+            await checkout_repository.update(checkout, "consume", payment_id=body.payment_intent_id)
+        except CartError as exc:
+            raise HTTPException(exc.status, {"code": exc.code, "message": exc.message}) from None
 
     # Alert the drivers — best-effort, never fails the order.
     try:
