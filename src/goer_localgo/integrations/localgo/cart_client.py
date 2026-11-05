@@ -68,6 +68,7 @@ class LocalGoCartClient:
             messages = {
                 "CART_REVISION_CONFLICT": "The cart changed. Refresh it before retrying.",
                 "CART_MERCHANT_MISMATCH": "Clear your cart before switching restaurants.",
+                "CART_CHECKOUT_LOCKED": "Finish or cancel your current checkout before editing the cart.",
                 "IDEMPOTENCY_CONFLICT": "This request key was already used for another change.",
                 "CART_LINE_NOT_FOUND": "That product is not in your cart.",
                 "ITEM_UNAVAILABLE": "That product is not available on LocalGo.",

@@ -1,10 +1,12 @@
 import asyncio
+import os
 from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from goer_localgo.api.auth import Session, optional_session, carts_enabled
@@ -17,6 +19,10 @@ from goer_localgo.schemas.chat import Card, ChatEnvelope, OpenProductAction
 
 
 app = FastAPI(title="Goer AI", version="0.1.0")
+origins = [origin.strip() for origin in os.environ.get("GOER_ALLOWED_ORIGINS", "").split(",") if origin.strip()]
+if origins:
+    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["POST", "GET"],
+                       allow_headers=["Authorization", "Content-Type"], allow_credentials=False)
 web_dir = Path(__file__).resolve().parent.parent / "web"
 
 
