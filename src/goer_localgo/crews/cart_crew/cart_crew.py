@@ -8,12 +8,8 @@ from crewai.agents.agent_builder.base_agent import BaseAgent
 from crewai.project import CrewBase, agent, crew, task
 
 from goer_localgo.integrations.localgo.cart_client import CartClient
-from goer_localgo.tools.cart.add_cart_item import AddCartItemTool
-from goer_localgo.tools.cart.base import CartMutationBudget
-from goer_localgo.tools.cart.clear_cart import ClearCartTool
+from goer_localgo.schemas.cart import CartPlan
 from goer_localgo.tools.cart.get_cart import GetCartTool
-from goer_localgo.tools.cart.remove_cart_line import RemoveCartLineTool
-from goer_localgo.tools.cart.update_cart_line import UpdateCartLineTool
 from goer_localgo.tools.catalog.get_product import GetProductTool
 from goer_localgo.tools.catalog.search_menu import SearchMenuTool
 
@@ -31,19 +27,15 @@ class CartCrew:
 
     @agent
     def cart_agent(self) -> Agent:
-        budget = CartMutationBudget()
-        cart_tools = [tool(client=self._client, request_key=self._request_key, mutation_budget=budget)
-                      for tool in (GetCartTool, AddCartItemTool, UpdateCartLineTool,
-                                   RemoveCartLineTool, ClearCartTool)]
         return Agent(
             config=self.agents_config["cart_agent"],
-            tools=[*cart_tools, GetProductTool(), SearchMenuTool()],
+            tools=[GetCartTool(client=self._client), GetProductTool(), SearchMenuTool()],
             max_iter=6, max_retry_limit=0, allow_delegation=False, verbose=False,
         )
 
     @task
     def cart_task(self) -> Task:
-        return Task(config=self.tasks_config["cart_task"])
+        return Task(config=self.tasks_config["cart_task"], output_pydantic=CartPlan)
 
     @crew
     def crew(self) -> Crew:

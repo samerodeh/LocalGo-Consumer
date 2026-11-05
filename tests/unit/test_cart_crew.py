@@ -15,7 +15,7 @@ ADDED = {**EMPTY, "revision": 1, "merchant_id": "al-taib", "subtotal_cents": 110
          }]}
 
 
-def test_cart_crew_runs_real_tools_against_mock_backend_and_bounds_mutations():
+def test_cart_crew_reads_backend_and_returns_plan_without_mutating():
     from goer_localgo.integrations.localgo.cart_client import LocalGoCartClient
 
     requests = []
@@ -26,23 +26,19 @@ def test_cart_crew_runs_real_tools_against_mock_backend_and_bounds_mutations():
 
     stub = StubLLM(responses=[
         tool_call("get_cart", {}),
-        tool_call("add_cart_item", {"product_id": "cheese-pizza-slice", "quantity": 2, "cart_revision": 0}),
-        tool_call("clear_cart", {"cart_revision": 1}),
-        "Final Answer: Your cart contains two Cheese Pizza Slices.",
+        'Final Answer: {"operation":"add","product_id":"cheese-pizza-slice","quantity":2,"text":""}',
     ])
     with httpx.Client(transport=httpx.MockTransport(respond)) as http:
         crew = CartCrew(LocalGoCartClient("http://127.0.0.1:8100", "private-token", client=http), "turn-123").crew()
         crew.agents[0].llm = stub
         result = crew.kickoff(inputs={"user_message": "Add two cheese pizza slices", "conversation_context": "{}"})
-    assert "two Cheese Pizza Slices" in result.raw
-    assert len(requests) == 2  # The extra clear attempt never reaches LocalGo.
-    assert requests[1].headers["Idempotency-Key"] == "turn-123:add_cart_item"
-    assert json.loads(requests[1].content)["quantity"] == 2
-    assert "CART_ACTION_LIMIT" in prompt_text(stub.calls[-1])
+    assert result.pydantic.operation == "add"
+    assert result.pydantic.quantity == 2
+    assert len(requests) == 1
+    assert requests[0].method == "GET"
     assert all("private-token" not in prompt_text(call) for call in stub.calls)
     tool_names = {tool.name for tool in crew.agents[0].tools}
-    assert tool_names == {"get_cart", "add_cart_item", "update_cart_line", "remove_cart_line",
-                          "clear_cart", "get_product", "search_menu"}
+    assert tool_names == {"get_cart", "get_product", "search_menu"}
     assert not crew.agents[0].allow_delegation
     assert not crew.cache
 

@@ -4,6 +4,7 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+from goer_localgo.schemas.cart import CartSnapshot
 
 
 class StrictModel(BaseModel):
@@ -36,7 +37,15 @@ class ProductDetailCard(StrictModel):
     option_groups: list[dict[str, Any]] = Field(default_factory=list)
 
 
-Card = Annotated[ProductListCard | ProductDetailCard, Field(discriminator="type")]
+class CartSummaryCard(StrictModel):
+    type: Literal["cart_summary"] = "cart_summary"
+    cart: CartSnapshot
+    display_subtotal: str
+    display_delivery_fee: str
+    display_total: str
+
+
+Card = Annotated[ProductListCard | ProductDetailCard | CartSummaryCard, Field(discriminator="type")]
 
 
 class OpenProductAction(StrictModel):

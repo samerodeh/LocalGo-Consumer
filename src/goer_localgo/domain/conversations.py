@@ -86,8 +86,11 @@ class SQLiteConversationRepository:
                 raise ConversationConflict("Conversation changed while answering; retry your message.")
 
 
-def get_conversation_repository() -> ConversationRepository:
-    path = Path(os.environ.get(
+def conversation_db_path() -> Path:
+    return Path(os.environ.get(
         "GOER_CONVERSATION_DB", str(Path.home() / ".localgo" / "goer" / "conversations.sqlite3")
     ))
-    return SQLiteConversationRepository(path)
+
+
+def get_conversation_repository() -> ConversationRepository:
+    return SQLiteConversationRepository(conversation_db_path())

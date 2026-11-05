@@ -76,4 +76,5 @@ def build_cards(results: list[CatalogResult]) -> list[Card]:
 
 def shown_product_ids(cards: list[Card]) -> list[str]:
     return [product.product_id for card in cards
-            for product in (card.items if isinstance(card, ProductListCard) else [card.product])]
+            for product in (card.items if isinstance(card, ProductListCard)
+                            else [card.product] if isinstance(card, ProductDetailCard) else [])]

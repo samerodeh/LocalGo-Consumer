@@ -2,7 +2,28 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+class CartPlan(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    operation: Literal["view", "add", "set", "remove", "clear", "clarify"]
+    product_id: str | None = Field(default=None, min_length=1, max_length=200)
+    quantity: int | None = Field(default=None, ge=1, le=99, strict=True)
+    text: str = Field(default="", max_length=500)
+
+    @model_validator(mode="after")
+    def validate_operation(self):
+        if self.operation in ("add", "set", "remove") and not self.product_id:
+            raise ValueError("An exact product ID is required.")
+        if self.operation in ("add", "set") and self.quantity is None:
+            raise ValueError("A quantity is required.")
+        if self.operation not in ("add", "set") and self.quantity is not None:
+            raise ValueError("This operation has no quantity.")
+        if self.operation in ("clear", "view", "clarify") and self.product_id is not None:
+            raise ValueError("This operation has no product ID.")
+        return self
 
 
 class CartLine(BaseModel):

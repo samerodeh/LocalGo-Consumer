@@ -7,7 +7,10 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from goer_localgo.api.auth import Session, optional_session
+from goer_localgo.api.auth import Session, optional_session, carts_enabled
+from goer_localgo.domain.turns import TurnPending
+from goer_localgo.flow.authenticated import run_authenticated_turn
+from goer_localgo.integrations.localgo.cart_client import LocalGoCartClient
 from goer_localgo.domain.conversations import ConversationConflict, ConversationNotFound
 from goer_localgo.flow.goer_flow import TurnInput, create_conversation, run_conversation_turn
 from goer_localgo.schemas.chat import Card, ChatEnvelope, OpenProductAction
@@ -100,13 +103,32 @@ def new_conversation(session: Session | None = Depends(optional_session)) -> Con
 @app.post("/v1/conversations/{conversation_id}/turns", response_model=ChatEnvelope)
 async def conversation_turn(conversation_id: UUID, request: TurnRequest,
                             session: Session | None = Depends(optional_session)) -> ChatEnvelope:
-    return await _execute_turn(request.message, conversation_id, session.user_id if session else DEMO_USER_ID)
+    if session is None:
+        return await _execute_turn(request.message, conversation_id, DEMO_USER_ID)
+    if request.request_id is None:
+        raise HTTPException(422, "Authenticated turns require a stable request_id UUID.")
+    try:
+        return await asyncio.to_thread(
+            run_authenticated_turn, request.message, str(conversation_id), str(request.request_id),
+            session.user_id, LocalGoCartClient(session.base_url, session.access_token), carts_enabled(),
+        )
+    except TurnPending as exc:
+        raise HTTPException(202, {"code": "TURN_PENDING", "message": str(exc),
+                                  "request_id": str(request.request_id)}) from None
+    except ConversationNotFound:
+        raise HTTPException(404, "Conversation not found.") from None
+    except ConversationConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except Exception:
+        raise HTTPException(503, "Turn could not complete. Retry with the same request_id.") from None
 
 
 @app.post("/v1/chat", response_model=ChatResponse)
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, session: Session | None = Depends(optional_session)) -> ChatResponse:
-    owner = session.user_id if session else DEMO_USER_ID
+    if session is not None:
+        raise HTTPException(422, "Use the conversation turns endpoint with a stable request_id when signed in.")
+    owner = DEMO_USER_ID
     response = await _execute_turn(
         _latest_message(request), request.conversation_id, owner,
     )
