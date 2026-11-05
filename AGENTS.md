@@ -18,19 +18,32 @@
 ## Goer assistant
 
 - Goer's **agents run server-side** in `backend/app/goer/` (guard → router → six specialists, ChromaDB retrieval, Groq). Prompts, routing, and menu knowledge belong there — not in the app bundle.
-- The app side is `src/goer/` (transport, state, offline NLU) and `src/components/goer/` (UI). The online path and the offline NLU path must use the same client-side tool executors in `src/goer/tools/executors.ts`.
+- The app side is `src/goer/` (transport, state, offline NLU) and `src/components/goer/` (UI). The legacy online/offline paths share `src/goer/tools/executors.ts`. In opt-in server-cart mode those executors and ordinary buttons use `/v1/cart`; Zustand is a cache, not another source of truth.
+- New authenticated CrewAI chat lives in the sibling `../goer-ai` service, selected with `EXPO_PUBLIC_GOER_API_URL` and `EXPO_PUBLIC_SERVER_CART_ENABLED`. That path receives completed backend outcomes, not client mutation actions: never execute its cart changes again locally or replay an uncertain request through offline NLU. Preserve pending request/order IDs across retries and fence account transitions.
 - A backend turn returns `actions` naming those executors. Adding a capability means adding the executor here **and** teaching a specialist to emit it; never let the two drift.
 - Chat checkout must remain confirmation-gated: stage an order first, then place it only through the explicit confirmation flow. No server action may place an order. Do not bypass the stale-cart or duplicate-placement guards.
-- After editing `src/data/menu.ts`, re-run `backend/scripts/build_menu_dataset.py` so the agents' menu matches the app's.
+- After editing `src/data/menu.ts`, re-run `backend/scripts/build_menu_dataset.py` and `backend/scripts/build_menu_prices.py`; commit derived changes. Signed-in CrewAI discovery uses `/v1/catalog/products` from the committed authoritative pricing/catalog artifact.
+- Server checkout locks a cart revision and binds the immutable quote to owner/order/revision/fingerprint. Only explicit user confirmation can pay. Never unlock paid/processing checkouts, clear a cart locally after payment, disable binding on rollback, or create a fresh order ID merely because a response was lost.
 
 ## Active work
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-04 | Backend session/cart/checkout endpoints, SQL migration, mobile cart/assistant/payment clients and UI, tests/docs | Verified sessions, shared server cart, durable chat integration, revision-bound checkout | Active; no live migration; feature-gated activation |
+| — | — | — | — | No active work |
 
 ## Recent work
 
+- 2026-11-04: Implemented all five cart integration milestones with the separate
+  Goer service: verified `/v1/session`, canonical 145-product catalog, server-cart
+  cache for buttons/executors/chat, persisted pending requests and checkout IDs,
+  account-switch fences, grounded cards, and explicit revision-bound checkout.
+  Added migration `202611040002_cart_checkout.sql`, immutable quote/Stripe
+  fingerprint verification, owned status/cancel recovery, idempotent order
+  publication/consumption, and refusal of unsafe legacy downgrade. Feature flags
+  default false. Checks: 116 pinned backend tests, mobile TypeScript, and 3 Node
+  state cases pass. No migrations, real provider calls, native builds, or live
+  deployments were performed; staging/RLS/Auth/Stripe verification remains.
+  Setup is documented in the sibling Goer cart integration runbook.
 - 2026-11-04: Added verified customer Auth helper, pure server-priced cart
   service, revision/idempotency manager, Supabase repository, `/v1/cart` routes,
   and migration `supabase/migrations/202611040001_customer_carts.sql`. Price
