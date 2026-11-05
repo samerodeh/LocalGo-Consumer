@@ -24,15 +24,36 @@
 - Chat checkout must remain confirmation-gated: stage an order first, then place it only through the explicit confirmation flow. No server action may place an order. Do not bypass the stale-cart or duplicate-placement guards.
 - After editing `src/data/menu.ts`, re-run `backend/scripts/build_menu_dataset.py` and `backend/scripts/build_menu_prices.py`; commit derived changes. Signed-in CrewAI discovery uses `/v1/catalog/products` from the committed authoritative pricing/catalog artifact.
 - Server checkout locks a cart revision and binds the immutable quote to owner/order/revision/fingerprint. Only explicit user confirmation can pay. Never unlock paid/processing checkouts, clear a cart locally after payment, disable binding on rollback, or create a fresh order ID merely because a response was lost.
+- Account-linked display history uses `src/goer/history.ts` and `202611050001_goer_history.sql`. Owner-only SELECT/RPC access, immutable exact turn publication, and the cached completed response must survive retries. A history-only retry must not send Goer/cart HTTP again; historical cart cards must not update current cart state.
+- Serialize persisted session reads/writes across generations. Recheck ownership after async conversation creation and before persistence. New conversation locks synchronously against sends/restoration and preserves cloud history. Supabase transcripts do not replace the sibling Goer's SQLite reasoning/command journal; keep that database to resume a conversation.
 
 ## Active work
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-05 | src/goer/authenticatedClient.ts; src/goer/history.ts; src/goer/goerStore.ts; src/goer/send.ts; src/components/goer/; supabase/migrations/; tests/client/; backend/README.md; AGENTS.md | Finish account-linked mobile history, preserve cart/payment safety, verify development integration | Active; existing Supabase is development-only; backend service-role/admin credentials missing; no production activation |
+| *(No active locks)* | - | - | - | Code/tests/docs complete; connected development activation awaits private credentials/admin access |
 
 ## Recent work
 
+- 2026-11-05: Finished gated mobile account-linked display history: immutable
+  owner-scoped Supabase publication, conversation picker, New conversation and
+  explicit Retry pending turn. Completed responses persist before cloud history;
+  outage/restart retry does not resend cart work. Added migration
+  `202611050001_goer_history.sql`, generation-fenced/serialized session storage,
+  A-B-A async isolation and synchronous reset locking. Historical cart cards are
+  display-only. UI keeps its latest 50 messages; older in-thread paging is absent.
+  Latest checks: 22 mobile/SQL Node cases (zero skips), TypeScript, Android JS/assets
+  export, 116 pinned backend tests; sibling Goer 127 tests. All three migrations
+  and RPC/RLS assertions execute in isolated PGlite PostgreSQL, not connected
+  Supabase/concurrency. Android export is not a native build/runtime test.
+  Read-only checks verified Auth availability and Stripe `livemode=false`;
+  no signup, model, PaymentIntent/charge, live migration or flag/secret changes.
+  The user chose this mobile app and the existing development-only Supabase.
+  **Next:** supply the backend service-role key privately and use the project's
+  SQL Editor/admin connection to apply all three migrations in timestamp order;
+  then configure development-only URLs/flags and verify real account/history,
+  chat/button parity and explicit Stripe sandbox checkout/recovery. No production
+  activation is authorized. Follow sibling `docs/cart-integration-runbook.md`.
 - 2026-11-04: Implemented all five cart integration milestones with the separate
   Goer service: verified `/v1/session`, canonical 145-product catalog, server-cart
   cache for buttons/executors/chat, persisted pending requests and checkout IDs,
