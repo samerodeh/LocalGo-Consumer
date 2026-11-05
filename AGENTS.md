@@ -15,7 +15,7 @@ Goer is a conversational food discovery and cart-planning assistant built for **
 - **Orchestration**: Stateful `CrewAI Flow` (`GoerFlow`) coordinating execution and intent handling.
 - **Agent Specialists**: `DiscoveryCrew` handles discovery. Feature-gated authenticated routing selects it or read-only `CartCrew`, which produces typed plans. Python journals and executes cart writes after planning; no agent has checkout/payment/order permissions.
 - **Tools**: Typed subclasses of CrewAI `BaseTool` with Pydantic argument validation (`SearchMenuTool`, `GetMenuTool`, `GetProductTool`). Keep each tool and its input schema in its own file, grouped by capability (currently `tools/catalog/`); shared helpers belong in separate modules. `tools/catalog_tools.py` is compatibility imports only.
-- **Conversation Foundation**: Application-owned SQLite snapshots and a fenced durable turn journal. Signed-in identity is verified through LocalGo's Supabase session endpoint, never body IDs. Stable request UUIDs replay completed responses or reconcile immutable commands; tokens stay out of state/prompts. Guest/demo and authenticated conversations are separate. Live activation and multi-host persistence remain gated.
+- **Conversation Foundation**: Application-owned SQLite snapshots and a fenced durable turn journal. Mobile Supabase display transcripts/history selection are separate; they do not replace reasoning or command persistence. Signed-in identity comes from LocalGo's verified session, never body IDs. Stable request UUIDs and completed-response caches preserve safe retries; tokens stay out of state/prompts. Guest/demo and authenticated conversations are separate. Live activation and multi-host persistence remain gated.
 - **API & Web Interface**: FastAPI/Uvicorn; guest browser/CLI retained. Flagged signed-in LocalGo mobile chat/buttons share its server cart and explicit revision-bound checkout. Read `docs/cart-integration-runbook.md` before activation; templates leave flags false.
 - **Model Provider**: Configured through `MODEL` and `OPENAI_API_KEY` (defaults to `openai/gpt-4.1-mini`).
 
@@ -66,7 +66,7 @@ goer-ai/
 
 ## Session Handoff — 2026-11-05
 
-### User goal and unresolved client choice
+### User goal and selected development client
 
 The requested customer journey is:
 
@@ -88,10 +88,10 @@ and cart verification remain blocked until private credentials are supplied.
 | Area | Current state |
 |---|---|
 | Browser/CLI | Guest discovery, product cards and bounded follow-up context. The browser has **no sign-in, real cart editing or checkout UI**. |
-| Authenticated mobile integration | Implemented behind feature flags: verified customer sessions, grounded cards, shared cart for chat/buttons, persisted retry IDs and account-switch fences. Not live-enabled or native-tested. |
+| Authenticated mobile integration | Flagged verified sessions, grounded cards, shared cart, cloud history/picker, New conversation and Retry pending turn. Session writes are serialized/generation-fenced; reset locks against sends/restores. Not live-enabled or native-runtime-tested. |
 | Cart planning | Discovery/Cart routing exists. CartCrew reads and proposes a typed plan; Python persists the exact command before executing it. No agent can charge or place orders. |
-| Conversation storage | Snapshots and durable turn journal use **local SQLite**, not Supabase. `GOER_CONVERSATION_DB` overrides the default `~/.localgo/goer/conversations.sqlite3`. Shared-account history, retention/deletion and multi-host persistence remain unfinished. |
-| Cart/checkout storage | Supabase repositories and migrations are written, but the migrations have **not been applied or tested against a live database**. |
+| Conversation storage | Reasoning snapshots/turn journal use **local SQLite** (`GOER_CONVERSATION_DB`, default `~/.localgo/goer/conversations.sqlite3`). Mobile account-linked **display transcripts** use Supabase; historical cart cards never mutate state. Completed-response retries publish history without resending cart work. Cloud history does not reconstruct missing SQLite state; retention/deletion and multi-host persistence remain unfinished. |
+| Cart/checkout storage | All three migrations/RPC/RLS assertions execute in isolated PGlite PostgreSQL. They are **not applied to connected Supabase**; real concurrent-session behavior remains unverified. |
 | Checkout | Revision-locked quotes, explicit payment confirmation, payment fingerprint validation and retry/cancel recovery exist in code. Real Stripe sandbox checkout remains unverified. |
 
 Repositories remain separate: this repository owns Goer reasoning/conversations;
@@ -106,36 +106,41 @@ Templates intentionally leave `GOER_CART_ENABLED=false` (Goer),
 (mobile). These are template defaults, not evidence of any deployed configuration.
 LocalGo connectivity uses `LOCALGO_API_URL`; credentials must remain private.
 
-The sibling repository contains two unapplied migrations, in this order:
+The sibling repository contains three connected-project-unapplied migrations:
 
 1. `supabase/migrations/202611040001_customer_carts.sql`
 2. `supabase/migrations/202611040002_cart_checkout.sql`
+3. `supabase/migrations/202611050001_goer_history.sql`
 
-Only outer SQL syntax was parsed. PostgreSQL function execution, RLS, locking
-and concurrency still need staging verification. No real Auth, live model,
-Stripe, native build or deployment checks were performed.
+Isolated PostgreSQL tests execute actual functions and verify owner RLS, RPC
+grants, immutable history/cart replay, revisions, checkout locks, frozen quotes
+and one-time consumption. Connected Supabase/concurrency still need verification.
+Read-only checks confirmed Auth availability and Stripe `livemode=false`;
+no signup, real model, PaymentIntent/charge or native app runtime was exercised.
 
-**Last completed offline results:** 127 Goer tests, 116 pinned LocalGo backend
-tests, all 8 tool smoke scripts, 4 browser Node cases, 3 mobile Node state cases,
-and mobile TypeScript passed. These are previous results, not a new run for this
-documentation update. The guest server was restarted and `/health` and
-`/chat.js` checked earlier; verify it is still running next session rather than
-assuming it is available at `http://127.0.0.1:8000`.
+**Latest results (2026-11-05):** 127 Goer tests (including 4 browser Node cases),
+116 pinned backend tests, 22 mobile/SQL Node cases (zero skips), mobile TypeScript
+and Android JS/assets export passed. Exporting JS is **not a native build or
+PaymentSheet test**. The 8 tool smoke scripts passed previously; tools did not
+change this session. Verify localhost services next session instead of assuming
+the old guest server still runs at `http://127.0.0.1:8000`.
 
 ### Next session: smallest complete path
 
-1. Confirm mobile versus browser, and staging versus production. Obtain approval
-   before applying live migrations or enabling customer/payment flags.
-2. Agree where account-linked conversation history must live. Current local
-   SQLite is not shared Supabase history; implement the chosen persistence/UI
-   gap rather than claiming it is already solved.
-3. Review and verify both migrations in staging, configure the separate services
-   and selected client, and deliberately enable the relevant staging flags.
-4. Verify with a real test account: ownership isolation; saved history after
-   restart; identical chat/button cart; interrupted requests replaying without
-   duplicate edits; explicit Stripe sandbox checkout; one paid order persisted
-   and the confirmed cart consumed once; safe cancellation/pending recovery.
-5. Record actual results and remaining gaps before considering production.
+1. Continue the chosen **mobile/development-only** path. Backend service-role key
+   and database-admin access are missing. Supply credentials privately in sibling
+   backend `.env`, never chat/mobile; use the existing project's SQL Editor/admin
+   connection for DDL (a service-role HTTP key cannot apply migrations).
+2. Review/apply the three migrations in order to that development project;
+   verify real RLS/RPC concurrency. Keep Goer's existing durable SQLite database.
+3. Configure the separate services (LocalGo 8100, Goer 8000) and reachable mobile
+   URLs, then deliberately enable development flags for native testing.
+4. Verify a real test account: owned history after restart/reinstall, history
+   selection/New conversation, interrupted history publication retry without
+   another cart write, chat/button parity, account switches, explicit Stripe
+   sandbox checkout, one paid order/one cart consumption and cancel recovery.
+5. Record real results and remaining gaps. Production activation is not authorized.
+   UI retains its latest 50 messages; older in-thread paging remains absent.
 
 Read `docs/project-context-and-next-steps.md`,
 `docs/cart-integration-runbook.md`, and section 16 of
@@ -213,21 +218,34 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-05 | AGENTS.md; README.md; docs/cart-integration-runbook.md; docs/project-context-and-next-steps.md; docs/localgo-delivery-architecture-plan.md | Finish mobile account-linked history and development activation verification | Active; code and offline verification complete; refreshing handoff; live migrations blocked by missing private credentials |
+| *(No active locks)* | - | - | - | Code/tests/docs complete; connected development activation awaits private credentials/admin access |
 
 ---
 
 ## 5. Recent Work
 
+- 2026-11-05: Finished mobile account-linked Supabase display history in the
+  sibling repository: immutable owned publication, history picker, New conversation,
+  explicit pending retry, cached completed envelopes and display-only historical
+  cart cards. Fixed A-B-A async leakage, serialized native session writes and
+  reset/send races with deferred-operation regression tests. Added third migration
+  `202611050001_goer_history.sql`. Latest checks: 127 Goer tests, 116 pinned backend
+  tests, 22 mobile/SQL Node cases with zero skips, mobile TypeScript and Android
+  JS/assets export. All three migrations/RPC/RLS assertions execute in isolated
+  PGlite PostgreSQL; connected Supabase/concurrency/native checkout remain gated.
+  Read-only Auth availability and Stripe test-mode checks passed; no signup/model/
+  payment, live migration, secret or activation-flag changes. User chose existing
+  mobile app and development-only Supabase. Missing backend service-role/admin
+  access is the next blocker; no production activation is authorized. Updated
+  runbook, authoritative plan, README and handoffs; released coordination locks.
 - 2026-11-05: Saved the end-of-session handoff above: clarified the intended
   signed-in account/cart/history/checkout journey, the unanswered mobile versus
   browser choice, local SQLite versus unapplied Supabase persistence, previous
   offline verification and the staging-first activation checklist. Documentation
   only; no code, credentials, flags or migrations changed and no suites rerun.
-  **Commit pending:** shell execution is blocked by context-mode requiring Node
-  24.15.0 while the host runs 22.23.2; the alternate isolated task runner also
-  failed to initialize. Preserve this AGENTS.md update and commit it once local
-  tooling is restored; do not upgrade tooling or activate services implicitly.
+  Tooling initially blocked the commit (Node 22.23.2 below context-mode's
+  24.15.0 minimum; isolated runner also failed). **Resolved:** tooling restored
+  with user authorization, Node now 26.13.0, handoff committed as `2992d87`.
 - 2026-11-05: Implemented all five authenticated cart integration milestones
   across this repository and `../LocalGo-Consumer-RN`: verified sessions/owned
   conversations; durable command staging, fenced leases and retry reconciliation;
