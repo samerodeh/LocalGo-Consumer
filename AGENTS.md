@@ -29,7 +29,7 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-05 | src/goer/authenticatedClient.ts; src/goer/history.ts; src/store/goerStore.ts; src/components/goer/; supabase/migrations/; tests/client/; backend/README.md; AGENTS.md | Finish account-linked mobile history, preserve cart/payment safety, verify development integration | Active; existing Supabase is development-only; backend service-role/admin credentials missing; no production activation |
+| Agent | 2026-11-05 | src/goer/authenticatedClient.ts; src/goer/history.ts; src/goer/goerStore.ts; src/goer/send.ts; src/components/goer/; supabase/migrations/; tests/client/; backend/README.md; AGENTS.md | Finish account-linked mobile history, preserve cart/payment safety, verify development integration | Active; existing Supabase is development-only; backend service-role/admin credentials missing; no production activation |
 
 ## Recent work
 
