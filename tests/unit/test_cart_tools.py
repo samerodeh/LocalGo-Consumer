@@ -73,6 +73,7 @@ def test_quantity_validation_is_strict(quantity):
     (401, {}, "AUTHENTICATION_REQUIRED"),
     (409, {"detail": {"code": "CART_REVISION_CONFLICT", "message": "private-token"}}, "CART_REVISION_CONFLICT"),
     (502, {"detail": "private-token"}, "CART_UNAVAILABLE"),
+    (502, {"detail": {"code": ["invalid"]}}, "CART_UNAVAILABLE"),
     (200, {"invalid": True}, "INVALID_CART_RESPONSE"),
     (307, {}, "CART_UNAVAILABLE"),
 ])
@@ -82,6 +83,13 @@ def test_upstream_errors_are_safe_and_redirects_not_followed(status, payload, co
         error = json.loads(tool.run())["error"]
     assert error["code"] == code
     assert "private-token" not in str(error)
+
+
+def test_adapter_refuses_non_cart_paths_without_network_calls():
+    backend = LocalGoCartClient("https://backend.example", "token")
+    for path in ["https://other.example/v1/cart", "/v1/cart-secret", "/v1/cart/../orders"]:
+        with pytest.raises(ValueError):
+            backend.request("GET", path)
 
 
 def test_network_failure_is_safe():

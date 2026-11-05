@@ -42,7 +42,8 @@ class LocalGoCartClient:
     def request(self, method: str, path: str, *, payload: dict | None = None,
                 request_key: str | None = None) -> CartSnapshot:
         # No model-controlled absolute URL or redirect may receive the token.
-        if not path.startswith("/v1/cart") or "?" in path or "#" in path or ".." in path:
+        if (not (path == "/v1/cart" or path.startswith("/v1/cart/"))
+                or "?" in path or "#" in path or ".." in path):
             raise ValueError("Only LocalGo cart paths are permitted.")
         headers = {"Authorization": f"Bearer {self._access_token}"}
         if request_key is not None:
@@ -73,7 +74,7 @@ class LocalGoCartClient:
                 "CART_LIMIT_EXCEEDED": "The cart exceeds LocalGo's quantity or total limits.",
             }
             code = detail.get("code") if isinstance(detail, dict) else None
-            if code in messages:
+            if isinstance(code, str) and code in messages:
                 raise CartBackendError(code, messages[code])
             raise CartBackendError("CART_UNAVAILABLE", "LocalGo could not complete the cart request.")
         try:
