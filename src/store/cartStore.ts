@@ -60,8 +60,12 @@ export const useCartStore = create<CartState>((set, get) => {
       set({ pending: null, error: null });
       get().acceptServerCart(cart);
       // A replay can return an old receipt; refresh to include later edits.
-      const latest = await requestCart(owner);
-      if (epoch === generation) get().acceptServerCart(latest);
+      try {
+        const latest = await requestCart(owner);
+        if (epoch === generation) get().acceptServerCart(latest);
+      } catch {
+        if (epoch === generation) set({ error: 'Cart change confirmed, but the latest refresh failed. Refresh before continuing.' });
+      }
     } catch (error) {
       if (error instanceof CartApiError && !error.uncertain && epoch === generation) {
         await AsyncStorage.removeItem(pendingKey(owner));
@@ -99,8 +103,13 @@ export const useCartStore = create<CartState>((set, get) => {
       const owner = get().ownerEmail;
       const epoch = generation;
       if (!owner) throw new Error('Sign in before loading the cart.');
-      const cart = await requestCart(owner);
-      if (epoch === generation) get().acceptServerCart(cart);
+      try {
+        const cart = await requestCart(owner);
+        if (epoch === generation) {
+          get().acceptServerCart(cart);
+          if (!get().pending) set({ error: null });
+        }
+      } catch (error) { report(error, epoch); throw error; }
     },
     retryPending: () => run(async () => {
       const { ownerEmail, pending } = get();
