@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -6,6 +6,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  Text,
   TextInput,
   View,
   useWindowDimensions,
@@ -17,13 +18,16 @@ import { accentGradient, radius } from '../../theme/theme';
 import { useTheme, type ThemePalette } from '../../theme/ThemeContext';
 import { DisplayText } from '../DisplayText';
 import { ConfirmModal } from '../ConfirmModal';
-import { useGoerStore } from '../../goer/goerStore';
+import { goerOwnerGeneration, useGoerStore } from '../../goer/goerStore';
+import { authenticatedGoerEnabled } from '../../goer/authenticatedClient';
+import { MAX_UI_MESSAGES } from '../../goer/config';
 import { sendGoerMessage } from '../../goer/send';
 import type { GoerMessage } from '../../goer/types';
 import { AgentBadge } from './AgentBadge';
 import { MessageView } from './MessageView';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
+import { GoerHistory } from './GoerHistory';
 
 /**
  * The Goer chat surface. Mounted once (in the tabs layout) and presented as a
@@ -41,6 +45,9 @@ export function GoerSheet() {
   const close = useGoerStore((s) => s.close);
   const uiMessages = useGoerStore((s) => s.uiMessages);
   const isStreaming = useGoerStore((s) => s.isStreaming);
+  const isHistoryLoading = useGoerStore((s) => s.isHistoryLoading);
+  const pendingMessage = useGoerStore((s) => s.pendingMessage);
+  const generation = goerOwnerGeneration();
   const streamingText = useGoerStore((s) => s.streamingText);
   const activeAgent = useGoerStore((s) => s.activeAgent);
   const mode = useGoerStore((s) => s.mode);
@@ -48,16 +55,21 @@ export function GoerSheet() {
 
   const [input, setInput] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const blocked = isStreaming || isHistoryLoading || Boolean(pendingMessage) || showHistory;
+  useEffect(() => {
+    setInput(''); setConfirmClear(false); setShowHistory(false);
+  }, [generation]);
 
   // Inverted list wants newest-first data.
   const reversed = useMemo(() => [...uiMessages].reverse(), [uiMessages]);
 
   const handleSend = useCallback(() => {
     const text = input.trim();
-    if (!text || isStreaming) return;
+    if (!text || blocked) return;
     setInput('');
     void sendGoerMessage(text);
-  }, [input, isStreaming]);
+  }, [input, blocked]);
 
   const renderItem = useCallback(
     ({ item }: { item: GoerMessage }) => <MessageView message={item} />,
@@ -93,14 +105,21 @@ export function GoerSheet() {
               </View>
               <AgentBadge agent={activeAgent} />
             </View>
+            {authenticatedGoerEnabled ? <Pressable
+              onPress={() => setShowHistory(value => !value)} disabled={isStreaming || isHistoryLoading}
+              hitSlop={8} accessibilityRole="button" accessibilityLabel="Saved conversations"
+              style={styles.headerButton}>
+              <Ionicons name="time-outline" size={18} color={colors.textLight} />
+            </Pressable> : null}
             <Pressable
+              disabled={blocked}
               onPress={() => setConfirmClear(true)}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Clear conversation"
+              accessibilityLabel={authenticatedGoerEnabled ? 'New conversation' : 'Clear conversation'}
               style={styles.headerButton}
             >
-              <Ionicons name="trash-outline" size={18} color={colors.textLight} />
+              <Ionicons name={authenticatedGoerEnabled ? 'add-outline' : 'trash-outline'} size={18} color={colors.textLight} />
             </Pressable>
             <Pressable
               onPress={close}
@@ -113,8 +132,17 @@ export function GoerSheet() {
             </Pressable>
           </View>
 
+          {authenticatedGoerEnabled ? <Text accessibilityLiveRegion="polite"
+            style={{ paddingHorizontal: 16, color: colors.textLight }}>
+            {isHistoryLoading ? 'Loading account history…' : `Account history · latest ${MAX_UI_MESSAGES} messages`}
+          </Text> : null}
+          {pendingMessage && !showHistory ? <Pressable accessibilityRole="button"
+            disabled={isStreaming || isHistoryLoading}
+            onPress={() => { void sendGoerMessage(pendingMessage, true); }} style={{ padding: 12 }}>
+            <Text style={{ color: colors.orange }}>Retry pending turn</Text>
+          </Pressable> : null}
           {/* Transcript */}
-          <FlatList
+          {showHistory ? <GoerHistory key={generation} onClose={() => setShowHistory(false)} /> : <FlatList
             inverted
             data={reversed}
             keyExtractor={(m) => m.id}
@@ -133,7 +161,7 @@ export function GoerSheet() {
                 )
               ) : null
             }
-          />
+          />}
 
           {/* Composer */}
           <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
@@ -141,7 +169,9 @@ export function GoerSheet() {
               value={input}
               onChangeText={setInput}
               onSubmitEditing={handleSend}
-              placeholder="Ask Goer anything…"
+              editable={!blocked}
+              maxLength={4000}
+              placeholder={pendingMessage ? 'Retry the pending turn first' : 'Ask Goer anything…'}
               placeholderTextColor={colors.gray400}
               style={styles.input}
               returnKeyType="send"
@@ -151,7 +181,7 @@ export function GoerSheet() {
             />
             <Pressable
               onPress={handleSend}
-              disabled={isStreaming || input.trim().length === 0}
+              disabled={blocked || input.trim().length === 0}
               accessibilityRole="button"
               accessibilityLabel="Send message"
               style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
@@ -162,7 +192,7 @@ export function GoerSheet() {
                 end={{ x: 1, y: 1 }}
                 style={[
                   styles.sendButton,
-                  (isStreaming || input.trim().length === 0) && { opacity: 0.4 },
+                  (blocked || input.trim().length === 0) && { opacity: 0.4 },
                 ]}
               >
                 <Ionicons name="arrow-up" size={20} color="#FFFFFF" />
@@ -174,11 +204,12 @@ export function GoerSheet() {
 
       <ConfirmModal
         visible={confirmClear}
-        title="Clear conversation?"
-        message="Goer will forget this chat and start fresh."
-        confirmLabel="Clear"
+        title={authenticatedGoerEnabled ? 'New conversation?' : 'Clear conversation?'}
+        message={authenticatedGoerEnabled ? 'Start fresh. This conversation stays in your account history.'
+          : 'Goer will clear this chat and start fresh.'}
+        confirmLabel={authenticatedGoerEnabled ? 'Start new' : 'Clear'}
         cancelLabel="Keep it"
-        destructive
+        destructive={!authenticatedGoerEnabled}
         onCancel={() => setConfirmClear(false)}
         onConfirm={() => {
           setConfirmClear(false);
