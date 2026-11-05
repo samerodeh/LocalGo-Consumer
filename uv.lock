@@ -899,6 +899,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "pytest" },
+    { name = "python-dotenv" },
     { name = "uvicorn" },
 ]
 
@@ -908,6 +909,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pytest", specifier = ">=9.2.0" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "uvicorn", specifier = ">=0.54.0" },
 ]
 

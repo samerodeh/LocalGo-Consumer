@@ -5,6 +5,7 @@ from uuid import UUID
 from urllib.parse import urlsplit
 
 import httpx
+from goer_localgo import config  # Load .env before reading feature flags or origins.
 from fastapi import Header, HTTPException
 
 
