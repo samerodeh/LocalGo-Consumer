@@ -7,8 +7,10 @@ a Postgres implementation can replace it later via ``set_catalog_repository``.
 
 import copy
 import json
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Iterator, Protocol
 
 from goer_localgo.domain.money import (
     DEFAULT_CURRENCY,
@@ -60,10 +62,20 @@ class JsonCatalogRepository:
 
 
 _repository: CatalogRepository = JsonCatalogRepository()
+_scoped_repository: ContextVar[CatalogRepository | None] = ContextVar('catalog_repository', default=None)
+
+
+@contextmanager
+def catalog_repository_scope(repository: CatalogRepository) -> Iterator[None]:
+    token = _scoped_repository.set(repository)
+    try:
+        yield
+    finally:
+        _scoped_repository.reset(token)
 
 
 def get_catalog_repository() -> CatalogRepository:
-    return _repository
+    return _scoped_repository.get() or _repository
 
 
 def set_catalog_repository(repository: CatalogRepository) -> None:
@@ -72,7 +84,7 @@ def set_catalog_repository(repository: CatalogRepository) -> None:
 
 
 def load_catalog() -> list[Product]:
-    return _repository.list_products()
+    return get_catalog_repository().list_products()
 
 
 def search_products(
@@ -100,7 +112,7 @@ def merchant_menu(merchant_id: str) -> list[Product]:
 
 
 def get_product(product_id: str) -> Product | None:
-    return _repository.get_product(product_id)
+    return get_catalog_repository().get_product(product_id)
 
 
 def merchant_ids() -> list[str]:

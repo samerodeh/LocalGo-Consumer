@@ -7,7 +7,7 @@ import json
 from uuid import UUID, uuid4
 
 from goer_localgo.crews.cart_crew.cart_crew import CartCrew
-from goer_localgo.domain.catalog import get_product
+from goer_localgo.domain.catalog import get_product, catalog_repository_scope, get_catalog_repository
 from goer_localgo.domain.money import format_cents
 from goer_localgo.domain.turns import TurnJournal, TurnPending
 from goer_localgo.flow.goer_flow import GoerFlow, TurnInput
@@ -43,7 +43,7 @@ def plan_cart(message: str, context: str, client, request_key: str) -> CartPlan:
 
 
 def run_authenticated_turn(message: str, conversation_id: str, request_id: str,
-                           owner: str, client, cart_enabled: bool) -> ChatEnvelope:
+                           owner: str, client, cart_enabled: bool, catalog_repository=None) -> ChatEnvelope:
     message = TurnInput(message=message).message
     request_id, conversation_id = str(UUID(request_id)), str(UUID(conversation_id))
     journal = TurnJournal()
@@ -53,28 +53,29 @@ def run_authenticated_turn(message: str, conversation_id: str, request_id: str,
     key = "chat-" + hashlib.sha256(f"{owner}:{conversation_id}:{request_id}".encode()).hexdigest()
     try:
         if record.plan is None:
-            context = context_text(record.context)
-            intent = classify(message, context)
-            if intent == "discovery":
-                flow = GoerFlow()
-                flow.kickoff(inputs={"conversation_id": conversation_id, "user_id": owner,
-                                     "user_message": message,
-                                     "recent_turns": record.context.get("recent_turns", []),
-                                     "last_shown_product_ids": record.context.get("last_shown_product_ids", [])})
-                response = flow.state.response.model_copy(update={"turn_id": UUID(request_id)})
-                journal.stage(record, {"response": response.model_dump(mode="json"),
-                                       "shown": list(flow.state.last_shown_product_ids)})
-            elif intent == "cart" and cart_enabled:
-                cart = client.request("GET", "/v1/cart")
-                proposed = plan_cart(message, context + "\nCurrent cart: " + cart.model_dump_json(), client, key)
-                command = {"operation": proposed.operation, "product_id": proposed.product_id,
-                           "quantity": proposed.quantity, "cart_revision": cart.revision}
-                journal.stage(record, {"command": command, "request_key": key,
-                                       "cart": cart.model_dump(), "text": proposed.text})
-            else:
-                text = ("Cart editing is not enabled for this environment." if intent == "cart"
-                        else "Checkout, payments, and order support are not available in this assistant yet. Use the app's explicit checkout flow.")
-                journal.stage(record, {"text": text})
+            with catalog_repository_scope(catalog_repository or get_catalog_repository()):
+                context = context_text(record.context)
+                intent = classify(message, context)
+                if intent == "discovery":
+                    flow = GoerFlow()
+                    flow.kickoff(inputs={"conversation_id": conversation_id, "user_id": owner,
+                                         "user_message": message,
+                                         "recent_turns": record.context.get("recent_turns", []),
+                                         "last_shown_product_ids": record.context.get("last_shown_product_ids", [])})
+                    response = flow.state.response.model_copy(update={"turn_id": UUID(request_id)})
+                    journal.stage(record, {"response": response.model_dump(mode="json"),
+                                           "shown": list(flow.state.last_shown_product_ids)})
+                elif intent == "cart" and cart_enabled:
+                    cart = client.request("GET", "/v1/cart")
+                    proposed = plan_cart(message, context + "\nCurrent cart: " + cart.model_dump_json(), client, key)
+                    command = {"operation": proposed.operation, "product_id": proposed.product_id,
+                               "quantity": proposed.quantity, "cart_revision": cart.revision}
+                    journal.stage(record, {"command": command, "request_key": key,
+                                           "cart": cart.model_dump(), "text": proposed.text})
+                else:
+                    text = ("Cart editing is not enabled for this environment." if intent == "cart"
+                            else "Checkout, payments, and order support are not available in this assistant yet. Use the app's explicit checkout flow.")
+                    journal.stage(record, {"text": text})
 
         plan = record.plan
         if "response" in plan:
