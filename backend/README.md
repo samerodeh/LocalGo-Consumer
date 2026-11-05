@@ -41,10 +41,12 @@ persisted commands through these endpoints. No live activation was performed.
 
 ### Deployment prerequisites
 
-1. Review and apply both `202611040001_customer_carts.sql` and
-   `202611040002_cart_checkout.sql` in `supabase/migrations/`, in order, to a
-   staging Supabase project. They create cart/receipt/checkout tables and atomic
-   cart/checkout RPCs; existing order tables are not modified.
+1. Review/apply `202611040001_customer_carts.sql`,
+   `202611040002_cart_checkout.sql`, then `202611050001_goer_history.sql` from
+   `supabase/migrations/` to the **existing development-only** Supabase project.
+   Use its SQL Editor/private admin connection; a service-role HTTP key cannot
+   apply DDL. They create owned carts/receipts/checkouts and immutable cloud
+   display history; existing order tables are not modified.
 2. Configure `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and
    `SUPABASE_SERVICE_ROLE_KEY` on this backend only. Never send the service key
    to Goer, the mobile app, or a browser.
@@ -58,10 +60,13 @@ persisted commands through these endpoints. No live activation was performed.
    user writes and execution of the commit RPC are revoked; the backend alone
    commits validated snapshots with the service role.
 
-Both migrations were syntax-parsed locally, **not applied to a live database**.
-Repository/RPC behavior is mocked in the offline suite. Validate the migration,
-RLS, and concurrent commits against a staging Supabase/PostgreSQL instance
-before deployment. No infrastructure was provisioned.
+All three migrations execute in isolated PGlite PostgreSQL tests, including
+owner RLS, RPC grants, immutable history, cart replay/revision checks, checkout
+locks and once-only consumption. They are **not applied to connected Supabase**;
+real concurrent-session/native/Stripe verification remains required. This backend's
+service-role key is currently empty and no database admin connection is configured.
+Supply credentials privately in backend `.env`, never chat/mobile. Production
+activation is not authorized; no infrastructure or secret configuration changed.
 
 | Method | Path | Body |
 |---|---|---|
@@ -124,9 +129,19 @@ Structure: `app/auth.py` verifies identity; `app/cart/models.py` defines schemas
 
 Verification: **116 backend tests pass** under the pinned requirements with
 stubbed Auth/PostgREST/Stripe calls. Run `python -m pytest tests -o addopts='' -q`.
-The mobile type check and 3 Node cart-state cases also pass (`node --test
-tests/client/serverCart.test.cjs` from the repository root). These are not real
-native SDK or staging database tests.
+The mobile type check, **22 mobile/SQL Node cases** (zero skips) and Android
+JS/assets export also pass. Exporting JS is not a native build/PaymentSheet test.
+Run `node --test tests/client/*.test.cjs` from the repository root; set
+`LOCALGO_PGLITE_MODULE` to a temporary installed `@electric-sql/pglite@0.5.15`
+module to execute the SQL case (it explicitly skips otherwise).
+
+Mobile `src/goer/history.ts` saves display transcripts using the customer's own
+bearer and immutable `save_goer_history_turn` RPC, not this backend's service key.
+History selection/New conversation preserve old transcripts. Completed envelopes
+are cached before history publication; Retry pending turn does not resend a cart
+edit. Historical cart cards cannot change current cart state. Goer's SQLite
+reasoning/command journal remains separate and must be preserved to resume a
+conversation; cloud display history does not replace it.
 
 The separate CrewAI service lives in sibling `../goer-ai` relative to this
 repository root, not in the older `app/goer/` implementation. Read its
