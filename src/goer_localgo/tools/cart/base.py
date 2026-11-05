@@ -2,7 +2,8 @@
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from threading import Lock
 from typing import Any
 
 from crewai.tools import BaseTool
@@ -22,6 +23,14 @@ class RevisionInput(CartInput):
 @dataclass
 class CartMutationBudget:
     attempted: bool = False
+    _lock: Any = field(default_factory=Lock, repr=False)
+
+    def claim(self) -> bool:
+        with self._lock:
+            if self.attempted:
+                return False
+            self.attempted = True
+            return True
 
 
 class CartTool(BaseTool):
@@ -44,10 +53,9 @@ class CartTool(BaseTool):
             return json.dumps({"error": {"code": "REQUEST_KEY_REQUIRED",
                                          "message": "A server-owned request key is required for cart changes."}})
         if method != "GET" and self._mutation_budget is not None:
-            if self._mutation_budget.attempted:
+            if not self._mutation_budget.claim():
                 return json.dumps({"error": {"code": "CART_ACTION_LIMIT",
                                              "message": "Only one cart change is supported per turn. Ask for the next change separately."}})
-            self._mutation_budget.attempted = True
         # One logical change per tool per request. Reusing the same key with
         # different arguments is rejected by LocalGo, not silently re-executed.
         key = f"{self._request_key}:{self.name}" if method != "GET" else None

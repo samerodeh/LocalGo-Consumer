@@ -47,6 +47,16 @@ def test_cart_crew_runs_real_tools_against_mock_backend_and_bounds_mutations():
     assert not crew.cache
 
 
+def test_cart_mutation_budget_is_shared_and_atomic():
+    from concurrent.futures import ThreadPoolExecutor
+    from goer_localgo.tools.cart.base import CartMutationBudget
+
+    budget = CartMutationBudget()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        claims = list(pool.map(lambda _: budget.claim(), range(20)))
+    assert sum(claims) == 1
+
+
 def test_cart_crew_has_no_payment_or_order_tools():
     crew = CartCrew(client=object(), request_key="turn-123").crew()
     assert len(crew.agents) == 1
