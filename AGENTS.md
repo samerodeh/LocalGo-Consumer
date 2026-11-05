@@ -31,7 +31,7 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active locks)* | - | - | - | Code/tests/docs complete; connected development activation awaits private credentials/admin access |
+| Agent | 2026-11-05 | src/goer/goerStore.ts; tests/client/goerReset.test.cjs; AGENTS.md | Keep reset fence until final completion, including synchronous subscribers | Active; final narrow regression |
 
 ## Recent work
 
