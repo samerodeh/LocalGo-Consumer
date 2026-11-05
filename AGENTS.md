@@ -7,7 +7,7 @@ This document is the authoritative guide, context manual, and coordination log f
 ## 1. Project Context & Architecture
 
 ### What is Goer AI?
-Goer is a conversational restaurant food discovery assistant built for **LocalGo**. It translates natural language customer queries into deterministic searches and menu browsing over a structured local catalog of **138 products across local restaurants** (Al-Taib and Château Kabab).
+Goer is a conversational food discovery and cart-planning assistant built for **LocalGo**. Guest/demo discovery uses a **138-product fixture** (Al-Taib and Château Kabab); authenticated discovery uses LocalGo's **145-product canonical catalog**. The integration is implemented in code but is **not yet an activated, verified end-to-end customer experience**.
 
 ### Core Technology Stack
 - **Runtime & Package Manager**: Python 3.10–3.13, managed with [`uv`](https://docs.astral.sh/uv/).
@@ -27,11 +27,12 @@ goer-ai/
 │       ├── api/
 │       │   └── main.py          # FastAPI application, REST endpoints (/health, /v1/chat, /api/chat)
 │       ├── crews/
-│       │   └── discovery_crew/  # CrewAI discovery crew, agent & task definitions
+│       │   ├── discovery_crew/  # CrewAI discovery crew, agent & task definitions
 │       │       ├── config/
 │       │       │   ├── agents.yaml  # Agent roles, goals, and backstories
 │       │       │   └── tasks.yaml   # Task descriptions and expected outputs
 │       │       └── discovery_crew.py
+│       │   └── cart_crew/       # Read-only tools; typed cart plans
 │       ├── domain/
 │       │   ├── catalog.py       # Scoped JSON/live catalog repositories
 │       │   ├── conversations.py # Owned snapshots
@@ -46,19 +47,99 @@ goer-ai/
 │       │   └── try-out-tools/   # Standalone deterministic per-tool smoke tests
 │       ├── web/
 │       │   └── index.html       # Browser chat UI
-│       ├── data_menu.json       # Authoritative LocalGo restaurant catalog snapshot
+│       ├── data_menu.json       # Guest/demo fixture, not the live catalog authority
 │       └── main.py              # Thin CLI entry points and session-aware loop
 ├── tests/
 │   ├── unit/                    # Unit tests for tools, domain logic, and validation schemas
 │   └── integration/             # Integration tests for FastAPI endpoints and request validation
 ├── docs/
 │   ├── project-context-and-next-steps.md     # Start here: current state, gaps, next-phase plan
-│   └── localgo-delivery-architecture-plan.md  # Authoritative phased architecture plan (older plans superseded)
+│   ├── localgo-delivery-architecture-plan.md  # Authoritative phased plan (see section 16)
+│   └── cart-integration-runbook.md           # Activation, migrations and recovery
 ├── pyproject.toml               # Project metadata, dependencies, scripts, and pytest config
 ├── uv.lock                      # Dependency lockfile
 ├── .env.example                 # Environment variable template
 └── AGENTS.md                    # Agent coordination log and strict operating rules (this file)
 ```
+
+---
+
+## Session Handoff — 2026-11-05
+
+### User goal and unresolved client choice
+
+The requested customer journey is:
+
+**Sign in to a LocalGo account → open Goer → discover food and edit a database-backed cart → save conversation history → explicitly confirm checkout → persist the paid order.**
+
+This journey is **not fully activated yet**. Adding food creates cart records;
+only confirmed successful payment should produce the final order. Do not confuse
+completed implementation milestones with a working, live customer deployment.
+
+The last clarification was whether this complete experience should be delivered
+in the **existing LocalGo mobile app** or the **localhost Goer browser page**.
+The user has not answered. Resume from this choice; do not assume browser
+sign-in/checkout or live database activation has been authorized.
+
+### What exists versus what is usable
+
+| Area | Current state |
+|---|---|
+| Browser/CLI | Guest discovery, product cards and bounded follow-up context. The browser has **no sign-in, real cart editing or checkout UI**. |
+| Authenticated mobile integration | Implemented behind feature flags: verified customer sessions, grounded cards, shared cart for chat/buttons, persisted retry IDs and account-switch fences. Not live-enabled or native-tested. |
+| Cart planning | Discovery/Cart routing exists. CartCrew reads and proposes a typed plan; Python persists the exact command before executing it. No agent can charge or place orders. |
+| Conversation storage | Snapshots and durable turn journal use **local SQLite**, not Supabase. `GOER_CONVERSATION_DB` overrides the default `~/.localgo/goer/conversations.sqlite3`. Shared-account history, retention/deletion and multi-host persistence remain unfinished. |
+| Cart/checkout storage | Supabase repositories and migrations are written, but the migrations have **not been applied or tested against a live database**. |
+| Checkout | Revision-locked quotes, explicit payment confirmation, payment fingerprint validation and retry/cancel recovery exist in code. Real Stripe sandbox checkout remains unverified. |
+
+Repositories remain separate: this repository owns Goer reasoning/conversations;
+`../LocalGo-Consumer-RN` owns customer authentication, canonical pricing, carts,
+payments and orders. Do not introduce a second local cart as a fallback.
+
+### Activation gates and previous verification
+
+Templates intentionally leave `GOER_CART_ENABLED=false` (Goer),
+`SERVER_CART_ENABLED=false` (LocalGo backend),
+`EXPO_PUBLIC_SERVER_CART_ENABLED=false` and `EXPO_PUBLIC_GOER_API_URL` empty
+(mobile). These are template defaults, not evidence of any deployed configuration.
+LocalGo connectivity uses `LOCALGO_API_URL`; credentials must remain private.
+
+The sibling repository contains two unapplied migrations, in this order:
+
+1. `supabase/migrations/202611040001_customer_carts.sql`
+2. `supabase/migrations/202611040002_cart_checkout.sql`
+
+Only outer SQL syntax was parsed. PostgreSQL function execution, RLS, locking
+and concurrency still need staging verification. No real Auth, live model,
+Stripe, native build or deployment checks were performed.
+
+**Last completed offline results:** 127 Goer tests, 116 pinned LocalGo backend
+tests, all 8 tool smoke scripts, 4 browser Node cases, 3 mobile Node state cases,
+and mobile TypeScript passed. These are previous results, not a new run for this
+documentation update. The guest server was restarted and `/health` and
+`/chat.js` checked earlier; verify it is still running next session rather than
+assuming it is available at `http://127.0.0.1:8000`.
+
+### Next session: smallest complete path
+
+1. Confirm mobile versus browser, and staging versus production. Obtain approval
+   before applying live migrations or enabling customer/payment flags.
+2. Agree where account-linked conversation history must live. Current local
+   SQLite is not shared Supabase history; implement the chosen persistence/UI
+   gap rather than claiming it is already solved.
+3. Review and verify both migrations in staging, configure the separate services
+   and selected client, and deliberately enable the relevant staging flags.
+4. Verify with a real test account: ownership isolation; saved history after
+   restart; identical chat/button cart; interrupted requests replaying without
+   duplicate edits; explicit Stripe sandbox checkout; one paid order persisted
+   and the confirmed cart consumed once; safe cancellation/pending recovery.
+5. Record actual results and remaining gaps before considering production.
+
+Read `docs/project-context-and-next-steps.md`,
+`docs/cart-integration-runbook.md`, and section 16 of
+`docs/localgo-delivery-architecture-plan.md` before implementation. Preserve
+stable request/order IDs, immutable commands, ownership fences, explicit payment
+confirmation and one tool per file. Do not touch unrelated `resume.tex`.
 
 ---
 
@@ -130,12 +211,21 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active agent locks)* | - | - | - | Ready for next task |
+| *(No active agent locks)* | - | - | - | Handoff saved; documentation commit pending (see Recent Work) |
 
 ---
 
 ## 5. Recent Work
 
+- 2026-11-05: Saved the end-of-session handoff above: clarified the intended
+  signed-in account/cart/history/checkout journey, the unanswered mobile versus
+  browser choice, local SQLite versus unapplied Supabase persistence, previous
+  offline verification and the staging-first activation checklist. Documentation
+  only; no code, credentials, flags or migrations changed and no suites rerun.
+  **Commit pending:** shell execution is blocked by context-mode requiring Node
+  24.15.0 while the host runs 22.23.2; the alternate isolated task runner also
+  failed to initialize. Preserve this AGENTS.md update and commit it once local
+  tooling is restored; do not upgrade tooling or activate services implicitly.
 - 2026-11-05: Implemented all five authenticated cart integration milestones
   across this repository and `../LocalGo-Consumer-RN`: verified sessions/owned
   conversations; durable command staging, fenced leases and retry reconciliation;
