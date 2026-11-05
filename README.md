@@ -39,8 +39,15 @@ flowchart TD
 All five milestones are implemented in code behind **closed-by-default flags**:
 verified sessions, durable command/retry handling, specialist routing/cart cards,
 shared mobile server cart, and revision-bound explicit checkout. They have not
-been live-activated. Two reviewed staging migrations and actual Auth/native/
-Stripe checks are required before enabling flags.
+been live-activated. The selected client is the existing **LocalGo mobile app**
+and its existing **development-only** Supabase project. Three migrations and
+actual Auth/native/Stripe checks are required for development activation; private
+backend service-role/admin credentials are currently missing.
+
+Mobile account-linked cloud history, conversation selection, New conversation
+and explicit pending-turn retry are implemented. A completed response is saved
+locally before cloud publication, so history retries cannot resend cart work.
+Isolated PostgreSQL migration/RPC/RLS tests pass; the connected project is unchanged.
 
 See **[the setup and recovery runbook](docs/cart-integration-runbook.md)** for
 both repositories, environment variables, migration order, and remaining gates.
@@ -136,7 +143,9 @@ lifecycle work remain before production. Do not enable real customer flows yet.
 
 Conversation snapshots persist in `~/.localgo/goer/conversations.sqlite3`.
 Set `GOER_CONVERSATION_DB` to an absolute path to override it. Tests use
-isolated temporary databases.
+isolated temporary databases. Mobile Supabase display transcripts are separate:
+they restore saved chat UI but do not replace Goer's reasoning/command journal
+or reconstruct a missing SQLite database. Historical cart cards never mutate carts.
 
 ### REST API Endpoints
 
