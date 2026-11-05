@@ -1,8 +1,9 @@
 # Goer × LocalGo: Delivery App Architecture Plan
 
 > **Status:** authoritative plan, updated 2026-11-04. Phase 0 is complete;
-> Phase 1 memory/cards/API/UI foundation is implemented, discovery enhancements
-> and a live-model check remain. It supersedes
+> Stateful discovery and all five cart integration milestones are implemented
+> in code behind closed-by-default flags. Live SQL/auth/native/payment validation
+> and broader discovery improvements remain. It supersedes
 > `goer-agentic-architecture-plan.md` and
 > `crewai-fastapi-localgo-architecture-plan.md`. Those files are kept for
 > history only.
@@ -15,9 +16,10 @@ to discover food, build a cart, check out, pay, and track or get support for
 orders, all through one assistant. Every price, cart line, payment, and order
 state must stay under deterministic backend control.
 
-**Shape:** a modular monolith. It is one FastAPI deployable, with domain modules
-inside it, a CrewAI Flow for conversation orchestration, and Postgres (Supabase)
-as the system of record.
+**Shape:** LocalGo remains the modular-monolith domain backend, with Postgres
+(Supabase) as the cart/payment/order system of record. Goer is a separate
+FastAPI conversational service/repository that calls LocalGo; it does not own
+a duplicate cart. Its development conversation/turn journal uses durable SQLite.
 
 ---
 
@@ -25,16 +27,17 @@ as the system of record.
 
 | Area | Current state | Gap to fix |
 |---|---|---|
-| Flow | `flow/goer_flow.py`: load context → discovery → compose response | Six recent exchanges and up to five displayed IDs restored from SQLite; router and other specialists remain planned |
-| Agents | Discovery is wired into chat; a separate `CartCrew` is built and offline-tested with injected HTTP tools | Cart is opt-in only; authenticated routing and UI integration are not implemented |
-| Tools | Compact `search_menu`, `get_menu`, `get_product`; turn-local result collector | Restaurant/category tools and broader/fuzzy search remain pending |
-| Catalog | Cached repository over `data_menu.json`, 138 products, 2 merchants | No authoritative restaurant hours, delivery zones, or availability feed |
-| API | Conversation creation/turns, typed product cards, compatible legacy endpoints | New routes use a shared demo principal; legacy client-supplied identity is still untrusted; JWT required before production |
-| Clients | Browser renders grounded cards and stores session ID; CLI reuses one conversation | Visual browser and real-model follow-up checks remain manual |
-| Tests | 76 offline pytest tests, including Node browser-script tests; 3 tool smoke tests | Live quality evaluation remains separate |
+| Flow | Guest Discovery Flow; authenticated coordinator with classification, immutable planning, execution, and durable replay | SQLite journal requires one shared durable file; multi-host persistence remains future work |
+| Agents | Discovery and read-only Cart planner; Python executes persisted cart writes | Checkout/order/support model specialists are not implemented |
+| Tools | Catalog tools plus five individually filed cart tools; request-private credentials | Restaurant/category tools and broader/fuzzy search remain pending |
+| Catalog | Authenticated turns use LocalGo's canonical 145-product snapshot; guest/demo uses 138-product fixture | No stock feed, real hours/zones, or option selections |
+| API | Verified LocalGo sessions, owned conversations, stable request IDs, 202 pending recovery, grounded cart cards | Staging Auth/RLS verification and history retention/deletion are production gates |
+| Clients | Flagged mobile server cart, signed-in Goer chat, stable checkout recovery; guest browser/CLI retained | Native SDK, real model, and sandbox end-to-end scenarios remain manual |
+| Tests | 127 Goer tests, 116 backend tests, 8 tool smoke scripts, browser/mobile Node checks, mobile type check | Supabase/Stripe/model calls are mocked; SQL syntax parsed, not executed |
 
-**Conclusion:** the memory/card foundation is implemented. Finish discovery
-improvements, then add routing and trusted identity before transactional tools.
+**Conclusion:** the five integration milestones are coded but not live-activated.
+Follow the [activation/recovery runbook](cart-integration-runbook.md) and staging
+checks before enabling the flags.
 
 ---
 
@@ -237,7 +240,7 @@ prose is imperfect.
 | Specialist | Read tools | Mutation tools | Never allowed |
 |---|---|---|---|
 | Discovery | `list_restaurants`, `search_menu`, `get_menu_categories`, `get_product` | none | cart/order writes |
-| Cart | `get_cart`, `get_product` | `add_cart_item`, `update_cart_line`, `remove_cart_line`, `clear_cart` | quotes, payment |
+| Cart planner | `get_cart`, `get_product`, `search_menu` | **Flow only, after durable plan staging:** `add_cart_item`, `update_cart_line`, `remove_cart_line`, `clear_cart` | direct agent writes, quotes, payment |
 | Checkout | `get_cart`, `list_addresses` | `create_quote` (read-like; immutable) | `confirm_quote` and payment: **direct action only** |
 | Order support | `list_orders`, `get_order`, `get_cancellation_options` | `request_cancellation` (policy-checked; requires a confirm action) | refunds, editing placed orders |
 
@@ -455,16 +458,18 @@ Stub tests establish wiring, not real-model reasoning quality.
 
 **Exit:** conversations survive restarts and are isolated per user.
 
-### Phase 3: Cart — foundation built, end-to-end activation pending
+### Phase 3: Cart — integration implemented, live activation pending
 - [x] LocalGo backend: verified customer authentication, pure cart pricing and
   validation, revision/idempotency manager, Supabase repository, and REST routes.
 - [x] SQL migration authored and syntax-parsed; not applied or DB-execution-tested.
 - [x] Goer HTTP adapter, five individual cart tools, strict wire models, and
-  opt-in CartCrew with a shared one-mutation budget. Not attached to demo chat.
-- [ ] Authenticated Goer identity, durable turn retry/reconciliation handling,
+  read-only CartCrew. Python executes the persisted command, never the model.
+- [x] Authenticated Goer identity, durable turn retry/reconciliation handling,
   router dispatch, grounded `cart_summary` cards, and client integration.
-- [ ] Mobile buttons, old assistant executors, and checkout must use the same
-  server cart; current mobile state is unchanged.
+- [x] Flagged mobile buttons, old executors, signed-in chat, and checkout use
+  the same server cart. Checkout locks/binds an exact server-priced revision.
+- [ ] Apply/review migrations in staging and exercise real Auth/native/Stripe
+  scenarios before live activation.
 - [ ] Options remain unsupported and are rejected, not silently ignored.
 
 **Exit:** a cart built by chat or by buttons is identical, concurrent edits
@@ -520,11 +525,11 @@ paths.
 
 ## 16. Cart integration execution plan (2026-11-04)
 
-**Planning checkpoint:** application changes are paused. The next work should
-follow these small milestones, with progress explained before each one. This
-section records the plan, not a claim that integration is already working.
-Required implementation verification still applies when code work resumes;
-this documentation-only checkpoint does not run suites or migrations.
+**Implementation checkpoint:** all five milestones below are implemented in
+code behind feature flags. Their bullet lists define the accepted contracts;
+"done when" statements remain staging acceptance criteria, not claims that a
+live deployment was exercised. See the [operational runbook](cart-integration-runbook.md)
+for setup, recovery, test results, and remaining production gates.
 
 ### Built components and exact boundary
 
@@ -534,9 +539,13 @@ In `../LocalGo-Consumer-RN`:
   server-priced single-restaurant cart, request replay, and PostgREST adapter.
 - `backend/app/routers/cart.py`: `GET /v1/cart`, `POST /v1/cart/lines`,
   `PATCH/DELETE /v1/cart/lines/{product_id}`, and `POST /v1/cart/clear`.
-- `supabase/migrations/202611040001_customer_carts.sql`: user-scoped cart and
-  receipt tables, read-only user RLS, backend-only transactional commit RPC.
-- The committed pricing artifact has explicit merchant IDs for 145 products.
+- Two SQL migrations (`202611040001_customer_carts.sql` and
+  `202611040002_cart_checkout.sql`): user-scoped carts/receipts/checkouts,
+  read-only user RLS, backend-only atomic commits and checkout locks.
+- `/v1/session`, `/v1/catalog/products`, checkout status/cancel routes, and
+  revision/fingerprint-bound payment/order publication.
+- The committed pricing artifact has explicit merchant IDs, categories, and
+  descriptions for 145 products.
 
 In this repository:
 - `integrations/localgo/cart_client.py`: token-forwarding HTTP adapter with
@@ -544,22 +553,23 @@ In this repository:
 - `schemas/cart.py`: LocalGo cart wire models.
 - `tools/cart/{get_cart,add_cart_item,update_cart_line,remove_cart_line,clear_cart}.py`:
   one tool per file; identity, credentials, and request keys are injected privately.
-- `crews/cart_crew/`: opt-in specialist; mutation budget is shared and atomic.
+- `crews/cart_crew/`: read-only typed planner. `domain/turns.py` and
+  `flow/authenticated.py` stage and reconcile commands before Python writes.
 
-Existing browser/CLI chat still uses Discovery only. The mobile app's Zustand
-cart and old Goer client executors still operate locally. Payment and order
-placement have not changed. No migration, live deployment, or mobile changes
-have been performed. Last completed suites: Goer 110 tests, LocalGo 109 tests.
-SQL syntax parsing does not prove PostgreSQL/RLS execution. The final smoke
-rerun was interrupted; prior cart smoke runs passed with mocked HTTP.
+Guest browser/CLI discovery is retained. In flagged server mode, mobile Zustand
+state is a backend cache; buttons/executors/chat share it and checkout/payment
+use immutable locked cart snapshots. No migration or live deployment was run.
+Completed checks: Goer 127 tests, LocalGo 116 tests, all 8 smoke scripts, 3 mobile
+and 4 browser Node cases, and mobile TypeScript. SQL parsing does not prove
+PostgreSQL/RLS execution; native/Auth/Stripe flows remain staging checks.
 
-### Milestone 1 — Verified Goer identity
+### Milestone 1 — Verified Goer identity (implemented)
 
 **Goal:** the same customer identity reaches both services, without putting
 credentials in model context or persisted Flow state.
 
 - Add a small LocalGo `GET /v1/session` route using `require_customer` to return
-  only the verified user UUID. This endpoint does not exist yet.
+  only the verified user UUID.
 - Add Goer's session HTTP adapter/dependency and trusted `LOCALGO_API_URL`
   configuration. Forward the user's bearer token, never a service-role key.
 - Authenticated conversation creation derives its owner from that verified
@@ -572,7 +582,7 @@ credentials in model context or persisted Flow state.
 **Done when:** a signed-in session owns its conversations; missing/expired
 credentials cannot dispatch cart operations or read another customer's context.
 
-### Milestone 2 — Durable turn retry safety before side effects
+### Milestone 2 — Durable turn retry safety before side effects (implemented)
 
 **Goal:** retrying a chat message must not ask the model to invent a new mutation
 or leave the app guessing whether an earlier change happened.
@@ -581,8 +591,9 @@ or leave the app guessing whether an earlier change happened.
   owner + conversation + request UUID, with a hash of the original message.
 - Persist the resolved command, exact product/quantity, cart revision, and
   backend idempotency key **before** executing the write.
-- States: received → planned → applying → completed; ambiguous network failures
-  enter needs-reconciliation rather than rerunning the model or claiming failure.
+- Journal states: planning → planned → applying → applied → completed.
+  Ambiguous network failures retain the applying plan and release its lease for
+  reconciliation, rather than rerunning the model or claiming failure.
 - Completed duplicates replay their stored envelope. Same key with a different
   message conflicts. Pending duplicates report in-progress and do not dispatch
   another agent or mutation.
@@ -598,7 +609,7 @@ or leave the app guessing whether an earlier change happened.
 **Done when:** a response timeout or restart after a successful add can be
 reconciled without duplicate items or another model-generated operation.
 
-### Milestone 3 — Router and grounded cart response
+### Milestone 3 — Router and grounded cart response (implemented)
 
 **Goal:** choose one specialist per turn and show actual backend outcomes.
 
@@ -617,7 +628,7 @@ reconciled without duplicate items or another model-generated operation.
 **Done when:** discovery and authenticated cart turns dispatch only the selected
 specialist and show a backend-grounded outcome or an honest pending/error state.
 
-### Milestone 4 — One mobile cart for chat and buttons
+### Milestone 4 — One mobile cart for chat and buttons (implemented)
 
 **Goal:** remove the split between the server cart and the app's local cart.
 
@@ -637,12 +648,12 @@ specialist and show a backend-grounded outcome or an honest pending/error state.
 **Done when:** a chat edit immediately appears in the normal Cart screen and a
 button edit appears in the next chat snapshot, under the same signed-in owner.
 
-### Milestone 5 — Checkout consistency without expanding agent permissions
+### Milestone 5 — Checkout consistency without expanding agent permissions (implemented)
 
 **Goal:** checking out the server cart does not charge for stale/different items.
 
-- Existing checkout still reprices client item lists; migrate live checkout to
-  a server cart revision/snapshot instead. This change is not implemented yet.
+- In server mode, checkout uses a locked owned cart snapshot, not client item
+  lists. The legacy item-list path remains only for feature-off compatibility.
 - Reprice through LocalGo's authoritative pricing module, bind the quote/payment
   intent to the exact cart revision, and invalidate after any cart edit.
 - Preserve explicit customer confirmation, payment verification, delivery
@@ -670,5 +681,7 @@ still cannot confirm payment or place an order themselves.
   storage, identity, durable retries, mobile sync, and checkout gates are met.
 - Leave guest/demo discovery operational throughout the migration.
 
-**Next implementation slice:** Milestone 1 only. Do not add checkout or support
-agents while cart identity and request ownership are unresolved.
+**Next step:** staging migration/RLS, real sign-in, native SDK, sandbox payment,
+restart/retry, and chat/button parity verification using the runbook. Keep flags
+closed until those pass. Adding support/checkout model specialists and broader
+production hardening remains separate work.
