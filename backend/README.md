@@ -31,6 +31,80 @@ Driver endpoints require the driver's Supabase Auth access token as
 `Authorization: Bearer <jwt>`; the token is forwarded to PostgREST so all RLS
 policies in `../../LocalGODriverRN/supabase/schema.sql` apply unchanged.
 
+## Server-owned carts (new, opt-in integration)
+
+The new cart API is separate from the existing phone-owned cart. It is **not
+wired into the mobile store, existing Goer action executors, or checkout yet**.
+Do not activate a server-side cart assistant in the app until all those callers
+read the same cart; otherwise the phone and server will show different contents.
+
+### Deployment prerequisites
+
+1. Review and apply `supabase/migrations/202611040001_customer_carts.sql` from
+   the repository root to the shared Supabase project. It creates two new
+   tables and an atomic commit RPC; it does not modify existing order tables.
+2. Configure `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and
+   `SUPABASE_SERVICE_ROLE_KEY` on this backend only. Never send the service key
+   to Goer, the mobile app, or a browser.
+3. Every request must carry the customer's real Supabase Auth access token.
+   The backend resolves it through `/auth/v1/user`; request bodies cannot set
+   an owner. RLS allows authenticated users to read only their cart. All direct
+   user writes and execution of the commit RPC are revoked; the backend alone
+   commits validated snapshots with the service role.
+
+This migration was syntax-parsed locally, **not applied to a live database**.
+Repository/RPC behavior is mocked in the offline suite. Validate the migration,
+RLS, and concurrent commits against a staging Supabase/PostgreSQL instance
+before deployment. No infrastructure was provisioned.
+
+| Method | Path | Body |
+|---|---|---|
+| GET | `/v1/cart` | none |
+| POST | `/v1/cart/lines` | `{product_id, quantity, cart_revision}` |
+| PATCH | `/v1/cart/lines/{product_id}` | `{quantity, cart_revision}` |
+| DELETE | `/v1/cart/lines/{product_id}` | `{cart_revision}` |
+| POST | `/v1/cart/clear` | `{cart_revision}` |
+
+All writes require `Idempotency-Key` (1–200 letters, digits, `.`, `_`, `:`, or
+`-`). Read the cart first for its revision. Replaying the same key and body
+returns the original response without another change, even after later edits;
+reusing the key for a different command returns `IDEMPOTENCY_CONFLICT` (409).
+Concurrent writes from the same revision cannot both commit. The SQL function
+locks per owner, checks the receipt before the revision, then writes cart and
+receipt in one transaction. Receipts are retained until account deletion; add
+an explicit retention policy before production, preserving the retry window.
+
+Responses contain `revision`, `merchant_id`, `currency: CAD`, `lines`,
+`subtotal_cents`, `delivery_fee_cents`, and `total_cents`. Lines use product IDs
+(the stable line identity), quantities, names, and integer-cent unit/line prices.
+LocalGo recomputes prices on every edit using `app/pricing.py` and explicit
+restaurant metadata in `app/menu_prices.json`. Reading returns the last committed
+snapshot; checkout must still reprice and bind to the cart revision when it is
+integrated. The existing payment/order flow is unchanged.
+
+V1 supports single-restaurant carts, quantities 1–99, at most 50 distinct lines,
+and the existing $1,000 order limit. Unsupported options, notes, client prices,
+and client merchant/owner fields are rejected rather than silently ignored.
+Fees follow the existing pricing module ($5 delivery for nonempty carts, no tip
+in the cart API); this is not a checkout quote and does not introduce tax rules.
+Regenerate the price artifact after menu changes with
+`python scripts/build_menu_prices.py` and restart the backend.
+
+Errors use `detail: {code, message}` for cart business/storage failures:
+`CART_REVISION_CONFLICT`, `IDEMPOTENCY_CONFLICT`, `CART_MERCHANT_MISMATCH`,
+`CART_LINE_NOT_FOUND`, `ITEM_UNAVAILABLE`, `CART_LIMIT_EXCEEDED`, or
+`CART_UNAVAILABLE`. Authentication failures are 401, unavailable authentication
+or storage is 503, and invalid input is 422. There is no local-state fallback.
+
+Structure: `app/auth.py` verifies identity; `app/cart/models.py` defines schemas;
+`service.py` is pure pricing/validation; `manager.py` handles request replay;
+`repository.py` calls PostgREST; `app/routers/cart.py` is the HTTP surface.
+
+Verification: **109 backend tests pass** under the pinned requirements with
+stubbed Auth/PostgREST/Stripe calls. Run `python -m pytest tests -o addopts='' -q`.
+The new cross-repository CrewAI integration lives in `../goer-ai` relative to
+this repository root, not in the older `app/goer/` implementation.
+
 ## Run
 
 ```bash
