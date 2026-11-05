@@ -32,8 +32,8 @@ a duplicate cart. Its development conversation/turn journal uses durable SQLite.
 | Tools | Catalog tools plus five individually filed cart tools; request-private credentials | Restaurant/category tools and broader/fuzzy search remain pending |
 | Catalog | Authenticated turns use LocalGo's canonical 145-product snapshot; guest/demo uses 138-product fixture | No stock feed, real hours/zones, or option selections |
 | API | Verified LocalGo sessions, owned conversations, stable request IDs, 202 pending recovery, grounded cart cards | Staging Auth/RLS verification and history retention/deletion are production gates |
-| Clients | Flagged mobile server cart, signed-in Goer chat, stable checkout recovery; guest browser/CLI retained | Native SDK, real model, and sandbox end-to-end scenarios remain manual |
-| Tests | 127 Goer tests, 116 backend tests, 8 tool smoke scripts, browser/mobile Node checks, mobile type check | Supabase/Stripe/model calls are mocked; SQL syntax parsed, not executed |
+| Clients | Flagged mobile server cart, signed-in Goer chat/cloud history, conversation picker, pending retry and stable checkout recovery; guest browser/CLI retained | Native SDK, real model, and sandbox end-to-end scenarios remain manual |
+| Tests | 127 Goer tests, 116 backend tests, 22 mobile/SQL Node cases, mobile type check and Android JS export; earlier 8 smoke scripts | Real migrations/RPC/RLS execute in isolated PGlite; connected Supabase/concurrency/Stripe/model remain unverified |
 
 **Conclusion:** the five integration milestones are coded but not live-activated.
 Follow the [activation/recovery runbook](cart-integration-runbook.md) and staging
@@ -451,6 +451,12 @@ about the second one" works with a live model as well as the scripted tests.
 Stub tests establish wiring, not real-model reasoning quality.
 
 ### Phase 2: Persistence and auth
+
+Implemented subset: verified LocalGo sessions and owner-scoped Supabase **display
+transcripts** with immutable publication/retry and mobile history selection.
+Authoritative reasoning snapshots/turn fencing still use Goer's SQLite; this
+subset does not complete the shared persistence target below.
+
 - Supabase Postgres schema (catalog, conversations, turns, tool audit), a
   Postgres catalog repository, and a seed script from `data_menu.json`.
 - JWT middleware and RLS; remove the client-supplied `user_id`.
@@ -461,7 +467,8 @@ Stub tests establish wiring, not real-model reasoning quality.
 ### Phase 3: Cart — integration implemented, live activation pending
 - [x] LocalGo backend: verified customer authentication, pure cart pricing and
   validation, revision/idempotency manager, Supabase repository, and REST routes.
-- [x] SQL migration authored and syntax-parsed; not applied or DB-execution-tested.
+- [x] SQL migrations authored and executed with RPC/RLS assertions in isolated
+  PGlite PostgreSQL; connected Supabase/concurrency checks remain pending.
 - [x] Goer HTTP adapter, five individual cart tools, strict wire models, and
   read-only CartCrew. Python executes the persisted command, never the model.
 - [x] Authenticated Goer identity, durable turn retry/reconciliation handling,
@@ -539,9 +546,10 @@ In `../LocalGo-Consumer-RN`:
   server-priced single-restaurant cart, request replay, and PostgREST adapter.
 - `backend/app/routers/cart.py`: `GET /v1/cart`, `POST /v1/cart/lines`,
   `PATCH/DELETE /v1/cart/lines/{product_id}`, and `POST /v1/cart/clear`.
-- Two SQL migrations (`202611040001_customer_carts.sql` and
-  `202611040002_cart_checkout.sql`): user-scoped carts/receipts/checkouts,
-  read-only user RLS, backend-only atomic commits and checkout locks.
+- Three SQL migrations: `202611040001_customer_carts.sql`,
+  `202611040002_cart_checkout.sql` and `202611050001_goer_history.sql`.
+  Cart/checkout commits are backend-only; cloud transcripts have owner-only
+  SELECT policies and an authenticated immutable-publication RPC.
 - `/v1/session`, `/v1/catalog/products`, checkout status/cancel routes, and
   revision/fingerprint-bound payment/order publication.
 - The committed pricing artifact has explicit merchant IDs, categories, and
@@ -558,10 +566,12 @@ In this repository:
 
 Guest browser/CLI discovery is retained. In flagged server mode, mobile Zustand
 state is a backend cache; buttons/executors/chat share it and checkout/payment
-use immutable locked cart snapshots. No migration or live deployment was run.
-Completed checks: Goer 127 tests, LocalGo 116 tests, all 8 smoke scripts, 3 mobile
-and 4 browser Node cases, and mobile TypeScript. SQL parsing does not prove
-PostgreSQL/RLS execution; native/Auth/Stripe flows remain staging checks.
+use immutable locked cart snapshots. No connected Supabase migration or live
+deployment was run. Latest checks: Goer 127 tests (including 4 browser cases),
+LocalGo 116 tests, 22 mobile/SQL Node cases, mobile TypeScript and Android JS/assets
+export. Earlier 8 smoke scripts passed; tools did not change this session.
+All three migrations execute in isolated PGlite PostgreSQL with RPC/RLS assertions;
+this is not connected Supabase, concurrent-session or native/Stripe proof.
 
 ### Milestone 1 — Verified Goer identity (implemented)
 
@@ -665,11 +675,26 @@ button edit appears in the next chat snapshot, under the same signed-in owner.
 **Done when:** the confirmed cart matches the charged/placed items, while agents
 still cannot confirm payment or place an order themselves.
 
+### Account-linked mobile history extension (implemented 2026-11-05)
+
+The chosen client is the existing mobile app, using its existing development-only
+Supabase project. `src/goer/history.ts` publishes owned immutable display turns;
+`GoerHistory.tsx` lists/selects saved conversations. New conversation preserves
+history. Native session writes are serialized and generation-fenced; reset locks
+synchronously against sends/restores, including A-B-A switches.
+
+The exact completed envelope is retained locally before cloud publication. Retry
+pending turn republishes that envelope without another Goer/cart HTTP call.
+Historical cart cards are display-only. Transcript/UI limits are explicit; there
+is no older-message pagination within a conversation. This is not a replacement
+for Goer's durable SQLite reasoning/command journal or a multi-host adapter.
+
 ### Activation and verification checklist
 
-- Review/apply migration to staging with owner approval; never edit live data
-  during implementation. Validate RLS, service-only RPC access, receipt replay,
-  first-write races, and account-deletion cascades on real PostgreSQL.
+- Supply the missing development backend service-role key privately and apply
+  all three migrations to the existing development project using its SQL Editor
+  or admin connection. No production activation is authorized. Validate RLS,
+  restricted RPC access, receipt replay, first-write races and account deletion.
 - Run each repository's required checks during implementation and perform the
   final integrated pass after the milestones are complete. No paid model calls
   from automated tests. Use mock Auth/HTTP and the deterministic StubLLM.
@@ -681,7 +706,8 @@ still cannot confirm payment or place an order themselves.
   storage, identity, durable retries, mobile sync, and checkout gates are met.
 - Leave guest/demo discovery operational throughout the migration.
 
-**Next step:** staging migration/RLS, real sign-in, native SDK, sandbox payment,
-restart/retry, and chat/button parity verification using the runbook. Keep flags
-closed until those pass. Adding support/checkout model specialists and broader
-production hardening remains separate work.
+**Next step:** private credentials/admin access, development migrations/RLS,
+real sign-in, native SDK, sandbox payment, cloud history/restart/retry and
+chat/button parity verification using the runbook. Configure development flags
+deliberately for those checks; production remains unauthorized. Adding
+support/checkout model specialists and broader hardening remains separate work.
