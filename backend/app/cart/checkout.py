@@ -49,6 +49,13 @@ class CheckoutRepository:
         return await self._rpc('lock_customer_checkout', {'p_user_id': str(owner), 'p_order_id': str(order_id),
                                'p_revision': revision, 'p_tip_cents': tip_cents})
 
+    async def active(self, owner: UUID) -> Checkout | None:
+        response = await self.storage._request('GET', 'customer_cart_checkouts', headers=headers(service=True),
+            params={'user_id': f'eq.{owner}', 'status': 'eq.pending', 'select': '*',
+                    'order': 'created_at.desc', 'limit': '1'})
+        rows = response.json()
+        return Checkout.model_validate(rows[0]) if rows else None
+
     async def get(self, owner: UUID, order_id: UUID) -> Checkout:
         response = await self.storage._request('GET', 'customer_cart_checkouts', headers=headers(service=True),
             params={'user_id': f'eq.{owner}', 'order_id': f'eq.{order_id}', 'select': '*', 'limit': '1'})

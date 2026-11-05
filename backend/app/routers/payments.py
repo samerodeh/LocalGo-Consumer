@@ -164,6 +164,17 @@ async def _server_cart_intent(body: IntentBody, authorization: str | None):
         raise HTTPException(exc.status, {"code": exc.code, "message": exc.message}) from None
 
 
+@router.get("/cart/{order_id}")
+async def cart_checkout_status(order_id: uuid.UUID, authorization: str | None = Header(default=None)):
+    customer = await require_customer(authorization)
+    try:
+        record = await CheckoutRepository().get(customer.user_id, order_id)
+        return {"order_id": str(record.order_id), "cart_revision": record.cart_revision,
+                "tip_cents": record.tip_cents, "status": record.status}
+    except CartError as exc:
+        raise HTTPException(exc.status, {"code": exc.code, "message": exc.message}) from None
+
+
 @router.post("/cart/{order_id}/cancel")
 async def cancel_cart_checkout(order_id: uuid.UUID, authorization: str | None = Header(default=None)):
     _require_stripe()

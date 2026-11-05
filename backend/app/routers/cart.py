@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Path
 
 from ..auth import CustomerSession, require_customer
 from ..cart.manager import mutate_cart
+from ..cart.checkout import CheckoutRepository
 from ..cart.models import AddLineInput, Cart, CartCommand, CartError, RevisionInput, SetQuantityInput
 from ..cart.repository import CartRepository, SupabaseCartRepository
 
@@ -39,6 +40,16 @@ async def change(repository: CartRepository, customer: CustomerSession,
 async def get_cart(customer: Customer, repository: Repository):
     try:
         return await repository.load(customer.user_id, customer.bearer)
+    except CartError as exc:
+        raise cart_problem(exc) from None
+
+
+@router.get("/checkout")
+async def active_checkout(customer: Customer):
+    try:
+        record = await CheckoutRepository().active(customer.user_id)
+        return {"checkout": None if record is None else {"order_id": str(record.order_id),
+                "cart_revision": record.cart_revision, "tip_cents": record.tip_cents, "status": record.status}}
     except CartError as exc:
         raise cart_problem(exc) from None
 
