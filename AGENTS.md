@@ -76,10 +76,12 @@ This journey is **not fully activated yet**. Adding food creates cart records;
 only confirmed successful payment should produce the final order. Do not confuse
 completed implementation milestones with a working, live customer deployment.
 
-The last clarification was whether this complete experience should be delivered
-in the **existing LocalGo mobile app** or the **localhost Goer browser page**.
-The user has not answered. Resume from this choice; do not assume browser
-sign-in/checkout or live database activation has been authorized.
+The user has now selected the **existing LocalGo mobile app** and confirmed
+that the already-connected Supabase project is **development-only**. Continue
+that integration; do not add browser checkout or activate production resources.
+The local runtime now works (Node 26.13.0). The development backend's service-role
+key is empty and no database-admin connection is configured, so live migration
+and cart verification remain blocked until private credentials are supplied.
 
 ### What exists versus what is usable
 
@@ -211,7 +213,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active agent locks)* | - | - | - | Handoff saved; documentation commit pending (see Recent Work) |
+| Agent | 2026-11-05 | AGENTS.md; docs/cart-integration-runbook.md; docs/project-context-and-next-steps.md | Finish mobile account-linked history and development activation verification | Active; sibling mobile/SQL scope coordinated there; no production activation |
 
 ---
 
