@@ -21,7 +21,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import config
-from .routers import account, cart, goer, notify, orders, payments, session
+from .routers import account, cart, catalog, goer, notify, orders, payments, session
 
 
 @asynccontextmanager
@@ -69,6 +69,7 @@ app.include_router(payments.router)
 app.include_router(account.router)
 app.include_router(cart.router)
 app.include_router(session.router)
+app.include_router(catalog.router)
 
 
 @app.get("/health")

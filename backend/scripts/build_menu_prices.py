@@ -60,6 +60,9 @@ def main() -> int:
             print("error: menu item outside a known restaurant array", file=sys.stderr)
             return 1
         item_id = m.group("id")
+        category = re.search(r"category:\s*'((?:[^'\\]|\\.)*)'", m.group("rest"))
+        tail = source[m.end():source.find("\n", m.end())]
+        description = re.search(r"itemDescription:\s*'((?:[^'\\]|\\.)*)'", tail)
         if item_id in seen:
             print(f"error: duplicate id in menu.ts: {item_id}", file=sys.stderr)
             return 1
@@ -69,6 +72,8 @@ def main() -> int:
                 "id": item_id,
                 "name": m.group("name").replace("\\'", "'"),
                 "merchant_id": merchant_id,
+                "category": category.group(1).replace("\\'", "'") if category else "Other",
+                "description": description.group(1).replace("\\'", "'") if description else "",
                 # Integer cents at generation time, so nothing downstream ever
                 # multiplies a float by 100 at charge time.
                 "price_cents": int(Decimal(m.group("price")) * 100),

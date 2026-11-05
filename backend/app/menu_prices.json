@@ -3,870 +3,1160 @@
     "id": "create-your-bowl-500-g",
     "name": "Create your bowl (500 g)",
     "merchant_id": "al-taib",
+    "category": "Create your bowl",
+    "description": "Pick up to 5 items of approximately 100 grams each",
     "price_cents": 1250
   },
   {
     "id": "create-your-bowl-1-kg",
     "name": "Create your bowl (1 kg)",
     "merchant_id": "al-taib",
+    "category": "Create your bowl",
+    "description": "Pick up to 10 items of approximately 100 grams each",
     "price_cents": 2500
   },
   {
     "id": "cheese-pizza-slice",
     "name": "Cheese Pizza Slice",
     "merchant_id": "al-taib",
+    "category": "Pizza Slices",
+    "description": "Sauce, mozzarella.",
     "price_cents": 550
   },
   {
     "id": "pepperoni-pizza-slice",
     "name": "Pepperoni Pizza Slice",
     "merchant_id": "al-taib",
+    "category": "Pizza Slices",
+    "description": "Sauce, mozzarella, and pepperoni.",
     "price_cents": 650
   },
   {
     "id": "all-dressed-pizza-slice",
     "name": "All Dressed Pizza Slice",
     "merchant_id": "al-taib",
+    "category": "Pizza Slices",
+    "description": "Sauce, mozzarella, pepperoni, mushrooms, and green pepper.",
     "price_cents": 675
   },
   {
     "id": "veggie-pizza-slice",
     "name": "Veggie Pizza Slice",
     "merchant_id": "al-taib",
+    "category": "Pizza Slices",
+    "description": "Sauce, mozzarella, black olives, mushrooms, green peppers, and fresh tomatoes.",
     "price_cents": 650
   },
   {
     "id": "chicken-pizza-slice",
     "name": "Chicken Pizza Slice",
     "merchant_id": "al-taib",
+    "category": "Pizza Slices",
+    "description": "Sauce, mozzarella, chicken, and fresh tomatoes.",
     "price_cents": 675
   },
   {
     "id": "mexican-pizza-slice",
     "name": "Mexican Pizza Slice",
     "merchant_id": "al-taib",
+    "category": "Pizza Slices",
+    "description": "Sauce, mozzarella, spicy beef, fresh tomatoes, banana pepper, and onions.",
     "price_cents": 675
   },
   {
     "id": "hawaiian-pizza-slice",
     "name": "Hawaiian Pizza Slice",
     "merchant_id": "al-taib",
+    "category": "Pizza Slices",
+    "description": "Sauce, mozzarella, beef, and pineapple.",
     "price_cents": 650
   },
   {
     "id": "spinach-pizza-slice",
     "name": "Spinach Pizza Slice",
     "merchant_id": "al-taib",
+    "category": "Pizza Slices",
+    "description": "Sauce, mozzarella, spinach, and black olives.",
     "price_cents": 650
   },
   {
     "id": "tuna-pizza-slice",
     "name": "Tuna Pizza Slice",
     "merchant_id": "al-taib",
+    "category": "Pizza Slices",
+    "description": "Sauce, mozzarella, tuna, garlic, and fresh tomatoes.",
     "price_cents": 700
   },
   {
     "id": "cheese-pizza",
     "name": "Cheese Pizza",
     "merchant_id": "al-taib",
+    "category": "Pizza",
+    "description": "Sauce, mozzarella.",
     "price_cents": 1518
   },
   {
     "id": "pepperoni-pizza",
     "name": "Pepperoni Pizza",
     "merchant_id": "al-taib",
+    "category": "Pizza",
+    "description": "Sauce, mozzarella, and pepperoni.",
     "price_cents": 1794
   },
   {
     "id": "all-dressed-pizza",
     "name": "All Dressed Pizza",
     "merchant_id": "al-taib",
+    "category": "Pizza",
+    "description": "Sauce, mozzarella, pepperoni, mushrooms, and green pepper.",
     "price_cents": 1932
   },
   {
     "id": "veggie-pizza",
     "name": "Veggie Pizza",
     "merchant_id": "al-taib",
+    "category": "Pizza",
+    "description": "Sauce, mozzarella, black olives, mushrooms, green peppers, and fresh tomatoes.",
     "price_cents": 1932
   },
   {
     "id": "chicken-pizza",
     "name": "Chicken Pizza",
     "merchant_id": "al-taib",
+    "category": "Pizza",
+    "description": "Sauce, mozzarella, chicken, and fresh tomatoes.",
     "price_cents": 2070
   },
   {
     "id": "mexican-pizza",
     "name": "Mexican Pizza",
     "merchant_id": "al-taib",
+    "category": "Pizza",
+    "description": "Sauce, mozzarella, spicy beef, fresh tomatoes, banana pepper, and onions.",
     "price_cents": 2070
   },
   {
     "id": "hawaiian-pizza",
     "name": "Hawaiian Pizza",
     "merchant_id": "al-taib",
+    "category": "Pizza",
+    "description": "Sauce, mozzarella, beef, and pineapple.",
     "price_cents": 2070
   },
   {
     "id": "spinach-pizza",
     "name": "Spinach Pizza",
     "merchant_id": "al-taib",
+    "category": "Pizza",
+    "description": "Sauce, mozzarella, spinach, and black olives.",
     "price_cents": 2070
   },
   {
     "id": "tuna-pizza",
     "name": "Tuna Pizza",
     "merchant_id": "al-taib",
+    "category": "Pizza",
+    "description": "Sauce, mozzarella, tuna, garlic, and fresh tomatoes.",
     "price_cents": 2208
   },
   {
     "id": "zaatar-manakish",
     "name": "Zaatar Manakish",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "Thyme, sumac, and sesame seeds.",
     "price_cents": 450
   },
   {
     "id": "cheese-manakish",
     "name": "Cheese Manakish",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "Mozzarella and akawi cheese.",
     "price_cents": 700
   },
   {
     "id": "zaatar-and-chesse-manakish",
     "name": "Zaatar and Chesse Manakish",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "Thyme, sumac, sesame seeds, mozzarella, and akawi cheese.",
     "price_cents": 600
   },
   {
     "id": "kafta-manakish",
     "name": "Kafta Manakish",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "Ground-beef, green peppers, and kafta spices.",
     "price_cents": 650
   },
   {
     "id": "sojuk-manakish",
     "name": "Sojuk Manakish",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "Ground-beef, sujok spices, and tomatoes.",
     "price_cents": 1199
   },
   {
     "id": "lahmbajine-manakish",
     "name": "Lahmbajine Manakish",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "Ground-beef tomato puree, onions, and seven spices.",
     "price_cents": 750
   },
   {
     "id": "lahmbajine-and-cheese-manakish",
     "name": "Lahmbajine and cheese Manakish",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "Ground-beef tomato puree, onions, seven spices, and mozzarella.",
     "price_cents": 650
   },
   {
     "id": "feta-manakish",
     "name": "Feta Manakish",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "Feta and mozzarella cheese and parsley.",
     "price_cents": 650
   },
   {
     "id": "spinach-pie",
     "name": "Spinach Pie",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "Spinach, sumac, lemon, and onion.",
     "price_cents": 450
   },
   {
     "id": "cheese-pie",
     "name": "Cheese Pie",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "Mozzarella and sesame seeds.",
     "price_cents": 500
   },
   {
     "id": "half-spinach-half-cheese-pie",
     "name": "Half-spinach /half-Cheese pie",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "Spinach, sumac lemon, onion, and mozzarella.",
     "price_cents": 500
   },
   {
     "id": "falafel-sandwich",
     "name": "Falafel Sandwich",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "",
     "price_cents": 900
   },
   {
     "id": "feta-fromage",
     "name": "Feta Fromage",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "",
     "price_cents": 750
   },
   {
     "id": "sojok-fromage",
     "name": "Sojok & Fromage",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "",
     "price_cents": 850
   },
   {
     "id": "shish-taouk-poulet",
     "name": "Shish Taouk (Poulet)",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "",
     "price_cents": 1199
   },
   {
     "id": "shawarma-boeuf",
     "name": "Shawarma (Boeuf)",
     "merchant_id": "al-taib",
+    "category": "Manakish and Pies",
+    "description": "",
     "price_cents": 1199
   },
   {
     "id": "shish-taouk-plate",
     "name": "Shish Taouk Plate",
     "merchant_id": "al-taib",
+    "category": "Grills",
+    "description": "",
     "price_cents": 1500
   },
   {
     "id": "shawarma-beef-sandwich",
     "name": "Shawarma Beef Sandwich",
     "merchant_id": "al-taib",
+    "category": "Grills",
+    "description": "",
     "price_cents": 875
   },
   {
     "id": "shish-taouk-sandwich",
     "name": "Shish Taouk Sandwich",
     "merchant_id": "al-taib",
+    "category": "Grills",
+    "description": "",
     "price_cents": 875
   },
   {
     "id": "chicken-shawarma-trio",
     "name": "Chicken Shawarma Trio",
     "merchant_id": "al-taib",
+    "category": "Grills",
+    "description": "Served with a canned drink and a small potato.",
     "price_cents": 1500
   },
   {
     "id": "shawarma-beef-plate",
     "name": "Shawarma Beef Plate",
     "merchant_id": "al-taib",
+    "category": "Grills",
+    "description": "",
     "price_cents": 1500
   },
   {
     "id": "falafel-plate",
     "name": "Falafel Plate",
     "merchant_id": "al-taib",
+    "category": "Grills",
+    "description": "",
     "price_cents": 1350
   },
   {
     "id": "beef-shawarma-trio",
     "name": "Beef Shawarma Trio",
     "merchant_id": "al-taib",
+    "category": "Grills",
+    "description": "Served with a canned drink and a small potato.",
     "price_cents": 1500
   },
   {
     "id": "combo-shish-taouk-and-shawarma-beef-plate",
     "name": "Combo Shish Taouk and Shawarma Beef Plate",
     "merchant_id": "al-taib",
+    "category": "Grills",
+    "description": "",
     "price_cents": 1500
   },
   {
     "id": "2-chicken-shawarma-trio",
     "name": "2 Chicken Shawarma Trio",
     "merchant_id": "al-taib",
+    "category": "Grills",
+    "description": "Served with a canned drink and a small potato.",
     "price_cents": 1899
   },
   {
     "id": "combo-chicken-and-beef-shawarma-sandwich",
     "name": "Combo Chicken and Beef Shawarma Sandwich",
     "merchant_id": "al-taib",
+    "category": "Grills",
+    "description": "",
     "price_cents": 875
   },
   {
     "id": "combo-chicken-and-beef-shawarma-sandwich-trio",
     "name": "Combo Chicken and Beef Shawarma Sandwich Trio",
     "merchant_id": "al-taib",
+    "category": "Grills",
+    "description": "Served with a canned drink and a small potato.",
     "price_cents": 1500
   },
   {
     "id": "hummus",
     "name": "Hummus",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 450
   },
   {
     "id": "poutine",
     "name": "Poutine",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 1200
   },
   {
     "id": "fries",
     "name": "Fries",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 500
   },
   {
     "id": "cheesecake-slice",
     "name": "Cheesecake Slice",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 600
   },
   {
     "id": "tabouleh",
     "name": "Tabouleh",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 450
   },
   {
     "id": "fatoush",
     "name": "Fatoush",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 450
   },
   {
     "id": "hot-potato",
     "name": "Hot Potato",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 600
   },
   {
     "id": "basmati-rice",
     "name": "Basmati Rice",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 450
   },
   {
     "id": "cabbage-salad",
     "name": "Cabbage Salad",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 450
   },
   {
     "id": "baklava-patesserie",
     "name": "Baklava Patesserie",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "Pastry made of layers of filo filled with chopped nuts and honey.",
     "price_cents": 350
   },
   {
     "id": "salad-bar-100g",
     "name": "Salad Bar 100g",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 250
   },
   {
     "id": "poutine-au-poulet",
     "name": "Poutine au Poulet",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 1500
   },
   {
     "id": "steak",
     "name": "Steak",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 1500
   },
   {
     "id": "merguez",
     "name": "Merguez",
     "merchant_id": "al-taib",
+    "category": "Sides",
+    "description": "",
     "price_cents": 1500
   },
   {
     "id": "coke",
     "name": "Coke",
     "merchant_id": "al-taib",
+    "category": "Drinks",
+    "description": "",
     "price_cents": 200
   },
   {
     "id": "diet-coke",
     "name": "Diet coke",
     "merchant_id": "al-taib",
+    "category": "Drinks",
+    "description": "",
     "price_cents": 200
   },
   {
     "id": "pepsi",
     "name": "Pepsi",
     "merchant_id": "al-taib",
+    "category": "Drinks",
+    "description": "",
     "price_cents": 200
   },
   {
     "id": "diet-pepsi",
     "name": "Diet Pepsi",
     "merchant_id": "al-taib",
+    "category": "Drinks",
+    "description": "",
     "price_cents": 200
   },
   {
     "id": "redbull",
     "name": "Redbull",
     "merchant_id": "al-taib",
+    "category": "Drinks",
+    "description": "",
     "price_cents": 400
   },
   {
     "id": "apple-juice",
     "name": "Apple Juice",
     "merchant_id": "al-taib",
+    "category": "Drinks",
+    "description": "",
     "price_cents": 450
   },
   {
     "id": "perrier",
     "name": "Perrier",
     "merchant_id": "al-taib",
+    "category": "Drinks",
+    "description": "",
     "price_cents": 300
   },
   {
     "id": "water",
     "name": "Water",
     "merchant_id": "al-taib",
+    "category": "Drinks",
+    "description": "",
     "price_cents": 200
   },
   {
     "id": "fanta",
     "name": "Fanta",
     "merchant_id": "al-taib",
+    "category": "Drinks",
+    "description": "",
     "price_cents": 200
   },
   {
     "id": "sprite",
     "name": "Sprite",
     "merchant_id": "al-taib",
+    "category": "Drinks",
+    "description": "",
     "price_cents": 200
   },
   {
     "id": "7-up",
     "name": "7 up",
     "merchant_id": "al-taib",
+    "category": "Drinks",
+    "description": "",
     "price_cents": 200
   },
   {
     "id": "ayran",
     "name": "Ayran",
     "merchant_id": "al-taib",
+    "category": "Drinks",
+    "description": "",
     "price_cents": 550
   },
   {
     "id": "ck-40-mixed-grill",
     "name": "40. Mixed Grill",
     "merchant_id": "chateau-kabab",
+    "category": "Family Special",
+    "description": "Meat and chicken served with soup, salad, rice, fries, hummus",
     "price_cents": 7999
   },
   {
     "id": "ck-chicken-mixed-grill",
     "name": "Chicken Mixed Grill",
     "merchant_id": "chateau-kabab",
+    "category": "Family Special",
+    "description": "Grilled chicken served with soup, salad, rice or fries, hummus",
     "price_cents": 7999
   },
   {
     "id": "ck-mixed-beef-grill",
     "name": "Mixed Beef Grill",
     "merchant_id": "chateau-kabab",
+    "category": "Family Special",
+    "description": "Grilled beef served with soup, salad, rice, fries, hummus",
     "price_cents": 8499
   },
   {
     "id": "ck-mixed-kafta-grill",
     "name": "Mixed Kafta Grill",
     "merchant_id": "chateau-kabab",
+    "category": "Family Special",
+    "description": "7 kafta kabab skewers of your choice, served with salad, rice, fries, garlic potatoes.",
     "price_cents": 8299
   },
   {
     "id": "ck-43-mixed-grill",
     "name": "43. Mixed Grill",
     "merchant_id": "chateau-kabab",
+    "category": "Family Special",
+    "description": "For 3 people: Meat and chicken served with 3 choices between soup and salad, 2 choices between rice and fries, hummus.",
     "price_cents": 9999
   },
   {
     "id": "ck-hummus",
     "name": "Hummus",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 999
   },
   {
     "id": "ck-baba-ghanouj",
     "name": "Baba Ghanouj",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 999
   },
   {
     "id": "ck-mirza-kasemi",
     "name": "Mirza Kasemi",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 1099
   },
   {
     "id": "ck-vine-leaves",
     "name": "Vine Leaves",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 699
   },
   {
     "id": "ck-tabbouleh",
     "name": "Tabbouleh",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 999
   },
   {
     "id": "ck-house-salad",
     "name": "House Salad",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 999
   },
   {
     "id": "ck-maast-o-khiyar",
     "name": "Maast O Khiyar",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 999
   },
   {
     "id": "ck-kibbe",
     "name": "Kibbe",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "2 pieces.",
     "price_cents": 999
   },
   {
     "id": "ck-fries",
     "name": "Fries",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 799
   },
   {
     "id": "ck-garlic-potatoes",
     "name": "Garlic Potatoes",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 799
   },
   {
     "id": "ck-poutine",
     "name": "Poutine",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 999
   },
   {
     "id": "ck-mixed-maza",
     "name": "Mixed Maza",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 1499
   },
   {
     "id": "ck-falafel-plate",
     "name": "Falafel Plate",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 1299
   },
   {
     "id": "ck-vegetarian-plate",
     "name": "Vegetarian Plate",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 1899
   },
   {
     "id": "ck-soup",
     "name": "Soup",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 799
   },
   {
     "id": "ck-batonnets-de-mozzarella",
     "name": "Batonnets De Mozzarella",
     "merchant_id": "chateau-kabab",
+    "category": "Appetizers and Salads",
+    "description": "",
     "price_cents": 999
   },
   {
     "id": "ck-khoresht-ghormeh-sabzi",
     "name": "Khoresht Ghormeh Sabzi",
     "merchant_id": "chateau-kabab",
+    "category": "Dishes of the Day",
+    "description": "Beef slices cooked with kidney beans, spinach, and herbs.",
     "price_cents": 2299
   },
   {
     "id": "ck-zereshk-polo",
     "name": "Zereshk Polo",
     "merchant_id": "chateau-kabab",
+    "category": "Dishes of the Day",
+    "description": "Chicken thigh cooked with tomato sauce and served with barberries.",
     "price_cents": 2299
   },
   {
     "id": "ck-baghali-polo",
     "name": "Baghali Polo",
     "merchant_id": "chateau-kabab",
+    "category": "Dishes of the Day",
+    "description": "Lamb shank cooked with tomato sauce, served with rice mixed with dill weed and fava beans.",
     "price_cents": 2499
   },
   {
     "id": "ck-quazi-chateau-kabab",
     "name": "Quazi Château Kabab",
     "merchant_id": "chateau-kabab",
+    "category": "Dishes of the Day",
+    "description": "Lamb shank cooked with tomato sauce.",
     "price_cents": 2599
   },
   {
     "id": "ck-okra",
     "name": "Okra",
     "merchant_id": "chateau-kabab",
+    "category": "Dishes of the Day",
+    "description": "Beef chops cooked with tomato sauce and okra.",
     "price_cents": 2299
   },
   {
     "id": "ck-fasolia",
     "name": "Fasolia",
     "merchant_id": "chateau-kabab",
+    "category": "Dishes of the Day",
+    "description": "Beef chops cooked with tomato sauce and beans.",
     "price_cents": 2299
   },
   {
     "id": "ck-kabab-beef",
     "name": "Kabab Beef",
     "merchant_id": "chateau-kabab",
+    "category": "The Grills",
+    "description": "Two skewers of tender ground beef served with salads and or soup.",
     "price_cents": 2599
   },
   {
     "id": "ck-spicy-kabab",
     "name": "Spicy Kabab",
     "merchant_id": "chateau-kabab",
+    "category": "The Grills",
+    "description": "Two skewers of tender and spicy ground lamb served with salads and or soup.",
     "price_cents": 2599
   },
   {
     "id": "ck-chicken-kabab",
     "name": "Chicken Kabab",
     "merchant_id": "chateau-kabab",
+    "category": "The Grills",
+    "description": "Two ground chicken skewers served with rice and a side of salad or soup.",
     "price_cents": 2299
   },
   {
     "id": "ck-mixed-kabab",
     "name": "Mixed Kabab",
     "merchant_id": "chateau-kabab",
+    "category": "The Grills",
+    "description": "2 Skewers of your choice served with rice and a side of soup or salad.",
     "price_cents": 2499
   },
   {
     "id": "ck-shish-kabab",
     "name": "Shish Kabab",
     "merchant_id": "chateau-kabab",
+    "category": "The Grills",
+    "description": "Cut filet mignon skewer.",
     "price_cents": 2999
   },
   {
     "id": "ck-chicken-chateau",
     "name": "Chicken Château",
     "merchant_id": "chateau-kabab",
+    "category": "The Grills",
+    "description": "Marinated chicken breast brochette with saffron and spices. Served with basmati rice, salad or soup and grilled tomato.",
     "price_cents": 2699
   },
   {
     "id": "ck-soltani-chicken",
     "name": "Soltani Chicken",
     "merchant_id": "chateau-kabab",
+    "category": "The Grills",
+    "description": "Chateau chicken and your choice of one Kabab skewer. Served with basmati rice, salad or soup and grilled tomato.",
     "price_cents": 3199
   },
   {
     "id": "ck-soltani-chateau-kabab",
     "name": "Soltani Château Kabab",
     "merchant_id": "chateau-kabab",
+    "category": "The Grills",
+    "description": "Chateau chicken and shish kabab. Served with basmati rice, salad or soup and grilled tomato.",
     "price_cents": 4099
   },
   {
     "id": "ck-saffron-chicken",
     "name": "Saffron Chicken",
     "merchant_id": "chateau-kabab",
+    "category": "The Grills",
+    "description": "Delicious chicken thighs marinated in saffron and spice. Served with basmati rice, salad or soup and grilled tomato.",
     "price_cents": 2699
   },
   {
     "id": "ck-soltani-filet-mignon",
     "name": "Soltani Filet Mignon",
     "merchant_id": "chateau-kabab",
+    "category": "The Grills",
+    "description": "Filet mignon brochette & one kabab brochette of your choice.",
     "price_cents": 3499
   },
   {
     "id": "ck-grilled-salmon",
     "name": "Grilled Salmon",
     "merchant_id": "chateau-kabab",
+    "category": "Seafood Dishes",
+    "description": "Fresh salmon marinated and grilled on charcoal, served with rice and salmon sauce.",
     "price_cents": 2599
   },
   {
     "id": "ck-grilled-shrimp",
     "name": "Grilled Shrimp",
     "merchant_id": "chateau-kabab",
+    "category": "Seafood Dishes",
+    "description": "Medium size shrimps marinated and grilled on charcoal, served with rice and sauce.",
     "price_cents": 2599
   },
   {
     "id": "ck-shawarma-chicken",
     "name": "Shawarma Chicken",
     "merchant_id": "chateau-kabab",
+    "category": "Shawarma",
+    "description": "Chicken shawarma served with basmati rice, pita bread, garlic, and a salad.",
     "price_cents": 2499
   },
   {
     "id": "ck-shawarma-beef",
     "name": "Shawarma Beef",
     "merchant_id": "chateau-kabab",
+    "category": "Shawarma",
+    "description": "Beef shawarma served with basmati rice, pita bread, hummus, and a salad.",
     "price_cents": 2499
   },
   {
     "id": "ck-shawarma-chateau",
     "name": "Shawarma Château",
     "merchant_id": "chateau-kabab",
+    "category": "Shawarma",
+    "description": "Beef and chicken shawarma served with basmati rice, pita bread, hummus, garlic, and a salad.",
     "price_cents": 2499
   },
   {
     "id": "ck-chicken-burger",
     "name": "Chicken Burger",
     "merchant_id": "chateau-kabab",
+    "category": "Trio Burgers",
+    "description": "Comes with fries and a drink.",
     "price_cents": 1499
   },
   {
     "id": "ck-trio-pita-shawarma-beef",
     "name": "Trio Pita Shawarma Beef",
     "merchant_id": "chateau-kabab",
+    "category": "Pita Trios",
+    "description": "With fries and a drink.",
     "price_cents": 1499
   },
   {
     "id": "ck-trio-pita-shawarma-chicken",
     "name": "Trio Pita Shawarma Chicken",
     "merchant_id": "chateau-kabab",
+    "category": "Pita Trios",
+    "description": "With fries and a drink.",
     "price_cents": 1499
   },
   {
     "id": "ck-chicken-brochette-pita-trio",
     "name": "Chicken Brochette Pita Trio",
     "merchant_id": "chateau-kabab",
+    "category": "Pita Trios",
+    "description": "With fries and a drink.",
     "price_cents": 1499
   },
   {
     "id": "ck-trio-pita-beef-kabab",
     "name": "Trio Pita Beef Kabab",
     "merchant_id": "chateau-kabab",
+    "category": "Pita Trios",
+    "description": "With fries and a drink.",
     "price_cents": 1099
   },
   {
     "id": "ck-trio-pita-chicken-kabab",
     "name": "Trio Pita Chicken Kabab",
     "merchant_id": "chateau-kabab",
+    "category": "Pita Trios",
+    "description": "With fries and a drink.",
     "price_cents": 1099
   },
   {
     "id": "ck-trio-pita-falafel",
     "name": "Trio Pita Falafel",
     "merchant_id": "chateau-kabab",
+    "category": "Pita Trios",
+    "description": "With fries and a drink.",
     "price_cents": 899
   },
   {
     "id": "ck-rice",
     "name": "Rice",
     "merchant_id": "chateau-kabab",
+    "category": "Rice",
+    "description": "",
     "price_cents": 799
   },
   {
     "id": "ck-baghali-rice",
     "name": "Baghali Rice",
     "merchant_id": "chateau-kabab",
+    "category": "Rice",
+    "description": "",
     "price_cents": 999
   },
   {
     "id": "ck-extra-spicy-beef-kebab-stick",
     "name": "Extra Spicy Beef Kebab Stick",
     "merchant_id": "chateau-kabab",
+    "category": "Extras",
+    "description": "",
     "price_cents": 800
   },
   {
     "id": "ck-extra-beef-kebab-stick",
     "name": "Extra Beef Kebab Stick",
     "merchant_id": "chateau-kabab",
+    "category": "Extras",
+    "description": "",
     "price_cents": 800
   },
   {
     "id": "ck-extra-chicken-kebab-stick",
     "name": "Extra Chicken Kebab Stick",
     "merchant_id": "chateau-kabab",
+    "category": "Extras",
+    "description": "",
     "price_cents": 800
   },
   {
     "id": "ck-white-bean-sauce",
     "name": "White Bean (Sauce)",
     "merchant_id": "chateau-kabab",
+    "category": "Extras",
+    "description": "",
     "price_cents": 600
   },
   {
     "id": "ck-okra-sauce",
     "name": "Okra (Sauce)",
     "merchant_id": "chateau-kabab",
+    "category": "Extras",
+    "description": "",
     "price_cents": 600
   },
   {
     "id": "ck-baklawa",
     "name": "Baklawa",
     "merchant_id": "chateau-kabab",
+    "category": "Desserts",
+    "description": "",
     "price_cents": 399
   },
   {
     "id": "ck-basboussa",
     "name": "Basboussa",
     "merchant_id": "chateau-kabab",
+    "category": "Desserts",
+    "description": "",
     "price_cents": 399
   },
   {
     "id": "ck-coke",
     "name": "Coke",
     "merchant_id": "chateau-kabab",
+    "category": "Beverages",
+    "description": "",
     "price_cents": 250
   },
   {
     "id": "ck-diet-coke",
     "name": "Diet Coke",
     "merchant_id": "chateau-kabab",
+    "category": "Beverages",
+    "description": "",
     "price_cents": 250
   },
   {
     "id": "ck-sprite",
     "name": "Sprite",
     "merchant_id": "chateau-kabab",
+    "category": "Beverages",
+    "description": "",
     "price_cents": 250
   },
   {
     "id": "ck-orange-fanta",
     "name": "Orange Fanta",
     "merchant_id": "chateau-kabab",
+    "category": "Beverages",
+    "description": "",
     "price_cents": 250
   },
   {
     "id": "ck-sprite-zero",
     "name": "Sprite Zero",
     "merchant_id": "chateau-kabab",
+    "category": "Beverages",
+    "description": "",
     "price_cents": 250
   },
   {
     "id": "ck-canada-dry",
     "name": "Canada Dry",
     "merchant_id": "chateau-kabab",
+    "category": "Beverages",
+    "description": "",
     "price_cents": 250
   },
   {
     "id": "ck-laban-ayran",
     "name": "Laban Ayran",
     "merchant_id": "chateau-kabab",
+    "category": "Beverages",
+    "description": "",
     "price_cents": 350
   },
   {
     "id": "ck-bottled-water",
     "name": "Bottled Water",
     "merchant_id": "chateau-kabab",
+    "category": "Beverages",
+    "description": "",
     "price_cents": 200
   },
   {
     "id": "ck-1kg-brochette-de-poulet-4",
     "name": "1 KG Brochette De Poulet (4)",
     "merchant_id": "chateau-kabab",
+    "category": "Kilos",
+    "description": "",
     "price_cents": 5999
   },
   {
     "id": "ck-1kg-brochette-de-filet-mignon-4",
     "name": "1 KG Brochette De Filet Mignon (4)",
     "merchant_id": "chateau-kabab",
+    "category": "Kilos",
+    "description": "",
     "price_cents": 7999
   },
   {
     "id": "ck-1kg-brochette-mixte-4",
     "name": "1 KG Brochette Mixte (4)",
     "merchant_id": "chateau-kabab",
+    "category": "Kilos",
+    "description": "",
     "price_cents": 6999
   },
   {
     "id": "ck-1kg-mixte-grillades-6",
     "name": "1 KG Mixte Grillades (6)",
     "merchant_id": "chateau-kabab",
+    "category": "Kilos",
+    "description": "1x filet mignon, 1x brochette de poulet, 4x kafta.",
     "price_cents": 5999
   },
   {
     "id": "ck-1kg-kafta-mixte-7",
     "name": "1 KG Kafta Mixte (7)",
     "merchant_id": "chateau-kabab",
+    "category": "Kilos",
+    "description": "",
     "price_cents": 5599
   },
   {
     "id": "ck-1kg-saffron-de-poulet-2",
     "name": "1 KG Saffron De Poulet (2)",
     "merchant_id": "chateau-kabab",
+    "category": "Kilos",
+    "description": "",
     "price_cents": 3999
   }
 ]
