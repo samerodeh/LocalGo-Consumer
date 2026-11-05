@@ -13,6 +13,7 @@ import { ConfirmModal } from '../../src/components/ConfirmModal';
 import { useCartStore } from '../../src/store/cartStore';
 import { useAddressStore } from '../../src/store/addressStore';
 import { useAuthStore } from '../../src/store/authStore';
+import { serverCartEnabled } from '../../src/lib/serverCart';
 import { placeOrder } from '../../src/lib/placeOrder';
 import { deliveryLocationProblem, isValidDeliveryLocation } from '../../src/lib/deliveryLocation';
 // Goer chatbot disabled for now.
@@ -33,6 +34,7 @@ export default function CartScreen() {
   const subtotal = useCartStore((s) => s.subtotal());
   const deliveryFee = useCartStore((s) => s.deliveryFee());
   const cartRestaurantID = useCartStore((s) => s.restaurantID);
+  const cartRevision = useCartStore((s) => s.revision);
 
   const defaultAddress = useAddressStore((s) => s.defaultAddress);
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -57,6 +59,11 @@ export default function CartScreen() {
   // Checkout is gated on a verified delivery location: no valid address, no
   // confirm dialog — the user is routed to the Address screen instead.
   const startCheckout = () => {
+    const cart = useCartStore.getState();
+    if (serverCartEnabled && (cart.busy || cart.pending || cart.revision === null)) {
+      Alert.alert('Cart not ready', 'Load your server cart and reconcile pending requests before checkout.');
+      return;
+    }
     if (!hasValidLocation) {
       Alert.alert(
         'Delivery address needed',
@@ -84,9 +91,11 @@ export default function CartScreen() {
       restaurantID: cartRestaurantID,
       deliveryAddress: defaultAddress,
       customer: currentUser,
+      cartRevision: cartRevision ?? undefined,
     });
 
     setProcessing(false);
+    if (useAuthStore.getState().currentUser?.email !== currentUser?.email) return;
     if (result.ok) {
       // Paid but undispatched: the money is gone, so this must never look like
       // a failure the user should retry.

@@ -4,6 +4,7 @@ import type { CartLine } from '../types';
 import { loadGoerChat, saveGoerChat } from '../lib/storage';
 import { placeOrder } from '../lib/placeOrder';
 import { deliveryLocationProblem } from '../lib/deliveryLocation';
+import { serverCartEnabled } from '../lib/serverCart';
 import { useCartStore } from '../store/cartStore';
 import { useOrdersStore } from '../store/ordersStore';
 import { useAddressStore } from '../store/addressStore';
@@ -251,6 +252,9 @@ export const useGoerStore = create<GoerState>((set, get) => ({
   stageOrder: () => {
     const cart = useCartStore.getState();
     if (cart.lines.length === 0) return { ok: false, error: 'The cart is empty.' };
+    if (serverCartEnabled && (cart.busy || cart.pending || cart.revision === null)) {
+      return { ok: false, error: 'Load and reconcile your signed-in cart before confirming checkout.' };
+    }
 
     const { chatTip, chatAddressId } = get();
     const addressStore = useAddressStore.getState();
@@ -281,6 +285,7 @@ export const useGoerStore = create<GoerState>((set, get) => ({
       restaurantID: cart.restaurantID,
       address,
       cartHash: computeCartHash(cart.lines),
+      cartRevision: cart.revision ?? undefined,
     };
     set({ stagedOrder: staged });
     get().appendMessage(goerMsg({ kind: 'order_confirmation', stagedOrderID: staged.id }));
@@ -293,7 +298,8 @@ export const useGoerStore = create<GoerState>((set, get) => ({
     // no-op here.
     if (!staged || staged.status !== 'staged') return;
 
-    if (computeCartHash(useCartStore.getState().lines) !== staged.cartHash) {
+    if (computeCartHash(useCartStore.getState().lines) !== staged.cartHash
+        || (serverCartEnabled && staged.cartRevision !== useCartStore.getState().revision)) {
       set({ stagedOrder: { ...staged, status: 'stale' } });
       get().appendMessage(
         goerMsg({
@@ -304,6 +310,7 @@ export const useGoerStore = create<GoerState>((set, get) => ({
       return;
     }
 
+    const owner = get().ownerEmail;
     set({ stagedOrder: { ...staged, status: 'placing' } });
     const result = await placeOrder({
       lines: staged.lines,
@@ -314,7 +321,9 @@ export const useGoerStore = create<GoerState>((set, get) => ({
       restaurantID: staged.restaurantID,
       deliveryAddress: staged.address,
       customer: useAuthStore.getState().currentUser,
+      cartRevision: staged.cartRevision,
     });
+    if (get().ownerEmail !== owner) return;
 
     if (!result.ok) {
       // Re-staging (not discarding) means the confirmation card stays usable,

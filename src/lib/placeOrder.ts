@@ -7,6 +7,8 @@ import { publishOrderToDispatch } from './dispatch';
 import { deliveryLocationProblem } from './deliveryLocation';
 import { isPaymentsConfigured, payForOrder } from './payments';
 import { supabase } from './supabase';
+import { serverCartEnabled } from './serverCart';
+import { beginCheckout, cancelPendingCheckout, forgetCheckout, type CheckoutPin } from './checkoutSession';
 
 /** Everything checkout needs, snapshotted by the caller before the cart mutates. */
 export interface PlaceOrderInput {
@@ -18,6 +20,7 @@ export interface PlaceOrderInput {
   restaurantID: string | null;
   deliveryAddress: Address | null;
   customer: StoredUser | null;
+  cartRevision?: number;
 }
 
 export type PlaceOrderResult =
@@ -52,7 +55,15 @@ export type PlaceOrderResult =
  *
  * Uses `getState()` so it's callable outside React components.
  */
+let placing = false;
 export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult> {
+  if (placing) return { ok: false, error: 'A checkout is already in progress.' };
+  placing = true;
+  try { return await placeOrderInternal(input); }
+  finally { placing = false; }
+}
+
+async function placeOrderInternal(input: PlaceOrderInput): Promise<PlaceOrderResult> {
   const { lines, deliveryAddress, customer, tip } = input;
   if (lines.length === 0) return { ok: false, error: 'Your cart is empty.' };
 
@@ -68,13 +79,30 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
   // Generated up front: it's the Stripe idempotency key, it ties the
   // PaymentIntent to this order server-side, and it's the row's primary key,
   // so a retried dispatch can't create a second order.
-  const orderId = Crypto.randomUUID();
+  let orderId = Crypto.randomUUID();
+  let checkpoint: CheckoutPin | null = null;
+  let paid = false;
+  let localWarning: string | undefined;
+  const email = customer?.email ?? '';
 
   try {
+    if (serverCartEnabled) {
+      const cart = useCartStore.getState();
+      if (!email || cart.ownerEmail !== email || cart.busy || cart.pending || input.cartRevision === undefined
+          || cart.revision !== input.cartRevision) {
+        return { ok: false, error: 'Refresh your signed-in cart and reconcile pending changes before confirming.' };
+      }
+      checkpoint = await beginCheckout(email, input.cartRevision, Math.round(tip * 100));
+      if (useCartStore.getState().ownerEmail !== email) return { ok: false, error: 'The active account changed.' };
+      orderId = checkpoint.orderId;
+    }
     const { data: sessionData } = supabase
       ? await supabase.auth.getSession()
       : { data: { session: null } };
     const accessToken = sessionData.session?.access_token ?? null;
+    if (checkpoint && sessionData.session?.user.id !== checkpoint.ownerId) {
+      return { ok: false, error: 'Your session changed. Reopen checkout under the original account.' };
+    }
 
     // Amounts as charged. Start from the display values and let the server
     // overwrite them with what it actually billed.
@@ -85,21 +113,24 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     let paymentIntentID: string;
 
     if (isPaymentsConfigured) {
-      const outcome = await payForOrder({ orderId, lines, tip, accessToken });
+      const outcome = await payForOrder({ orderId, lines, tip, accessToken, cartRevision: checkpoint?.revision });
 
       if (outcome.status === 'canceled') {
+        if (checkpoint) await cancelPendingCheckout(email);
         return { ok: false, error: 'Payment canceled.', canceled: true };
       }
       if (outcome.status === 'failed') {
         return { ok: false, error: outcome.message };
       }
 
+      paid = true;
       paymentIntentID = outcome.paymentIntentId;
       subtotal = outcome.quote.subtotalCents / 100;
       deliveryFee = outcome.quote.deliveryFeeCents / 100;
       tipCharged = outcome.quote.tipCents / 100;
       total = outcome.quote.totalCents / 100;
     } else {
+      if (serverCartEnabled) return { ok: false, error: 'Live server-cart checkout requires the payment backend.' };
       // Demo mode only — no backend configured, so there is nothing to charge
       // and no real money can be involved. Kept so the app stays fully usable
       // offline, matching how auth and dispatch already degrade. The `demo`
@@ -110,7 +141,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     // Recorded under the SAME id it was paid and dispatched under, so local
     // history, the driver's row, the chat thread, and any push about this order
     // all name one thing. The order number arrives from dispatch below.
-    await useOrdersStore.getState().record({
+    try { await useOrdersStore.getState().record({
       id: orderId,
       orderNumber: null,
       lines,
@@ -122,11 +153,14 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       restaurantName,
       deliveryAddress,
       paymentIntentID,
-    });
+      ownerEmail: email || undefined,
+    }); } catch {
+      localWarning = 'Payment completed, but local order history could not be saved. Keep your order ID for support.';
+    }
 
     // Tie the dispatched order to this signed-in customer so the driver who
     // accepts it can message them back (see useOrderTracking).
-    const { data: authData } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+    const { data: authData } = !checkpoint && supabase ? await supabase.auth.getUser() : { data: { user: null } };
 
     // No longer fire-and-forget. Before payments this was best-effort because
     // a failed dispatch cost nothing; now it means a paid order no driver can
@@ -146,10 +180,19 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
         ? `${customer.firstName} ${customer.lastName}`.trim()
         : 'LocalGO Customer',
       deliveryAddress,
-      customerId: authData.user?.id ?? null,
+      customerId: checkpoint?.ownerId ?? authData.user?.id ?? null,
+      accessToken,
     });
 
-    useCartStore.getState().clear();
+    if (serverCartEnabled) {
+      if (dispatched && checkpoint) {
+        try { await forgetCheckout(email, checkpoint.ownerId, orderId); }
+        catch { localWarning = 'Order placed; local checkout recovery data will reconcile on your next checkout.'; }
+      }
+      if (useCartStore.getState().ownerEmail === email) {
+        try { await useCartStore.getState().refresh(); } catch { /* Backend order remains authoritative. */ }
+      }
+    } else useCartStore.getState().clear();
 
     // "#LG-1234" — the reference the customer sees on the confirmation screen
     // and in every push about this delivery.
@@ -171,8 +214,9 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       };
     }
 
-    return { ok: true, orderId };
+    return { ok: true, orderId, ...(localWarning ? { warning: localWarning } : {}) };
   } catch (err) {
+    if (paid) return { ok: true, orderId, warning: 'Payment completed but order recovery is unfinished. Reconcile this same checkout or contact support; do not start another payment.' };
     return {
       ok: false,
       error: err instanceof Error ? err.message : 'Something went wrong placing your order.',

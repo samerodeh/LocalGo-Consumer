@@ -19,6 +19,7 @@ import {
 } from '@stripe/stripe-react-native';
 import type { CartLine } from '../types';
 import { API_URL, isBackendConfigured } from './api';
+import { serverCartEnabled } from './serverCart';
 
 /** Real card payments require the backend that issues the PaymentIntent. */
 export const isPaymentsConfigured = isBackendConfigured;
@@ -33,6 +34,8 @@ export interface PaymentQuote {
   tipCents: number;
   /** What the customer will actually be charged, per the server. */
   totalCents: number;
+  paymentStatus?: string;
+  cartRevision?: number;
 }
 
 export type PayOutcome =
@@ -59,6 +62,7 @@ export async function createPaymentIntent(input: {
   lines: CartLine[];
   tip: number;
   accessToken: string | null;
+  cartRevision?: number;
 }): Promise<PaymentQuote> {
   if (!API_URL) throw new Error('Payments are unavailable right now.');
 
@@ -71,7 +75,8 @@ export async function createPaymentIntent(input: {
     body: JSON.stringify({
       order_id: input.orderId,
       // Ids and quantities only. Prices are the server's business.
-      items: input.lines.map((l) => ({ id: l.item.id, quantity: l.quantity })),
+      ...(serverCartEnabled ? { cart_revision: input.cartRevision }
+        : { items: input.lines.map((l) => ({ id: l.item.id, quantity: l.quantity })) }),
       tip_cents: Math.round(input.tip * 100),
     }),
   });
@@ -81,7 +86,7 @@ export async function createPaymentIntent(input: {
     // menu unavailable), so surface them as-is when we can parse one out.
     const detail = await res
       .json()
-      .then((body) => (typeof body?.detail === 'string' ? body.detail : null))
+      .then((body) => (typeof body?.detail === 'string' ? body.detail : body?.detail?.message ?? null))
       .catch(() => null);
     throw new Error(detail ?? 'We could not start your payment. Please try again.');
   }
@@ -96,6 +101,8 @@ export async function createPaymentIntent(input: {
     deliveryFeeCents: data.delivery_fee_cents,
     tipCents: data.tip_cents,
     totalCents: data.total_cents,
+    paymentStatus: data.payment_status,
+    cartRevision: data.cart_revision,
   };
 }
 
@@ -111,6 +118,7 @@ export async function payForOrder(input: {
   lines: CartLine[];
   tip: number;
   accessToken: string | null;
+  cartRevision?: number;
 }): Promise<PayOutcome> {
   let quote: PaymentQuote;
   try {
@@ -121,6 +129,11 @@ export async function payForOrder(input: {
       message: err instanceof Error ? err.message : 'We could not start your payment.',
     };
   }
+
+  if (quote.paymentStatus === 'succeeded') {
+    return { status: 'succeeded', paymentIntentId: quote.paymentIntentId, quote };
+  }
+  if (quote.paymentStatus === 'processing') return { status: 'failed', message: 'Payment is still processing. Reconcile this same checkout shortly.' };
 
   try {
     await ensureStripe(quote.publishableKey);

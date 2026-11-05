@@ -31,6 +31,7 @@ export interface DispatchOrderInput {
    *  accepts it can be tied back to this account for the "on its way" message.
    *  Null when the consumer isn't signed in against the backend. */
   customerId: string | null;
+  accessToken?: string | null;
 }
 
 export interface DispatchResult {
@@ -62,7 +63,8 @@ async function attemptPublish(
   try {
     const res = await fetch(`${API_URL}/orders`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json',
+        ...(input.accessToken ? { Authorization: `Bearer ${input.accessToken}` } : {}) },
       body: JSON.stringify({
         id,
         payment_intent_id: input.paymentIntentID,

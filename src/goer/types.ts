@@ -114,6 +114,7 @@ export interface StagedOrder {
   restaurantID: string | null;
   address: Address | null;
   cartHash: string;
+  cartRevision?: number;
 }
 
 export interface ServerProduct {
