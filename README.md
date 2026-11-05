@@ -2,25 +2,27 @@
 
 **A conversational restaurant menu assistant built with CrewAI Flow, typed tools, and FastAPI.**
 
-Goer turns natural-language requests into searches over a structured restaurant catalog. Ask for a specific food, browse a merchant's menu, or ask for recommendations. The assistant coordinates food discovery using a stateful CrewAI Flow, a specialized discovery agent, and typed CrewAI tools operating over a bundled catalog snapshot of **138 products across local merchants** (Al-Taib and Château Kabab).
+Goer searches menus and plans cart edits for LocalGo. Guest/demo discovery uses a **138-product fixture**; authenticated turns use LocalGo's **145-product canonical catalog**. Discovery and Cart are separate specialists. The Cart Agent reads data and proposes a typed plan; Python journals and executes it against LocalGo's existing backend. No agent can place an order or charge a payment.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    Client[Browser UI / Terminal CLI] --> API[FastAPI / main.py]
-    API --> Flow[CrewAI GoerFlow]
-    Flow --> Crew[DiscoveryCrew]
-    Crew --> Agent[Food Discovery Specialist]
-    Agent --> Tools[CrewAI BaseTool Gateway]
-    Tools --> SearchTool[SearchMenuTool]
-    Tools --> GetMenuTool[GetMenuTool]
-    Tools --> GetProductTool[GetProductTool]
-    SearchTool --> Catalog[(LocalGo Menu Catalog)]
-    GetMenuTool --> Catalog
-    GetProductTool --> Catalog
-    Flow <--> Sessions[(SQLite conversation snapshots)]
-    Flow --> Cards[Grounded product cards]
+    Guest[Guest Browser / CLI] --> Flow[Discovery GoerFlow]
+    Mobile[Signed-in LocalGo app] --> API[Verified Goer API]
+    API --> Journal[Durable turn journal]
+    Journal --> Router[Structured intent router]
+    Router --> Flow
+    Router --> Cart[Read-only Cart planner]
+    Flow --> Read[Catalog tools]
+    Read --> Catalog[LocalGo canonical catalog / guest fixture]
+    Cart --> Plan[Persist immutable command]
+    Plan --> Write[Python cart tools]
+    Write --> Backend[LocalGo backend]
+    Mobile -->|Cart buttons and explicit checkout| Backend
+    Backend --> DB[(Supabase)]
+    Flow --> Cards[Grounded product/cart cards]
+    Write --> Cards
 ```
 
 | Component | Implementation |
@@ -28,9 +30,25 @@ flowchart TD
 | Runtime | Python 3.10–3.13 (`uv` managed) |
 | Framework | CrewAI Flow + CrewAI Agent / Task (`crewai[tools]==1.14.4`) |
 | Model Configuration | Configured via `MODEL` and `OPENAI_API_KEY` (defaults to `openai/gpt-4.1-mini`) |
-| Tools | Typed `BaseTool` subclasses (`SearchMenuTool`, `GetMenuTool`, `GetProductTool`) with Pydantic validation |
+| Tools | One catalog/cart tool per file, Pydantic inputs, private request credentials |
 | Web API & UI | FastAPI, Uvicorn, and HTML/CSS browser chat interface |
-| Catalog | Bundled local JSON snapshot with product IDs, merchant IDs, and integer prices in cents |
+| Catalog | Canonical LocalGo snapshot for signed-in requests; bundled JSON for guest/demo; integer CAD cents |
+
+## Authenticated cart integration
+
+All five milestones are implemented in code behind **closed-by-default flags**:
+verified sessions, durable command/retry handling, specialist routing/cart cards,
+shared mobile server cart, and revision-bound explicit checkout. They have not
+been live-activated. Two reviewed staging migrations and actual Auth/native/
+Stripe checks are required before enabling flags.
+
+See **[the setup and recovery runbook](docs/cart-integration-runbook.md)** for
+both repositories, environment variables, migration order, and remaining gates.
+The supplied browser/CLI remain guest discovery clients; the signed-in mobile
+integration supplies customer sessions. LocalGo owns cart/payment/order truth.
+
+Verification: **127 Goer tests**, **116 LocalGo backend tests**, **8 tool smoke
+scripts**, browser/mobile Node checks, and mobile TypeScript pass offline.
 
 ## Getting Started
 
@@ -111,9 +129,10 @@ Open [http://127.0.0.1:8000](http://127.0.0.1:8000) for session-aware chat with
 product cards. Try “Show Al-Taib's menu”, then “Tell me about the second one”.
 Use **New chat** to start over.
 
-**Development only:** conversation routes currently use a shared demo identity;
-legacy client-supplied user IDs are not authentication. JWTs are not implemented.
-Do not deploy with real customer data yet.
+**Activation caution:** guest requests use a demo identity. Signed-in requests
+are verified through LocalGo and require stable request UUIDs; body user IDs do
+not control ownership. Live migration/native/payment checks and history privacy
+lifecycle work remain before production. Do not enable real customer flows yet.
 
 Conversation snapshots persist in `~/.localgo/goer/conversations.sqlite3`.
 Set `GOER_CONVERSATION_DB` to an absolute path to override it. Tests use
@@ -123,8 +142,9 @@ isolated temporary databases.
 
 - `GET /health`: service health check
 - `POST /v1/conversations`: create a conversation, returning its ID (201).
-- `POST /v1/conversations/{id}/turns`: send `{"message":"..."}` and receive
-  text, product cards, conversation/turn IDs, and action metadata.
+- `POST /v1/conversations/{id}/turns`: guests send `{"message":"..."}`;
+  signed-in clients send `{"message":"...","request_id":"<stable UUID>"}`
+  with a bearer token. Returns text/cards or 202 while reconciliation is pending.
 - `POST /v1/chat`: backward-compatible text endpoint; optionally pass
   `conversation_id` to continue an existing session:
   ```powershell
@@ -207,8 +227,9 @@ goer-ai/
 ## Architecture Roadmap
 
 The target is a modular monolith with a router and four scoped specialists,
-only one running per turn. Discovery is implemented; cart, checkout, and
-order/support are future work. Deterministic services own transactional state,
+only one running per turn. Discovery and Cart planning are implemented with
+flagged authenticated routing. Checkout/order/support model specialists remain
+future work; deterministic revision-bound app checkout is implemented separately. Deterministic services own transactional state,
 and final order/payment confirmation must use explicit direct actions.
 
 See [the authoritative plan](docs/localgo-delivery-architecture-plan.md) and
