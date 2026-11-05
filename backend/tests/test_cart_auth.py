@@ -49,6 +49,20 @@ def test_missing_or_unconfigured_auth_fails(supabase_on, monkeypatch):
     assert exc.value.status_code == 503
 
 
+def test_session_route_returns_only_verified_identity(client, supabase_on, monkeypatch):
+    owner = uuid4()
+
+    class Client:
+        async def get(self, *args, **kwargs):
+            return httpx.Response(200, json={'id': str(owner), 'email': 'not-exposed@example.com'})
+
+    monkeypatch.setattr(auth, 'client', Client())
+    assert client.get('/v1/session').status_code == 401
+    response = client.get('/v1/session', headers={'Authorization': 'Bearer private-token'})
+    assert response.json() == {'user_id': str(owner)}
+    assert 'private-token' not in response.text
+
+
 def test_auth_network_failure_is_unavailable(supabase_on, monkeypatch):
     class Client:
         async def get(self, *args, **kwargs):

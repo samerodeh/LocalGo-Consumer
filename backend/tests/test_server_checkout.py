@@ -87,6 +87,39 @@ def test_canceled_payment_releases_lock_but_paid_payment_does_not(client, live_c
     assert record.status == 'released'
 
 
+def test_order_publication_uses_paid_snapshot_and_consumes_cart(client, live_cart, monkeypatch):
+    import httpx
+    _, order_id, record, intent, _ = live_cart
+    headers = {'Authorization': 'Bearer customer'}
+    client.post('/payments/intent', json={'order_id': str(order_id), 'cart_revision': 1, 'tip_cents': 200}, headers=headers)
+    intent.status = 'succeeded'
+    rows = []
+
+    class Database:
+        async def post(self, url, **kwargs):
+            rows.append(kwargs['json'])
+            return httpx.Response(201 if len(rows) == 1 else 409, json={})
+
+    async def notify(*args): pass
+    monkeypatch.setattr(orders, 'client', Database())
+    monkeypatch.setattr(orders, 'send_notification', notify)
+    body = {'id': str(order_id), 'payment_intent_id': intent.id, 'restaurant_name': 'forged restaurant',
+            'customer_id': str(uuid4()), 'dropoff_address': '2125 Guy Street', 'latitude': 45.49,
+            'longitude': -73.58, 'subtotal': 0, 'delivery_fee': 0, 'tip': 0, 'total': 0,
+            'items': [{'name': 'forged free food', 'quantity': 99}]}
+    response = client.post('/orders', json=body, headers=headers)
+    assert response.status_code == 200
+    assert rows[0]['customer_id'] == str(record.user_id)
+    assert rows[0]['restaurant_name'] == 'Al Taib'
+    assert rows[0]['order_total'] == 18.0
+    assert rows[0]['items'] == ['2× Cheese Pizza Slice']
+    assert record.status == 'consumed'
+    assert client.post('/orders', json=body, headers=headers).json()['duplicate'] is True
+    intent.amount_received = 1
+    assert client.post('/orders', json=body, headers=headers).status_code == 402
+    assert len(rows) == 2
+
+
 def test_quote_fingerprint_cannot_be_replaced_by_equal_total(client, live_cart):
     _, order_id, record, intent, _ = live_cart
     body = {'order_id': str(order_id), 'cart_revision': 1, 'tip_cents': 200}
