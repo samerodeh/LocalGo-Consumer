@@ -6,14 +6,17 @@ import { goerMsg, goerOwnerGeneration, useGoerStore } from './goerStore';
  * quick-reply taps). Routes the turn to the streaming LLM loop or the local
  * fallback NLU depending on the store's mode.
  */
-export async function sendGoerMessage(rawText: string): Promise<void> {
+export async function sendGoerMessage(rawText: string, retryPending = false): Promise<void> {
   const text = rawText.trim();
   const store = useGoerStore.getState();
-  if (!text || store.isStreaming) return;
+  if (!text || store.isStreaming || store.isHistoryLoading) return;
+  if (authenticatedGoerEnabled && store.pendingMessage && (!retryPending || store.pendingMessage !== text)) return;
   const generation = goerOwnerGeneration();
 
-  store.appendMessage(goerMsg({ kind: 'text', role: 'user', text }));
-  store.appendApiMessage({ role: 'user', content: text });
+  if (!retryPending) {
+    store.appendMessage(goerMsg({ kind: 'text', role: 'user', text }));
+    store.appendApiMessage({ role: 'user', content: text });
+  }
   store.setStreaming(true);
 
   try {

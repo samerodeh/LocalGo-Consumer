@@ -1,23 +1,61 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
-import { customerToken, serverCartEnabled, validateCart, type ServerCart } from '../lib/serverCart';
+import { customerToken, serverCartEnabled } from '../lib/serverCart';
 import { useCartStore } from '../store/cartStore';
 import { goerMsg, goerOwnerGeneration, useGoerStore } from './goerStore';
-import type { ServerProduct } from './types';
+import { listHistory, loadHistory, parseEnvelope, saveHistoryTurn, transcript, type Envelope } from './history';
 
 const GOER_URL = process.env.EXPO_PUBLIC_GOER_API_URL?.replace(/\/+$/, '');
 export const authenticatedGoerEnabled = serverCartEnabled && Boolean(GOER_URL);
-interface PendingTurn { ownerId: string; conversationId: string; requestId: string; message: string }
-interface Envelope { conversation_id: string; turn_id: string; text: string; cards: {
-  type: string; cart?: ServerCart; items?: ServerProduct[]; product?: ServerProduct; description?: string;
-}[] }
+interface PendingTurn { ownerId: string; conversationId: string; requestId: string; message: string; response?: Envelope }
+interface Session { conversationId?: string; pending?: PendingTurn; startNew?: boolean }
+const sessionKey = (email: string, userId: string) => `localgo.goer.session:${email.toLowerCase()}:${userId}`;
+const readSession = async (key: string): Promise<Session> => JSON.parse(await AsyncStorage.getItem(key) ?? '{}');
 
 export async function resetAuthenticatedConversation(email: string): Promise<void> {
   const { userId } = await customerToken(email);
-  const key = `localgo.goer.session:${email.toLowerCase()}:${userId}`;
-  const saved = JSON.parse(await AsyncStorage.getItem(key) ?? 'null') as { pending?: PendingTurn } | null;
-  if (saved?.pending) throw new Error('Reconcile the pending turn before starting a new conversation.');
-  await AsyncStorage.removeItem(key);
+  const key = sessionKey(email, userId);
+  const saved = await readSession(key);
+  if (saved.pending) throw new Error('Reconcile the pending turn before starting a new conversation.');
+  // Distinguish an explicit new chat from a fresh installation that should
+  // restore the latest account conversation. Saved history is never deleted.
+  await AsyncStorage.setItem(key, JSON.stringify({ startNew: true }));
+}
+
+export async function restoreAuthenticatedConversation(selectedId?: string): Promise<void> {
+  const generation = goerOwnerGeneration();
+  const email = useGoerStore.getState().ownerEmail;
+  if (!email || !authenticatedGoerEnabled) return;
+  if (useGoerStore.getState().isStreaming || useGoerStore.getState().isHistoryLoading) {
+    throw new Error('Wait for the current request before switching conversations.');
+  }
+  const current = () => generation === goerOwnerGeneration();
+  useGoerStore.setState({ isHistoryLoading: true });
+  try {
+    const { userId } = await customerToken(email);
+    const key = sessionKey(email, userId);
+    const saved = await readSession(key);
+    if (saved.pending && (saved.pending.ownerId !== userId
+      || (selectedId && selectedId !== saved.pending.conversationId))) {
+      throw new Error('Retry the pending turn before switching conversations.');
+    }
+    if (!current()) return;
+    useGoerStore.setState({ pendingMessage: saved.pending?.message ?? null });
+    const id = saved.pending?.conversationId ?? selectedId ?? saved.conversationId
+      ?? (saved.startNew ? undefined : (await listHistory(email))[0]?.id);
+    const turns = id ? await loadHistory(email, id) : [];
+    const restored = transcript(turns);
+    if (saved.pending && !turns.some(turn => turn.response.turn_id === saved.pending!.requestId)) {
+      restored.uiMessages.push({ ...goerMsg({ kind: 'text', role: 'user', text: saved.pending.message }),
+        id: `${saved.pending.requestId}:user` });
+      restored.apiMessages.push({ role: 'user', content: saved.pending.message });
+    }
+    if (!current() || (await customerToken(email)).userId !== userId || !current()) return;
+    await AsyncStorage.setItem(key, JSON.stringify({ ...saved, conversationId: id }));
+    if (current()) useGoerStore.getState().restoreTranscript(restored.uiMessages, restored.apiMessages);
+  } finally {
+    if (current()) useGoerStore.setState({ isHistoryLoading: false });
+  }
 }
 
 export async function runAuthenticatedGoerTurn(message: string): Promise<void> {
@@ -26,70 +64,74 @@ export async function runAuthenticatedGoerTurn(message: string): Promise<void> {
   const email = useGoerStore.getState().ownerEmail;
   if (!email) throw new Error('Sign in before using Goer.');
   const { token, userId } = await customerToken(email);
-  const key = `localgo.goer.session:${email.toLowerCase()}:${userId}`;
-  const raw = await AsyncStorage.getItem(key);
-  const saved = raw ? JSON.parse(raw) as { conversationId?: string; pending?: PendingTurn } : {};
+  const key = sessionKey(email, userId);
+  const saved = await readSession(key);
   const current = () => goerOwnerGeneration() === generation && useGoerStore.getState().ownerEmail === email;
   if (!current()) return;
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
   if (saved.pending && (saved.pending.ownerId !== userId || saved.pending.message !== message)) {
-    throw new Error('A previous turn needs reconciliation. Resend that exact message before starting another.');
+    useGoerStore.setState({ pendingMessage: saved.pending.message });
+    throw new Error('A previous turn needs reconciliation. Retry that pending turn first.');
   }
-  if (!saved.conversationId) {
-    const created = await fetch(`${GOER_URL}/v1/conversations`, { method: 'POST', headers });
-    if (!created.ok) throw new Error('Could not create a signed-in conversation. No cart request was sent.');
-    saved.conversationId = (await created.json()).conversation_id;
-  }
-  const pending = saved.pending ?? { ownerId: userId, conversationId: saved.conversationId!,
-    requestId: Crypto.randomUUID(), message };
-  saved.pending = pending;
-  await AsyncStorage.setItem(key, JSON.stringify(saved));
-  if (!current()) return;
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), 90000);
   try {
-    const response = await fetch(`${GOER_URL}/v1/conversations/${encodeURIComponent(pending.conversationId)}/turns`, {
-      method: 'POST', headers, signal: abort.signal,
-      body: JSON.stringify({ message: pending.message, request_id: pending.requestId }),
-    });
-    const body = await response.json();
-    if (response.status === 202) throw new Error('That turn is still pending. Resend the same message to reconcile it.');
-    if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : 'Goer could not finish. Retry the same message.');
-    const envelope = body as Envelope;
-    if (envelope.turn_id !== pending.requestId || envelope.conversation_id !== pending.conversationId
-        || typeof envelope.text !== 'string' || !Array.isArray(envelope.cards)) {
-      throw new Error('Goer returned an invalid response. Retry the same message.');
+    if (!saved.conversationId) {
+      const created = await fetch(`${GOER_URL}/v1/conversations`, { method: 'POST', headers, signal: abort.signal });
+      if (!created.ok) throw new Error('Could not create a signed-in conversation. No cart request was sent.');
+      const body = await created.json();
+      if (typeof body.conversation_id !== 'string') throw new Error('Invalid conversation response.');
+      saved.conversationId = body.conversation_id;
     }
-    // Recheck account identity after awaiting the network; no old-account data
-    // is applied to a new account after logout or switching.
-    const active = await customerToken(email);
-    if (!current() || active.userId !== userId) return;
-    const agent = envelope.cards.some(card => card.type === 'cart_summary') ? 'cart' : 'concierge';
-    const store = useGoerStore.getState();
-    store.setActiveAgent(agent, true);
-    store.appendMessage(goerMsg({ kind: 'text', role: 'assistant', agent, text: envelope.text }));
-    store.appendApiMessage({ role: 'assistant', content: envelope.text });
+    const pending = saved.pending ?? { ownerId: userId, conversationId: saved.conversationId!,
+      requestId: Crypto.randomUUID(), message };
+    saved.pending = pending;
+    await AsyncStorage.setItem(key, JSON.stringify(saved));
+    if (!current()) return;
+    useGoerStore.setState({ pendingMessage: pending.message });
+    let envelope: Envelope;
+    if (pending.response) {
+      envelope = parseEnvelope(pending.response);
+    } else {
+      const response = await fetch(`${GOER_URL}/v1/conversations/${encodeURIComponent(pending.conversationId)}/turns`, {
+        method: 'POST', headers, signal: abort.signal,
+        body: JSON.stringify({ message: pending.message, request_id: pending.requestId }),
+      });
+      const body = await response.json();
+      if (response.status === 202) throw new Error('That turn is still pending.');
+      if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : 'Goer could not finish.');
+      envelope = parseEnvelope(body);
+    }
+    if (envelope.turn_id !== pending.requestId || envelope.conversation_id !== pending.conversationId) {
+      throw new Error('Goer returned an invalid response identity.');
+    }
+    if (!current() || (await customerToken(email)).userId !== userId || !current()) return;
+    // Durable completed response lets a history-only retry skip Goer entirely,
+    // even if the app restarts while Supabase is unavailable.
+    pending.response = envelope;
+    await AsyncStorage.setItem(key, JSON.stringify(saved));
+    if (!current()) return;
     for (const card of envelope.cards) {
-      if (card.type === 'cart_summary' && card.cart) {
-        const cart = validateCart(card.cart);
-        useCartStore.getState().acceptServerCart(cart);
-        store.appendMessage(goerMsg({ kind: 'cart_summary', agent, snapshot: {
-          lines: cart.lines.map(line => ({ itemID: line.product_id, name: line.name,
-            quantity: line.quantity, unitPrice: line.unit_price_cents / 100 })),
-          subtotal: cart.subtotal_cents / 100, deliveryFee: cart.delivery_fee_cents / 100, total: cart.total_cents / 100,
-        } }));
-      } else if (card.type === 'product_list' && Array.isArray(card.items)) {
-        store.appendMessage(goerMsg({ kind: 'server_products', items: card.items, agent }));
-      } else if (card.type === 'product_detail' && card.product) {
-        store.appendMessage(goerMsg({ kind: 'server_products', items: [{ ...card.product, description: card.description }], agent }));
-      }
+      if (card.type === 'cart_summary' && card.cart) useCartStore.getState().acceptServerCart(card.cart);
     }
+    await saveHistoryTurn(email, userId, pending.message, envelope);
+    if (!current()) return;
     delete saved.pending;
     await AsyncStorage.setItem(key, JSON.stringify(saved));
+    if (!current()) return;
+    const store = useGoerStore.getState();
+    useGoerStore.setState({ pendingMessage: null });
+    const messages = transcript([{ message: pending.message, response: envelope, created_at: new Date().toISOString() }]);
+    store.setActiveAgent(envelope.cards.some(c => c.type === 'cart_summary') ? 'cart' : 'concierge', true);
+    const alreadyShown = store.uiMessages.some(msg => msg.id === `${envelope.turn_id}:assistant`);
+    for (const msg of messages.uiMessages.slice(1)) store.appendMessage(msg);
+    if (!alreadyShown) store.appendApiMessage({ role: 'assistant', content: envelope.text });
     try { await useCartStore.getState().refresh(); } catch { /* Completed turn remains completed. */ }
   } catch (error) {
-    // Never replay this message through the old assistant or offline NLU.
-    throw new Error(error instanceof Error ? `${error.message} Pending request is saved; resend the same message.`
-      : 'Connection interrupted. Resend the same message to reconcile it.');
+    if (saved.pending?.response) {
+      throw new Error('Your turn completed, but saving history is pending. Tap Retry pending turn; the cart edit will not be resent.');
+    }
+    throw new Error(error instanceof Error ? `${error.message} Retry the pending turn using the same saved request.`
+      : 'Connection interrupted. Retry the pending turn using the same saved request.');
   } finally { clearTimeout(timer); }
 }

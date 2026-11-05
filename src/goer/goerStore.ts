@@ -64,6 +64,8 @@ interface GoerState {
   apiMessages: ApiMessage[];
   /** True while a turn is running (streaming or executing tools). */
   isStreaming: boolean;
+  isHistoryLoading: boolean;
+  pendingMessage: string | null;
   /** Partial assistant text for the in-progress bubble. */
   streamingText: string;
   stagedOrder: StagedOrder | null;
@@ -78,6 +80,7 @@ interface GoerState {
   open: () => void;
   close: () => void;
   configure: (email: string | null) => Promise<void>;
+  restoreTranscript: (messages: GoerMessage[], apiMessages: ApiMessage[]) => void;
   appendMessage: (msg: GoerMessage) => void;
   appendApiMessage: (msg: ApiMessage) => void;
   setStreaming: (streaming: boolean) => void;
@@ -148,6 +151,8 @@ export const useGoerStore = create<GoerState>((set, get) => ({
   uiMessages: [],
   apiMessages: [],
   isStreaming: false,
+  isHistoryLoading: false,
+  pendingMessage: null,
   streamingText: '',
   stagedOrder: null,
   placedOrders: {},
@@ -179,7 +184,7 @@ export const useGoerStore = create<GoerState>((set, get) => ({
   configure: async (email) => {
     const epoch = ++ownerGeneration;
     set({ ownerEmail: email, uiMessages: [], apiMessages: [], placedOrders: {}, stagedOrder: null,
-      isOpen: false, isStreaming: false, streamingText: '', unread: 0 });
+      isOpen: false, isStreaming: false, isHistoryLoading: false, pendingMessage: null, streamingText: '', unread: 0 });
     if (persistTimer) clearTimeout(persistTimer);
     if (!email) {
       set({
@@ -199,7 +204,9 @@ export const useGoerStore = create<GoerState>((set, get) => ({
       });
       return;
     }
-    const saved = await loadGoerChat(email).catch(() => null);
+    const authenticated = serverCartEnabled && Boolean(process.env.EXPO_PUBLIC_GOER_API_URL);
+    // Email-only legacy caches are not an authenticated history authority.
+    const saved = authenticated ? null : await loadGoerChat(email).catch(() => null);
     if (epoch !== ownerGeneration) return;
     set({
       ownerEmail: email,
@@ -215,11 +222,27 @@ export const useGoerStore = create<GoerState>((set, get) => ({
       unread: 0,
       isStreaming: false,
       streamingText: '',
-      mode: isGoerLLMConfigured ? 'llm' : 'fallback',
+      mode: authenticated ? 'llm' : isGoerLLMConfigured ? 'llm' : 'fallback',
     });
+    if (authenticated) {
+      try {
+        const module = await import('./authenticatedClient');
+        if (epoch === ownerGeneration) await module.restoreAuthenticatedConversation();
+      } catch {
+        if (epoch === ownerGeneration) get().appendMessage(goerMsg({ kind: 'system_note',
+          text: 'Saved history is unavailable. Open History to retry after checking sign-in and database setup.' }));
+      }
+    }
+  },
+
+  restoreTranscript: (messages, apiMessages) => {
+    set({ uiMessages: messages.slice(-MAX_UI_MESSAGES), apiMessages: trimApiMessages(apiMessages),
+      stagedOrder: null, unread: 0, activeAgent: messages.at(-1)?.agent ?? 'concierge' });
+    schedulePersist(get);
   },
 
   appendMessage: (msg) => {
+    if (get().uiMessages.some(existing => existing.id === msg.id)) return;
     const isOwnMessage = msg.kind === 'text' && msg.role === 'user';
     set((s) => ({
       uiMessages: [...s.uiMessages, msg].slice(-MAX_UI_MESSAGES),
@@ -391,17 +414,18 @@ export const useGoerStore = create<GoerState>((set, get) => ({
   },
 
   clearChat: () => {
-    if (get().isStreaming) return;
+    if (get().isStreaming || get().isHistoryLoading || get().pendingMessage) return;
+    const epoch = ownerGeneration;
     const owner = get().ownerEmail;
     const clear = () => {
-      if (get().ownerEmail !== owner) return;
+      if (ownerGeneration !== epoch) return;
       set({ uiMessages: [], apiMessages: [], activeAgent: 'concierge', stagedOrder: null,
         chatTip: DEFAULT_TIP, streamingText: '', isStreaming: false, unread: 0 });
       schedulePersist(get);
     };
     if (serverCartEnabled && process.env.EXPO_PUBLIC_GOER_API_URL && owner) {
       void import('./authenticatedClient').then(module => module.resetAuthenticatedConversation(owner)).then(clear)
-        .catch(error => { if (get().ownerEmail === owner) get().appendMessage(goerMsg({ kind: 'system_note', text: error.message })); });
+        .catch(error => { if (ownerGeneration === epoch) get().appendMessage(goerMsg({ kind: 'system_note', text: error.message })); });
     } else clear();
   },
 }));

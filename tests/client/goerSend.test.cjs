@@ -28,7 +28,8 @@ function harness() {
     },
   });
   return { send: module.exports.sendGoerMessage, messages, streaming, reject,
-    switchAccount: () => { generation++; messages.length = 0; streaming.length = 0; } };
+    switchAccount: () => { generation++; messages.length = 0; streaming.length = 0; },
+    pending: text => { store.pendingMessage = text; } };
 }
 
 test('a delayed failure cannot append to or stop another account turn, including A-B-A', async () => {
@@ -39,6 +40,16 @@ test('a delayed failure cannot append to or stop another account turn, including
   await pending;
   assert.equal(h.messages.length, 0);
   assert.equal(h.streaming.length, 0);
+});
+
+test('retrying a saved turn does not add another user bubble or accept a different message', async () => {
+  const h = harness(); h.pending('add pizza');
+  await h.send('add something else');
+  assert.equal(h.messages.length, 0);
+  const retry = h.send('add pizza', true);
+  h.reject(new Error('history offline'));
+  await retry;
+  assert.equal(h.messages.filter(m => m.role === 'user').length, 0);
 });
 
 test('the current account sees its pending error and stops streaming', async () => {
