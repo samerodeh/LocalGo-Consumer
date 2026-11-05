@@ -213,7 +213,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-05 | AGENTS.md; docs/cart-integration-runbook.md; docs/project-context-and-next-steps.md | Finish mobile account-linked history and development activation verification | Active; sibling mobile/SQL scope coordinated there; no production activation |
+| Agent | 2026-11-05 | AGENTS.md; README.md; docs/cart-integration-runbook.md; docs/project-context-and-next-steps.md; docs/localgo-delivery-architecture-plan.md | Finish mobile account-linked history and development activation verification | Active; code and offline verification complete; refreshing handoff; live migrations blocked by missing private credentials |
 
 ---
 
