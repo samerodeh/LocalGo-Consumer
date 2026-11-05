@@ -10,16 +10,37 @@ export const authenticatedGoerEnabled = serverCartEnabled && Boolean(GOER_URL);
 interface PendingTurn { ownerId: string; conversationId: string; requestId: string; message: string; response?: Envelope }
 interface Session { conversationId?: string; pending?: PendingTurn; startNew?: boolean }
 const sessionKey = (email: string, userId: string) => `localgo.goer.session:${email.toLowerCase()}:${userId}`;
-const readSession = async (key: string): Promise<Session> => JSON.parse(await AsyncStorage.getItem(key) ?? '{}');
+const sessionQueues = new Map<string, Promise<void>>();
+function sessionOperation<T>(key: string, operation: (saved: Session) => Promise<T> | T): Promise<T> {
+  const work = (sessionQueues.get(key) ?? Promise.resolve()).then(async () =>
+    operation(JSON.parse(await AsyncStorage.getItem(key) ?? '{}')));
+  const tail = work.then(() => {}, () => {});
+  sessionQueues.set(key, tail);
+  void tail.then(() => { if (sessionQueues.get(key) === tail) sessionQueues.delete(key); });
+  return work;
+}
+const readSession = (key: string) => sessionOperation(key, saved => saved);
+async function writeSession(key: string, saved: Session, current: () => boolean,
+  expected: { conversationId?: string; requestId?: string }): Promise<boolean> {
+  return sessionOperation(key, async latest => {
+    if (!current()) return false;
+    if (latest.conversationId !== expected.conversationId || latest.pending?.requestId !== expected.requestId) {
+      throw new Error('The conversation changed. Reload history before retrying.');
+    }
+    await AsyncStorage.setItem(key, JSON.stringify(saved));
+    return true;
+  });
+}
 
 export async function resetAuthenticatedConversation(email: string): Promise<void> {
+  const generation = goerOwnerGeneration();
   const { userId } = await customerToken(email);
-  const key = sessionKey(email, userId);
-  const saved = await readSession(key);
-  if (saved.pending) throw new Error('Reconcile the pending turn before starting a new conversation.');
-  // Distinguish an explicit new chat from a fresh installation that should
-  // restore the latest account conversation. Saved history is never deleted.
-  await AsyncStorage.setItem(key, JSON.stringify({ startNew: true }));
+  await sessionOperation(sessionKey(email, userId), async saved => {
+    if (generation !== goerOwnerGeneration()) return;
+    if (saved.pending) throw new Error('Reconcile the pending turn before starting a new conversation.');
+    // Explicit new chat must not restore the latest saved account conversation.
+    await AsyncStorage.setItem(sessionKey(email, userId), JSON.stringify({ startNew: true }));
+  });
 }
 
 export async function restoreAuthenticatedConversation(selectedId?: string): Promise<void> {
@@ -51,7 +72,8 @@ export async function restoreAuthenticatedConversation(selectedId?: string): Pro
       restored.apiMessages.push({ role: 'user', content: saved.pending.message });
     }
     if (!current() || (await customerToken(email)).userId !== userId || !current()) return;
-    await AsyncStorage.setItem(key, JSON.stringify({ ...saved, conversationId: id }));
+    await writeSession(key, { ...saved, conversationId: id }, current,
+      { conversationId: saved.conversationId, requestId: saved.pending?.requestId });
     if (current()) useGoerStore.getState().restoreTranscript(restored.uiMessages, restored.apiMessages);
   } finally {
     if (current()) useGoerStore.setState({ isHistoryLoading: false });
@@ -66,6 +88,7 @@ export async function runAuthenticatedGoerTurn(message: string): Promise<void> {
   const { token, userId } = await customerToken(email);
   const key = sessionKey(email, userId);
   const saved = await readSession(key);
+  const expected = { conversationId: saved.conversationId, requestId: saved.pending?.requestId };
   const current = () => goerOwnerGeneration() === generation && useGoerStore.getState().ownerEmail === email;
   if (!current()) return;
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -80,14 +103,14 @@ export async function runAuthenticatedGoerTurn(message: string): Promise<void> {
       const created = await fetch(`${GOER_URL}/v1/conversations`, { method: 'POST', headers, signal: abort.signal });
       if (!created.ok) throw new Error('Could not create a signed-in conversation. No cart request was sent.');
       const body = await created.json();
+      if (!current()) return;
       if (typeof body.conversation_id !== 'string') throw new Error('Invalid conversation response.');
       saved.conversationId = body.conversation_id;
     }
     const pending = saved.pending ?? { ownerId: userId, conversationId: saved.conversationId!,
       requestId: Crypto.randomUUID(), message };
     saved.pending = pending;
-    await AsyncStorage.setItem(key, JSON.stringify(saved));
-    if (!current()) return;
+    if (!await writeSession(key, saved, current, expected) || !current()) return;
     useGoerStore.setState({ pendingMessage: pending.message });
     let envelope: Envelope;
     if (pending.response) {
@@ -109,16 +132,15 @@ export async function runAuthenticatedGoerTurn(message: string): Promise<void> {
     // Durable completed response lets a history-only retry skip Goer entirely,
     // even if the app restarts while Supabase is unavailable.
     pending.response = envelope;
-    await AsyncStorage.setItem(key, JSON.stringify(saved));
-    if (!current()) return;
+    const pendingIdentity = { conversationId: pending.conversationId, requestId: pending.requestId };
+    if (!await writeSession(key, saved, current, pendingIdentity) || !current()) return;
     for (const card of envelope.cards) {
       if (card.type === 'cart_summary' && card.cart) useCartStore.getState().acceptServerCart(card.cart);
     }
     await saveHistoryTurn(email, userId, pending.message, envelope);
     if (!current()) return;
     delete saved.pending;
-    await AsyncStorage.setItem(key, JSON.stringify(saved));
-    if (!current()) return;
+    if (!await writeSession(key, saved, current, pendingIdentity) || !current()) return;
     const store = useGoerStore.getState();
     useGoerStore.setState({ pendingMessage: null });
     const messages = transcript([{ message: pending.message, response: envelope, created_at: new Date().toISOString() }]);

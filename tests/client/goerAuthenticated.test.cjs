@@ -7,7 +7,7 @@ const ts = require('typescript');
 const { randomUUID } = require('node:crypto');
 
 function harness(shared = { data: new Map(), turns: new Map(), goerWrites: 0 }) {
-  let generation = 0, historyDown = false, responseLost = false, block = null;
+  let generation = 0, historyDown = false, responseLost = false, block = null, creationBlock = null, storageBlock = null;
   const conversationId = randomUUID();
   const accepted = [];
   const state = { ownerEmail: 'alice@example.test', isStreaming: false, isHistoryLoading: false,
@@ -17,7 +17,10 @@ function harness(shared = { data: new Map(), turns: new Map(), goerWrites: 0 }) 
     restoreTranscript: (ui, api) => { state.uiMessages = ui; state.apiMessages = api; } };
   const store = { getState: () => state, setState: value => Object.assign(state, value) };
   const storage = { getItem: async key => shared.data.get(key) ?? null,
-    setItem: async (key, value) => { shared.data.set(key, value); }, removeItem: async key => shared.data.delete(key) };
+    setItem: async (key, value) => {
+      if (storageBlock) { const wait = storageBlock; storageBlock = null; await wait; }
+      shared.data.set(key, value);
+    }, removeItem: async key => shared.data.delete(key) };
   const backend = { serverCartEnabled: true,
     customerToken: async email => {
       if (email !== state.ownerEmail) throw Error('account changed');
@@ -45,7 +48,10 @@ function harness(shared = { data: new Map(), turns: new Map(), goerWrites: 0 }) 
       if (block) { const wait = block; block = null; await wait; }
       return response([...shared.turns.values()].reverse());
     }
-    if (url.endsWith('/v1/conversations')) return response({ conversation_id: conversationId });
+    if (url.endsWith('/v1/conversations')) {
+      if (creationBlock) { const wait = creationBlock; creationBlock = null; await wait; }
+      return response({ conversation_id: conversationId });
+    }
     assert.match(url, /\/v1\/conversations\/.+\/turns$/);
     shared.goerWrites++;
     const body = JSON.parse(options.body);
@@ -81,6 +87,7 @@ function harness(shared = { data: new Map(), turns: new Map(), goerWrites: 0 }) 
   return { api: load('authenticatedClient'), state, shared, accepted,
     historyDown: value => { historyDown = value; }, loseHistoryResponse: () => { responseLost = true; },
     blockNext: wait => { block = wait; },
+    blockCreation: wait => { creationBlock = wait; }, blockStorage: wait => { storageBlock = wait; },
     switchAccount: email => { generation++; state.ownerEmail = email; state.uiMessages = []; state.apiMessages = []; },
     saved: () => JSON.parse(shared.data.get('localgo.goer.session:alice@example.test:alice-id') ?? '{}') };
 }
@@ -139,4 +146,39 @@ test('history callbacks cannot hydrate another account, even after switching A-B
   h.switchAccount('bob@example.test'); h.switchAccount('alice@example.test');
   release(); await restore;
   assert.equal(h.state.uiMessages.length, 0);
+});
+
+test('a stale conversation creation cannot replace a newer A-B-A pending response', async () => {
+  const h = harness(); h.historyDown(true);
+  let release;
+  h.blockCreation(new Promise(resolve => { release = resolve; }));
+  const stale = h.api.runAuthenticatedGoerTurn('old turn');
+  await new Promise(resolve => setImmediate(resolve));
+  h.switchAccount('bob@example.test'); h.switchAccount('alice@example.test');
+  await assert.rejects(h.api.runAuthenticatedGoerTurn('new turn'), /turn completed/);
+  const pending = h.saved().pending;
+  assert.ok(pending.response);
+  release(); await stale;
+  assert.deepEqual(h.saved().pending, pending);
+  assert.equal(h.shared.goerWrites, 1);
+});
+
+test('a delayed native storage write finishes before another generation reads or stages a turn', async () => {
+  const h = harness();
+  let release;
+  h.blockStorage(new Promise(resolve => { release = resolve; }));
+  const stale = h.api.runAuthenticatedGoerTurn('old turn');
+  await new Promise(resolve => setImmediate(resolve));
+  h.switchAccount('bob@example.test'); h.switchAccount('alice@example.test');
+  const newer = h.api.runAuthenticatedGoerTurn('new turn');
+  const rejected = assert.rejects(newer, /previous turn needs reconciliation/);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.shared.data.size, 0);
+  release(); await stale; await rejected;
+  const requestId = h.saved().pending.requestId;
+  assert.equal(h.saved().pending.message, 'old turn');
+  assert.equal(h.shared.goerWrites, 0);
+  await h.api.runAuthenticatedGoerTurn('old turn');
+  assert.equal(h.shared.goerWrites, 1);
+  assert.equal([...h.shared.turns.keys()][0], requestId);
 });
