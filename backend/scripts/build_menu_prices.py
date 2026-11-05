@@ -17,6 +17,7 @@ commit the result:
 
 import json
 import re
+from decimal import Decimal
 import sys
 from pathlib import Path
 
@@ -44,7 +45,20 @@ def main() -> int:
     items: list[dict[str, object]] = []
     seen: set[str] = set()
 
+    arrays = []
+    for array_name, merchant_id in [("menuItems", "al-taib"),
+                                    ("chateauKababMenuItems", "chateau-kabab")]:
+        declaration = f"export const {array_name}: MenuItem[] = ["
+        start = source.index(declaration)
+        end = source.index("\n];", start)
+        arrays.append((start, end, merchant_id))
+
     for m in ENTRY.finditer(source):
+        merchant_id = next((merchant for start, end, merchant in arrays
+                            if start <= m.start() < end), None)
+        if merchant_id is None:
+            print("error: menu item outside a known restaurant array", file=sys.stderr)
+            return 1
         item_id = m.group("id")
         if item_id in seen:
             print(f"error: duplicate id in menu.ts: {item_id}", file=sys.stderr)
@@ -54,9 +68,10 @@ def main() -> int:
             {
                 "id": item_id,
                 "name": m.group("name").replace("\\'", "'"),
+                "merchant_id": merchant_id,
                 # Integer cents at generation time, so nothing downstream ever
                 # multiplies a float by 100 at charge time.
-                "price_cents": round(float(m.group("price")) * 100),
+                "price_cents": int(Decimal(m.group("price")) * 100),
             }
         )
 
