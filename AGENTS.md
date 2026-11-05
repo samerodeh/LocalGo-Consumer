@@ -125,7 +125,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active agent locks)* | - | - | - | Ready for next task |
+| Agent | 2026-11-04 | Goer auth/API, durable turn service/repository, router/cart planner/cards/web, integrations/tests/docs; LocalGo session/cart checkout/migration, mobile cart/assistant/payment clients and UI/tests/docs | Implement all five cart integration milestones with live activation disabled | Active; clean working trees; no live migrations or secrets changes |
 
 ---
 
