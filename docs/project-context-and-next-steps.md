@@ -1,6 +1,6 @@
 # Goer: Project Context and Next Steps
 
-> Updated **2026-11-04**, after the five authenticated cart integration milestones.
+> Updated **2026-11-05**, after mobile cloud history, race fixes and offline verification.
 > Rules: [AGENTS.md](../AGENTS.md). Target: [architecture plan](localgo-delivery-architecture-plan.md).
 > Setup/recovery: [cart integration runbook](cart-integration-runbook.md).
 
@@ -18,7 +18,10 @@ persist a shadow cart. There are **two specialist definitions**:
 
 A bounded structured classifier chooses discovery, cart, or unsupported intent.
 No multi-agent swarm runs on each message. New integration is feature-gated and
-has not been activated against a live database or payment provider.
+has not been activated against the connected development database or payment
+provider. The user selected the existing **LocalGo mobile app** and confirmed its
+existing Supabase project is **development-only**; do not create another project
+or add browser checkout.
 
 ## 2. Request paths
 
@@ -47,7 +50,10 @@ Supabase session → Goer verifies via LocalGo GET /v1/session
   → persist exact command + revision + backend key before mutation
   → individual cart write tool → authenticated LocalGo API → atomic RPC
   → persist backend result → deterministic cart reply + grounded cart_summary
-  → atomically commit response + bounded conversation history
+  → atomically commit response + bounded conversation history in Goer SQLite
+  → mobile durably caches exact completed response
+  → owner-scoped immutable Supabase display-history RPC
+  → clear local pending request and render stable-ID messages
 ```
 
 Completed retries replay the saved envelope. Uncertain writes retain their
@@ -110,6 +116,14 @@ response identifier; distributed instrumentation is future work.
   same backend in server mode. Demo mode remains separate.
 - `src/goer/authenticatedClient.ts`: real session forwarding, stable conversation/
   request IDs, server cards, no offline mutation replay, account-switch fences.
+- `src/goer/history.ts`, `GoerHistory.tsx`, `GoerSheet.tsx`: account-linked cloud
+  transcripts, paginated conversation selection, New conversation and explicit
+  Retry pending turn. Completed-response history retries do not resend cart work.
+  Historical cart cards cannot update a cart. A-B-A callbacks, native session
+  storage and async conversation resets are generation-fenced/serialized.
+- A fresh installation restores the latest cloud conversation; New conversation
+  preserves old history. UI keeps the latest 50 messages; older messages within
+  a conversation are not paginated. Resuming reasoning needs Goer's original DB.
 - Goer tab launcher is conditional on the server-cart flag and separate Goer URL.
 - `src/lib/checkoutSession.ts`, payment/order helpers: stable checkout identity,
   revision-bound confirmation, provider cancellation/recovery, idempotent history.
@@ -136,18 +150,24 @@ commands and activation order are in the runbook; use separate ports (8100/8000)
 
 ## 6. Verification and limits
 
-Completed: **127 Goer pytest tests**, **116 pinned LocalGo backend tests**,
-**8 tool smoke scripts**, **3 mobile Node cart-state tests**, **4 browser Node
-cases**, and mobile `tsc --noEmit`. Models/Auth/HTTP/Stripe are stubbed. A
-Starlette/httpx deprecation warning remains unrelated.
+Latest: **127 Goer pytest tests**, **116 pinned LocalGo backend tests**,
+**22 mobile/SQL Node cases** (zero skips), mobile `tsc --noEmit` and an Android
+JS/assets export passed. The Goer suite includes 4 browser cases. All 8 individual
+tool smoke scripts passed previously; tools did not change this session.
+A Starlette/httpx deprecation warning remains unrelated.
 
-SQL was syntax-parsed only. There is no local PostgreSQL engine; no live RLS,
-RPC, native-app sign-in, model-quality, or Stripe sandbox flow was verified.
-Follow the runbook's staging checklist before activation.
+All three migrations execute in isolated PGlite PostgreSQL tests, including RLS,
+RPC grants, immutable history, cart receipts/revisions, checkout locks, frozen
+quotes and one-time consumption. This is not connected Supabase/concurrent-session
+proof. Auth availability and a Stripe account with `livemode=false` were checked
+read-only. No signup, real model, native app runtime or payment was exercised.
+The Android export is bundling verification, not a native build.
 
 Important production gaps:
-- Goer journal/history uses one shared durable SQLite file, not per-host files.
-  Multi-host deployments need a shared transactional persistence adapter.
+- Goer reasoning snapshots/command journal use one shared durable SQLite file,
+  not per-host files. Supabase display transcripts do not replace that journal
+  or reconstruct a missing conversation. Multi-host deployments need a shared
+  transactional persistence adapter.
 - Define history retention/account-deletion cleanup and encryption. LocalGo Auth
   deletion cascades its new tables, not Goer's separate history file.
 - No option selections, stock feed, merchant-hours/zone validation, new tax rules,
@@ -159,10 +179,16 @@ Important production gaps:
 
 ## 7. Next step
 
-Review/apply both migrations to staging, verify permissions and actual RPC
-concurrency, then exercise real sign-in, chat/button parity, loss/restart recovery,
-account switching, stale checkout, sandbox payment/cancel/dispatch replay.
-Do not enable live flags or add more consequential agents before those checks.
+The development backend's `SUPABASE_SERVICE_ROLE_KEY` is empty and no database
+admin connection is configured. Supply the key privately in backend `.env` and
+apply the **three** migrations listed in the runbook through the existing
+project's SQL Editor/admin connection. Never put credentials in chat/mobile.
+
+Then deliberately configure development-only flags/URLs and verify real sign-in,
+RLS/concurrency, saved history after restart/reinstall, history-only retry without
+cart replay, chat/button parity, account switching, stale checkout and Stripe
+sandbox success/cancel/dispatch replay. No production activation is authorized.
+Do not add more consequential agents before those checks.
 
 ## 8. Required working rules
 
