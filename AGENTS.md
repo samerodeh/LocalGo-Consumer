@@ -218,7 +218,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active locks)* | - | - | - | Code/tests/docs complete; connected development activation awaits private credentials/admin access |
+| Agent | 2026-11-05 | AGENTS.md | Record actual running-service and live browser smoke results | Active; no source, credentials, migrations or flags changed |
 
 ---
 
