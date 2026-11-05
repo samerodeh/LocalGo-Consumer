@@ -27,7 +27,7 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| — | — | — | — | No active work |
+| Agent | 2026-11-04 | Backend session/cart/checkout endpoints, SQL migration, mobile cart/assistant/payment clients and UI, tests/docs | Verified sessions, shared server cart, durable chat integration, revision-bound checkout | Active; no live migration; feature-gated activation |
 
 ## Recent work
 
