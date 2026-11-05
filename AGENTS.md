@@ -13,10 +13,10 @@ Goer is a conversational restaurant food discovery assistant built for **LocalGo
 - **Runtime & Package Manager**: Python 3.10–3.13, managed with [`uv`](https://docs.astral.sh/uv/).
 - **Agent Framework**: **CrewAI 1.14.4** (`crewai[tools]==1.14.4`).
 - **Orchestration**: Stateful `CrewAI Flow` (`GoerFlow`) coordinating execution and intent handling.
-- **Agent Specialists**: `DiscoveryCrew` is wired into chat. `CartCrew` is implemented and offline-tested with injected LocalGo HTTP tools but remains opt-in, disconnected from demo chat until authenticated routing and durable turn retries are built.
+- **Agent Specialists**: `DiscoveryCrew` handles discovery. Feature-gated authenticated routing selects it or read-only `CartCrew`, which produces typed plans. Python journals and executes cart writes after planning; no agent has checkout/payment/order permissions.
 - **Tools**: Typed subclasses of CrewAI `BaseTool` with Pydantic argument validation (`SearchMenuTool`, `GetMenuTool`, `GetProductTool`). Keep each tool and its input schema in its own file, grouped by capability (currently `tools/catalog/`); shared helpers belong in separate modules. `tools/catalog_tools.py` is compatibility imports only.
-- **Conversation Foundation**: Application-owned SQLite snapshots with revision checks; `flow/` restores bounded context and returns validated product cards via `schemas/chat.py`. Application conversation IDs are separate from CrewAI execution IDs. JWT authentication remains pending; current routes are development-only.
-- **API & Web Interface**: FastAPI, Uvicorn, and HTML/CSS browser chat client.
+- **Conversation Foundation**: Application-owned SQLite snapshots and a fenced durable turn journal. Signed-in identity is verified through LocalGo's Supabase session endpoint, never body IDs. Stable request UUIDs replay completed responses or reconcile immutable commands; tokens stay out of state/prompts. Guest/demo and authenticated conversations are separate. Live activation and multi-host persistence remain gated.
+- **API & Web Interface**: FastAPI/Uvicorn; guest browser/CLI retained. Flagged signed-in LocalGo mobile chat/buttons share its server cart and explicit revision-bound checkout. Read `docs/cart-integration-runbook.md` before activation; templates leave flags false.
 - **Model Provider**: Configured through `MODEL` and `OPENAI_API_KEY` (defaults to `openai/gpt-4.1-mini`).
 
 ### Repository Directory Map
@@ -33,11 +33,16 @@ goer-ai/
 │       │       │   └── tasks.yaml   # Task descriptions and expected outputs
 │       │       └── discovery_crew.py
 │       ├── domain/
-│       │   └── catalog.py       # Catalog query functions and data access logic
+│       │   ├── catalog.py       # Scoped JSON/live catalog repositories
+│       │   ├── conversations.py # Owned snapshots
+│       │   └── turns.py         # Immutable plans, fencing and replay
+│       ├── integrations/localgo/ # Authenticated cart HTTP / canonical catalog
 │       ├── flow/                # GoerFlow and state, separate from CLI
 │       ├── schemas/             # Chat envelope and typed product cards
 │       ├── tools/
-│       │   ├── catalog_tools.py # CrewAI BaseTool implementations (SearchMenuTool, GetMenuTool)
+│       │   ├── catalog_tools.py # Compatibility imports only
+│       │   ├── catalog/         # One read tool per file
+│       │   ├── cart/            # One cart tool per file; Flow-owned writes
 │       │   └── try-out-tools/   # Standalone deterministic per-tool smoke tests
 │       ├── web/
 │       │   └── index.html       # Browser chat UI
@@ -125,12 +130,27 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-04 | Goer auth/API, durable turn service/repository, router/cart planner/cards/web, integrations/tests/docs; LocalGo session/cart checkout/migration, mobile cart/assistant/payment clients and UI/tests/docs | Implement all five cart integration milestones with live activation disabled | Active; clean working trees; no live migrations or secrets changes |
+| *(No active agent locks)* | - | - | - | Ready for next task |
 
 ---
 
 ## 5. Recent Work
 
+- 2026-11-05: Implemented all five authenticated cart integration milestones
+  across this repository and `../LocalGo-Consumer-RN`: verified sessions/owned
+  conversations; durable command staging, fenced leases and retry reconciliation;
+  typed discovery/cart routing and grounded cart cards; shared mobile server
+  cart with persisted pending requests/account fences; and explicit immutable
+  revision-bound checkout with payment fingerprint verification, safe cancel,
+  idempotent publication/consumption, and stable mobile checkout IDs. Signed-in
+  discovery/planning now uses LocalGo's canonical 145-product snapshot; the
+  138-product JSON fixture remains for guest/demo. One tool per file retained;
+  CartCrew now has read tools only, and Python executes journaled writes.
+  Completed checks: 127 Goer tests, 116 pinned backend tests, all 8 tool smoke
+  scripts, 3 mobile and 4 browser Node cases, mobile TypeScript. No live model,
+  Auth, DB migration, native build, or Stripe calls. Two SQL migrations await
+  staging/RLS/concurrency verification; all activation flags remain false in
+  templates. Updated plan, handoff, README and activation/recovery runbook.
 - 2026-11-04: Completed the cart integration planning checkpoint (authoritative
   plan section 16). Application work is paused: next slice is verified Goer
   identity, followed by durable command staging/retry recovery, routing/cards,
