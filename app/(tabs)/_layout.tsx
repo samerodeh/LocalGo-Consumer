@@ -5,8 +5,9 @@ import { useTheme } from '../../src/theme/ThemeContext';
 import { useCartStore } from '../../src/store/cartStore';
 import { useOrdersStore } from '../../src/store/ordersStore';
 import { isInFlight } from '../../src/lib/orderFormat';
-// Goer chatbot disabled for now.
-// import { GoerSheet } from '../../src/components/goer/GoerSheet';
+import { GoerSheet } from '../../src/components/goer/GoerSheet';
+import { GoerFab } from '../../src/components/goer/GoerFab';
+import { authenticatedGoerEnabled } from '../../src/goer/authenticatedClient';
 
 export default function TabsLayout() {
   const { colors } = useTheme();
@@ -64,7 +65,7 @@ export default function TabsLayout() {
     </Tabs>
     {/* Single chat surface for the whole tab group — per-screen Modals would
         double-present since both tab screens stay mounted. */}
-    {/* <GoerSheet /> */}
+    {authenticatedGoerEnabled && <><GoerFab /><GoerSheet /></>}
     </View>
   );
 }

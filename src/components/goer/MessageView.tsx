@@ -5,6 +5,7 @@ import type { GoerMessage } from '../../goer/types';
 import { MessageBubble } from './MessageBubble';
 import { QuickReplies } from './QuickReplies';
 import { HandoffDivider } from './AgentBadge';
+import { ServerProductCards } from './ServerProductCards';
 import { MenuItemCards } from './MenuItemCards';
 import { CartSummaryCard } from './CartSummaryCard';
 import { OrderStatusCard } from './OrderStatusCard';
@@ -25,6 +26,8 @@ export const MessageView = memo(function MessageView({ message }: { message: Goe
       return <HandoffDivider from={message.from} to={message.to} />;
     case 'menu_items':
       return <MenuItemCards itemIDs={message.itemIDs} />;
+    case 'server_products':
+      return <ServerProductCards items={message.items} />;
     case 'cart_summary':
       return <CartSummaryCard snapshot={message.snapshot} />;
     case 'order_status':

@@ -1,3 +1,4 @@
+import { authenticatedGoerEnabled, runAuthenticatedGoerTurn } from './authenticatedClient';
 import { goerMsg, useGoerStore } from './goerStore';
 
 /**
@@ -15,7 +16,9 @@ export async function sendGoerMessage(rawText: string): Promise<void> {
   store.setStreaming(true);
 
   try {
-    if (store.mode === 'llm') {
+    if (authenticatedGoerEnabled) {
+      await runAuthenticatedGoerTurn(text);
+    } else if (store.mode === 'llm') {
       const { runGoerTurn } = await import('./agentLoop');
       await runGoerTurn(text);
     } else {
@@ -29,7 +32,8 @@ export async function sendGoerMessage(rawText: string): Promise<void> {
       .appendMessage(
         goerMsg({
           kind: 'system_note',
-          text: 'Something went wrong on my end — mind trying that again?',
+          text: authenticatedGoerEnabled && err instanceof Error ? err.message
+            : 'Something went wrong on my end — mind trying that again?',
         }),
       );
   } finally {

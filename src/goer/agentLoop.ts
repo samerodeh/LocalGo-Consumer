@@ -1,3 +1,4 @@
+import { serverCartEnabled } from '../lib/serverCart';
 import { buildGoerContext } from './context';
 import { executeTool } from './tools/executors';
 import { goerMsg, useGoerStore } from './goerStore';
@@ -79,6 +80,7 @@ export async function runGoerTurn(userText: string): Promise<void> {
       console.warn(`[goer] stream attempt ${attempt + 1} failed:`, err);
       const streamed = text.length > 0;
       if (attempt === 1 || streamed) {
+        if (serverCartEnabled) throw new Error('Connection interrupted. Check the server cart before retrying; offline replay is disabled.');
         // Downgrade for the rest of the session; the fallback NLU answers this
         // same input so the user never hits a dead end.
         const store = useGoerStore.getState();

@@ -116,6 +116,16 @@ export interface StagedOrder {
   cartHash: string;
 }
 
+export interface ServerProduct {
+  product_id: string;
+  merchant_id: string;
+  name: string;
+  display_price: string;
+  currency: string;
+  description?: string;
+  image_url?: string | null;
+}
+
 export interface CartSummarySnapshot {
   lines: { itemID: string; name: string; quantity: number; unitPrice: number }[];
   subtotal: number;
@@ -137,6 +147,7 @@ export interface OrderStatusInfo {
 export type GoerMessage = { id: string; createdAt: string; agent?: GoerAgentId } & (
   | { kind: 'text'; role: 'user' | 'assistant'; text: string }
   | { kind: 'menu_items'; itemIDs: string[] }
+  | { kind: 'server_products'; items: ServerProduct[] }
   | { kind: 'cart_summary'; snapshot: CartSummarySnapshot }
   | { kind: 'order_confirmation'; stagedOrderID: string }
   | { kind: 'order_status'; info: OrderStatusInfo }

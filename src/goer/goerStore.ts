@@ -162,7 +162,7 @@ export const useGoerStore = create<GoerState>((set, get) => ({
           kind: 'text',
           role: 'assistant',
           agent: 'concierge',
-          text: `Hey${firstName ? ` ${firstName}` : ''}! I'm Goer — I can walk you through Al Taib's menu, build your cart, and place the order right here. What are you craving?`,
+          text: `Hey${firstName ? ` ${firstName}` : ''}! I'm Goer — I can help you browse the menu and edit your cart. Use the app's checkout to confirm an order. What are you craving?`,
         }),
         goerMsg({ kind: 'quick_replies', options: DEFAULT_QUICK_REPLIES }),
       );
