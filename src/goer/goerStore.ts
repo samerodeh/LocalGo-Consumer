@@ -422,13 +422,16 @@ export const useGoerStore = create<GoerState>((set, get) => ({
     const clear = () => {
       if (ownerGeneration !== epoch) return;
       set({ uiMessages: [], apiMessages: [], activeAgent: 'concierge', stagedOrder: null,
-        chatTip: DEFAULT_TIP, streamingText: '', isStreaming: false, isHistoryLoading: false, unread: 0 });
+        chatTip: DEFAULT_TIP, streamingText: '', isStreaming: false, unread: 0 });
       schedulePersist(get);
     };
     if (serverCartEnabled && process.env.EXPO_PUBLIC_GOER_API_URL && owner) {
       void import('./authenticatedClient').then(module => module.resetAuthenticatedConversation(owner)).then(clear)
         .catch(error => { if (ownerGeneration === epoch) get().appendMessage(goerMsg({ kind: 'system_note', text: error.message })); })
         .finally(() => { if (ownerGeneration === epoch) set({ isHistoryLoading: false }); });
-    } else clear();
+    } else {
+      clear();
+      if (ownerGeneration === epoch) set({ isHistoryLoading: false });
+    }
   },
 }));

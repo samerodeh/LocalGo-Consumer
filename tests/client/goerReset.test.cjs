@@ -56,7 +56,12 @@ test('New conversation locks synchronously against sends, history switches and a
   assert.equal(h.turnCalls(), 0);
   assert.equal(h.resetCalls(), 1);
   assert.equal(h.store.getState().uiMessages.length, 1);
-  h.finish(); await tick();
+  let lockedDuringClear = false;
+  const unsubscribe = h.store.subscribe((state, previous) => {
+    if (previous.uiMessages.length && !state.uiMessages.length) lockedDuringClear = state.isHistoryLoading;
+  });
+  h.finish(); await tick(); unsubscribe();
+  assert.equal(lockedDuringClear, true, 'synchronous subscribers cannot send before reset finally releases its lock');
   assert.equal(h.store.getState().isHistoryLoading, false);
   assert.equal(h.store.getState().uiMessages.length, 0);
   await h.send('new conversation');
