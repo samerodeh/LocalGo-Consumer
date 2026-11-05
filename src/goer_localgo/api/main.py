@@ -3,10 +3,11 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from goer_localgo.api.auth import Session, optional_session
 from goer_localgo.domain.conversations import ConversationConflict, ConversationNotFound
 from goer_localgo.flow.goer_flow import TurnInput, create_conversation, run_conversation_turn
 from goer_localgo.schemas.chat import Card, ChatEnvelope, OpenProductAction
@@ -37,6 +38,7 @@ class ConversationResponse(BaseModel):
 
 class TurnRequest(TurnInput):
     model_config = ConfigDict(extra="forbid")
+    request_id: UUID | None = None
 
 
 # Development only: new routes share a demo principal until JWT auth is added.
@@ -88,25 +90,27 @@ async def _execute_turn(
 
 
 @app.post("/v1/conversations", response_model=ConversationResponse, status_code=201)
-def new_conversation() -> ConversationResponse:
+def new_conversation(session: Session | None = Depends(optional_session)) -> ConversationResponse:
     try:
-        return ConversationResponse(conversation_id=create_conversation(DEMO_USER_ID))
+        return ConversationResponse(conversation_id=create_conversation(session.user_id if session else DEMO_USER_ID))
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Could not create conversation.") from exc
 
 
 @app.post("/v1/conversations/{conversation_id}/turns", response_model=ChatEnvelope)
-async def conversation_turn(conversation_id: UUID, request: TurnRequest) -> ChatEnvelope:
-    return await _execute_turn(request.message, conversation_id, DEMO_USER_ID)
+async def conversation_turn(conversation_id: UUID, request: TurnRequest,
+                            session: Session | None = Depends(optional_session)) -> ChatEnvelope:
+    return await _execute_turn(request.message, conversation_id, session.user_id if session else DEMO_USER_ID)
 
 
 @app.post("/v1/chat", response_model=ChatResponse)
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest) -> ChatResponse:
+async def chat(request: ChatRequest, session: Session | None = Depends(optional_session)) -> ChatResponse:
+    owner = session.user_id if session else DEMO_USER_ID
     response = await _execute_turn(
-        _latest_message(request), request.conversation_id, request.user_id,
+        _latest_message(request), request.conversation_id, owner,
     )
     return ChatResponse(
-        user_id=request.user_id, message=response.text,
+        user_id=owner, message=response.text,
         conversation_id=response.conversation_id, cards=response.cards, actions=response.actions,
     )
