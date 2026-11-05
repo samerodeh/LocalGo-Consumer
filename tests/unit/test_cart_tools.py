@@ -88,8 +88,9 @@ def test_upstream_errors_are_safe_and_redirects_not_followed(status, payload, co
 def test_adapter_refuses_non_cart_paths_without_network_calls():
     backend = LocalGoCartClient("https://backend.example", "token")
     for path in ["https://other.example/v1/cart", "/v1/cart-secret", "/v1/cart/../orders"]:
-        with pytest.raises(ValueError):
+        with pytest.raises(CartBackendError) as exc:
             backend.request("GET", path)
+        assert exc.value.code == "INVALID_CART_REQUEST"
 
 
 def test_network_failure_is_safe():

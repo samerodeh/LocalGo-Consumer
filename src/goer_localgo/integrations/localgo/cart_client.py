@@ -44,7 +44,7 @@ class LocalGoCartClient:
         # No model-controlled absolute URL or redirect may receive the token.
         if (not (path == "/v1/cart" or path.startswith("/v1/cart/"))
                 or "?" in path or "#" in path or ".." in path):
-            raise ValueError("Only LocalGo cart paths are permitted.")
+            raise CartBackendError("INVALID_CART_REQUEST", "The cart product ID or request path is invalid.")
         headers = {"Authorization": f"Bearer {self._access_token}"}
         if request_key is not None:
             headers["Idempotency-Key"] = request_key
