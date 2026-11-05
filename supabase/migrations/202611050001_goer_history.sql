@@ -1,5 +1,6 @@
 -- Display history only. Goer's fenced command journal remains authoritative
 -- for reasoning and cart retries; historical cards never execute mutations.
+BEGIN;
 CREATE TABLE public.goer_conversations (
     id uuid PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -85,3 +86,4 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.save_goer_history_turn(uuid, uuid, text, jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.save_goer_history_turn(uuid, uuid, text, jsonb) TO authenticated;
+COMMIT;
