@@ -133,6 +133,9 @@ def _verify_payment(order_id: str, body: PlaceOrderBody) -> float | None:
     else:
         metadata = raw_metadata.to_dict()
 
+    if metadata.get("app") == "localgo-server-cart":
+        raise HTTPException(503, "Server-cart payments must be reconciled with server cart checkout enabled.")
+
     if metadata.get("order_id") != order_id:
         raise HTTPException(402, "That payment belongs to a different order.")
 

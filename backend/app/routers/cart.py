@@ -4,13 +4,19 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path
 
+from .. import config
 from ..auth import CustomerSession, require_customer
 from ..cart.manager import mutate_cart
 from ..cart.checkout import CheckoutRepository
 from ..cart.models import AddLineInput, Cart, CartCommand, CartError, RevisionInput, SetQuantityInput
 from ..cart.repository import CartRepository, SupabaseCartRepository
 
-router = APIRouter(prefix="/v1/cart", tags=["cart"])
+def require_server_cart():
+    if not config.SERVER_CART_ENABLED:
+        raise HTTPException(503, "Server carts are disabled on this backend.")
+
+
+router = APIRouter(prefix="/v1/cart", tags=["cart"], dependencies=[Depends(require_server_cart)])
 Customer = Annotated[CustomerSession, Depends(require_customer)]
 ProductId = Annotated[str, Path(min_length=1, max_length=200)]
 RequestKey = Annotated[str, Header(alias="Idempotency-Key", min_length=1, max_length=200,

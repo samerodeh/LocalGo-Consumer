@@ -3,7 +3,7 @@ from uuid import uuid4
 import httpx
 import pytest
 
-from app import auth
+from app import auth, config
 from app.auth import CustomerSession, require_customer
 from app.main import app
 from app.routers.cart import cart_repository
@@ -11,7 +11,8 @@ from test_cart_manager import MemoryRepository
 
 
 @pytest.fixture
-def cart_client(client):
+def cart_client(client, monkeypatch):
+    monkeypatch.setattr(config, "SERVER_CART_ENABLED", True)
     repository = MemoryRepository()
     owner = uuid4()
     app.dependency_overrides[require_customer] = lambda: CustomerSession(owner, "user-token")
@@ -21,6 +22,11 @@ def cart_client(client):
     finally:
         app.dependency_overrides.pop(require_customer, None)
         app.dependency_overrides.pop(cart_repository, None)
+
+
+def test_server_cart_flag_is_closed_by_default(client):
+    assert client.get('/v1/cart').status_code == 503
+    assert client.post('/v1/cart/clear', json={'cart_revision': 0}, headers={'Idempotency-Key': 'one'}).status_code == 503
 
 
 def test_authenticated_rest_lifecycle_and_replay(cart_client):
@@ -71,6 +77,7 @@ def test_mutations_require_a_safe_idempotency_key(cart_client):
 
 
 def test_cart_routes_require_real_authentication(client, supabase_on, monkeypatch):
+    monkeypatch.setattr(config, "SERVER_CART_ENABLED", True)
     assert client.get("/v1/cart").status_code == 401
 
     class Client:
