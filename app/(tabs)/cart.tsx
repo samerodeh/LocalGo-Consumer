@@ -8,6 +8,7 @@ import { useTheme, type ThemePalette } from '../../src/theme/ThemeContext';
 import { DisplayText } from '../../src/components/DisplayText';
 import { GradientButton } from '../../src/components/GradientButton';
 import { RemoteImage } from '../../src/components/RemoteImage';
+import { CartNotice } from '../../src/components/CartNotice';
 import { ConfirmModal } from '../../src/components/ConfirmModal';
 import { useCartStore } from '../../src/store/cartStore';
 import { useAddressStore } from '../../src/store/addressStore';
@@ -114,6 +115,7 @@ export default function CartScreen() {
         </View>
         <View style={styles.empty}>
           <Ionicons name="cart-outline" size={48} color={colors.gray400} />
+          <CartNotice />
           <Text style={styles.emptyTitle}>Your cart is empty</Text>
           <Text style={styles.emptyBody}>Add items from a restaurant to get started.</Text>
         </View>
@@ -130,6 +132,7 @@ export default function CartScreen() {
         </DisplayText>
       </View>
 
+      <CartNotice />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}>
         {lines.map((line) => (
           <View key={line.item.id} style={styles.row}>

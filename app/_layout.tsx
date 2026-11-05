@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { AppState, View } from 'react-native';
+import { useCartStore } from '../src/store/cartStore';
+import { serverCartEnabled } from '../src/lib/serverCart';
+import { useGoerStore } from '../src/goer/goerStore';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
@@ -30,6 +33,8 @@ function RootNavigator() {
   const syncDeliveryStatus = useOrdersStore((s) => s.syncDeliveryStatus);
   const configureAddresses = useAddressStore((s) => s.configure);
   const configureCards = usePaymentStore((s) => s.configure);
+  const configureCart = useCartStore((s) => s.configure);
+  const configureGoerSession = useGoerStore((s) => s.configure);
   // const configureGoer = useGoerStore((s) => s.configure);
 
   useEffect(() => {
@@ -41,8 +46,18 @@ function RootNavigator() {
     configureOrders(currentEmail);
     configureAddresses(currentEmail);
     configureCards(currentEmail);
-    // configureGoer(currentEmail);
-  }, [currentEmail, configureOrders, configureAddresses, configureCards]);
+    void configureCart(currentEmail);
+    if (serverCartEnabled) void configureGoerSession(currentEmail);
+  }, [currentEmail, configureOrders, configureAddresses, configureCards, configureCart, configureGoerSession]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active' && serverCartEnabled && currentEmail) {
+        void useCartStore.getState().refresh().catch(() => {});
+      }
+    });
+    return () => subscription.remove();
+  }, [currentEmail]);
 
   // Register this device for push (new-order-accepted / chat-message alerts)
   // once signed in; re-runs harmlessly if the account changes.

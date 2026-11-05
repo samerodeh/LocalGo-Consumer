@@ -1,3 +1,5 @@
+import { serverCartEnabled } from '../../lib/serverCart';
+import { executeServerCartAction } from './serverCartExecutors';
 import type { MenuItem } from '../../types';
 import { alTaib } from '../../data/restaurants';
 import { useCartStore } from '../../store/cartStore';
@@ -405,6 +407,9 @@ export async function executeTool(name: string, input: ToolInput): Promise<ToolE
   const executor = executors[name];
   if (!executor) return { resultText: `Unknown tool "${name}".`, isError: true };
   try {
+    if (serverCartEnabled && ['add_to_cart', 'remove_from_cart', 'set_quantity', 'view_cart', 'clear_cart'].includes(name)) {
+      return await executeServerCartAction(name, input ?? {});
+    }
     return await executor(input ?? {});
   } catch (err) {
     return {

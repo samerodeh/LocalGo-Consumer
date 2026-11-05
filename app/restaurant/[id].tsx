@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { accentGradient } from '../../src/theme/theme';
 import { useTheme, type ThemePalette } from '../../src/theme/ThemeContext';
+import { CartNotice } from '../../src/components/CartNotice';
 import { DisplayText } from '../../src/components/DisplayText';
 import { RemoteImage } from '../../src/components/RemoteImage';
 import { restaurantById } from '../../src/data/restaurants';
@@ -73,6 +74,7 @@ export default function RestaurantMenuScreen() {
           </Pressable>
         </View>
 
+        <CartNotice />
         {/* Header */}
         <View style={styles.headerBlock}>
           <View style={styles.headerRow}>
