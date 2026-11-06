@@ -31,7 +31,7 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | Typed checkout committed; connected acceptance awaits private development setup |
+| Agent | 2026-11-06 | backend/app/postgrest.py; backend/app/mailer.py; backend/app/routers/account.py; backend/tests/; backend/.env.example; backend/README.md; AGENTS.md | Support Supabase secret/publishable API keys without JWT bearer misuse; retain legacy key compatibility | Active; backend only, no credentials or activation flags changed |
 
 ## Recent work
 
