@@ -20,6 +20,16 @@ from goer_localgo.tools.cart.clear_cart import ClearCartTool
 from goer_localgo.tools.cart.remove_cart_line import RemoveCartLineTool
 from goer_localgo.tools.cart.update_cart_line import UpdateCartLineTool
 
+# The assistant never takes payments or changes orders; the app's chat checkout
+# commands do, with explicit confirmation. Point the customer to them.
+UNSUPPORTED_REPLY = (
+    "I can't take payments or change orders myself, but you can check out right here: "
+    'type "deliver to <street address>" then "use address 1" to set the address, '
+    '"tip $2.00" for a tip, and "checkout" to review your total. '
+    "Payment only happens after you type the exact CONFIRM ORDER code shown with the summary. "
+    "Order tracking and refunds aren't available in chat yet."
+)
+
 WRITE_TOOLS = {"add": AddCartItemTool, "set": UpdateCartLineTool,
                "remove": RemoveCartLineTool, "clear": ClearCartTool}
 
@@ -93,7 +103,7 @@ def _authenticated_turn(message: str, conversation_id: str, request_id: str, own
                                            "cart": cart.model_dump(), "text": proposed.text})
                 else:
                     text = ("Cart editing is not enabled for this environment." if intent == "cart"
-                            else "Checkout, payments, and order support are not available in this assistant yet. Use the app's explicit checkout flow.")
+                            else UNSUPPORTED_REPLY)
                     journal.stage(record, {"text": text})
 
         plan = record.plan
