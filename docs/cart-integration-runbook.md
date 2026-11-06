@@ -1,6 +1,6 @@
 # Authenticated cart integration: setup and recovery
 
-Updated 2026-11-05. This is the operational companion to section 16 of
+Updated 2026-11-06. This is the operational companion to section 16 of
 [the architecture plan](localgo-delivery-architecture-plan.md), not a new roadmap.
 
 ## Status
@@ -32,12 +32,22 @@ selection, explicit pending-turn retry and New conversation are also implemented
 A completed response is cached before cloud publication; a history-only retry
 never sends another Goer/cart request. Historical cart cards never update a cart.
 
-**Not activated or live-verified:** the connected Supabase migrations have not been
-applied; no real-model call, native-app session or Stripe sandbox payment was
-performed. Read-only checks verified Supabase Auth availability and a Stripe test
-account (`livemode=false`). The backend service-role key is empty and no database
-admin connection is configured. Supply credentials privately in backend `.env`,
-never in chat or mobile configuration. No secret files or activation flags changed.
+**Connected development checks (2026-11-06):** Auth and service-key validation
+return 200. Service-role reads with `limit=0` succeed for all five expected
+cart/checkout/history tables; the expected columns and four RPC names are exposed.
+Public-key reads return 401 / `42501`, consistent with anonymous denial. These
+checks confirm connectivity and expected schema exposure, not exact migration
+application, SQL grants/policies, authenticated owner isolation or concurrency.
+Sibling records report user-run migrations; do not blindly reapply them.
+
+The backend service key is now present and valid, superseding the earlier empty-key
+handoff. No database-admin connection or designated test sessions were available.
+The safety guard blocked private `.env` access during activation; no configuration,
+accounts, migrations or payments were changed. Services respond on 8000/8100/8081,
+but cart remains feature-gated. No native SDK/device is available for PaymentSheet.
+Next: privately configure the non-secret URLs/flags below, restart the services,
+and verify authenticated ownership/retries/history and native sandbox checkout.
+Earlier guest real-model verification does not establish signed-in acceptance.
 
 Guest browser/CLI discovery still uses the 138-product JSON fixture. Signed-in
 Goer turns use LocalGo's canonical 145-product catalog, scoped per request so
@@ -105,9 +115,10 @@ Review and apply all three migrations above, in order, to the **existing
 development** LocalGo Supabase project; do not create a second project or use
 production. A service-role HTTP key alone cannot apply DDL: use the owner's
 Supabase SQL Editor or a private PostgreSQL/admin connection. All three execute
-in isolated PGlite PostgreSQL tests, including RPC/RLS assertions, but have not
-been applied to connected Supabase. Real deployment/concurrency verification
-is still required. Verify:
+in isolated PGlite PostgreSQL tests, including RPC/RLS assertions. Connected development now exposes the expected
+tables, columns and RPC names following user-run migrations; inspect the actual
+policies/grants and migration state before applying anything again. Real
+ownership/concurrency verification is still required. Verify:
 
 - Authenticated users can read only their own cart and cannot write directly.
 - Cart/checkout RPCs are executable by the service role only.
@@ -325,9 +336,9 @@ with owner-controlled admin access before activating customer flags.
 
 ## Verification and remaining gates
 
-Latest checks (2026-11-05): **127 Goer tests**, **116 pinned LocalGo backend tests**,
-**22 mobile/SQL Node cases** (zero skips), mobile TypeScript and an Android
-JavaScript/assets export passed. Goer's suite includes the 4 browser-script cases.
+Latest rerun (2026-11-06): **127 Goer tests**, **122 pinned LocalGo backend tests**,
+**36 mobile/SQL Node cases** (zero skips) and mobile TypeScript passed. The previous
+Android JavaScript/assets export passed; it was not rerun during this verification. Goer's suite includes the 4 browser-script cases.
 The 8 individual tool smoke scripts passed in the previous implementation session;
 no tools changed in this session. The Android export is not a native build or
 PaymentSheet runtime test.
