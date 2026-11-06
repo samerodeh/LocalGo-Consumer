@@ -23,7 +23,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading, errorMessage, clearError } = useAuthStore();
+  const { login, isLoading, errorMessage, clearError, signUpNotice, clearSignUpNotice } = useAuthStore();
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -58,6 +58,7 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.fields}>
+            {signUpNotice ? <Text style={styles.notice}>{signUpNotice}</Text> : null}
             <TextInput
               placeholder="Email"
               placeholderTextColor={colors.gray400}
@@ -94,7 +95,10 @@ export default function LoginScreen() {
           <GradientButton
             title="Sign In"
             loading={isLoading}
-            onPress={() => login(email, password)}
+            onPress={() => {
+              clearSignUpNotice();
+              login(email, password);
+            }}
             style={styles.cta}
           />
 
@@ -144,6 +148,7 @@ const styles = StyleSheet.create({
     color: colors.navy,
   },
   error: { color: colors.danger, fontSize: 13 },
+  notice: { color: '#15803d', fontSize: 14, fontWeight: '600', textAlign: 'center' },
   forgotLink: { alignSelf: 'flex-end' },
   forgotText: { color: colors.orange, fontSize: 13, fontWeight: '600' },
   cta: { marginTop: 20 },

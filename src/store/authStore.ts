@@ -50,16 +50,23 @@ interface AuthState {
   bootstrapped: boolean;
   errorMessage: string | null;
   currentUser: StoredUser | null;
+  /** Shown on the Sign In screen after a successful sign-up. */
+  signUpNotice: string | null;
+  /** True while signUp runs: the session Supabase issues on sign-up is used
+   *  only to save the profile, then discarded so the user signs in explicitly. */
+  signingUp: boolean;
 
   restoreSession: () => Promise<void>;
   clearError: () => void;
+  clearSignUpNotice: () => void;
+  /** Resolves true when the account was created; the user is left signed out. */
   signUp: (input: {
     firstName: string;
     lastName: string;
     email: string;
     password: string;
     confirmPassword: string;
-  }) => Promise<void>;
+  }) => Promise<boolean>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   /** Emails a password-reset link that deep-links back into the app. */
@@ -77,8 +84,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   bootstrapped: false,
   errorMessage: null,
   currentUser: null,
+  signUpNotice: null,
+  signingUp: false,
 
   clearError: () => set({ errorMessage: null }),
+  clearSignUpNotice: () => set({ signUpNotice: null }),
 
   restoreSession: async () => {
     if (isSupabaseConfigured && supabase) {
@@ -89,6 +99,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         bootstrapped: true,
       });
       supabase.auth.onAuthStateChange((_event, session) => {
+        if (session && get().signingUp) return;
         set({
           currentUser: session?.user ? profileFromSupabaseUser(session.user) : null,
           isLoggedIn: Boolean(session?.user),
@@ -115,50 +126,63 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (!first || !last) {
       set({ errorMessage: 'Please enter your first and last name.' });
-      return;
+      return false;
     }
     if (!EMAIL_RE.test(normalizedEmail)) {
       set({ errorMessage: 'Please enter a valid email address.' });
-      return;
+      return false;
     }
     const pwIssue = passwordError(password);
     if (pwIssue) {
       set({ errorMessage: pwIssue });
-      return;
+      return false;
     }
     if (password !== confirmPassword) {
       set({ errorMessage: 'Passwords do not match.' });
-      return;
+      return false;
     }
 
     if (isSupabaseConfigured && supabase) {
-      set({ isLoading: true });
-      const { data, error } = await supabase.auth.signUp({
-        email: normalizedEmail,
-        password,
-        options: { data: { first_name: first, last_name: last } },
-      });
-      if (error) {
-        const message = /already registered|already exists/i.test(error.message)
-          ? 'An account with this email already exists.'
-          : error.message;
-        set({ isLoading: false, errorMessage: message });
-        return;
-      }
-      if (data.user) {
-        await supabase.from('customers').insert({
-          id: data.user.id,
-          first_name: first,
-          last_name: last,
+      set({ isLoading: true, signingUp: true });
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: { data: { first_name: first, last_name: last } },
         });
+        if (error) {
+          const message = /already registered|already exists/i.test(error.message)
+            ? 'An account with this email already exists.'
+            : error.message;
+          set({ errorMessage: message });
+          return false;
+        }
+        if (data.user) {
+          await supabase.from('customers').insert({
+            id: data.user.id,
+            first_name: first,
+            last_name: last,
+          });
+        }
+        // Projects without email confirmation return a live session here.
+        // Discard it so the user signs in explicitly with their new account.
+        if (data.session) await supabase.auth.signOut();
+        set({
+          isLoggedIn: false,
+          currentUser: null,
+          signUpNotice: data.session
+            ? 'Account created. Please sign in.'
+            : 'Account created. Check your email to confirm it, then sign in.',
+        });
+        return true;
+      } finally {
+        set({ isLoading: false, signingUp: false });
       }
-      set({ isLoading: false });
-      return;
     }
 
     if (await getUser(normalizedEmail)) {
       set({ errorMessage: 'An account with this email already exists.' });
-      return;
+      return false;
     }
 
     set({ isLoading: true });
@@ -175,8 +199,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       lockoutUntil: null,
     };
     await saveUser(user);
-    await saveSessionEmail(normalizedEmail);
-    set({ currentUser: user, isLoading: false, isLoggedIn: true });
+    set({ isLoading: false, signUpNotice: 'Account created. Please sign in.' });
+    return true;
   },
 
   login: async (email, password) => {

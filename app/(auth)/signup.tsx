@@ -105,9 +105,10 @@ export default function SignUpScreen() {
           <GradientButton
             title="Create Account"
             loading={isLoading}
-            onPress={() =>
-              signUp({ firstName, lastName, email, password, confirmPassword })
-            }
+            onPress={async () => {
+              const created = await signUp({ firstName, lastName, email, password, confirmPassword });
+              if (created) router.replace('/(auth)/login');
+            }}
             style={styles.cta}
           />
 
