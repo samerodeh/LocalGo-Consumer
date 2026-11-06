@@ -8,6 +8,7 @@ from crewai.agents.agent_builder.base_agent import BaseAgent
 from crewai.project import CrewBase, agent, crew, task
 
 from goer_localgo.integrations.localgo.cart_client import CartClient
+from goer_localgo.llm import get_llm
 from goer_localgo.schemas.cart import CartPlan
 from goer_localgo.tools.cart.get_cart import GetCartTool
 from goer_localgo.tools.catalog.get_product import GetProductTool
@@ -29,6 +30,7 @@ class CartCrew:
     def cart_agent(self) -> Agent:
         return Agent(
             config=self.agents_config["cart_agent"],
+            llm=get_llm(),
             tools=[GetCartTool(client=self._client), GetProductTool(), SearchMenuTool()],
             max_iter=6, max_retry_limit=0, allow_delegation=False, verbose=False,
         )
