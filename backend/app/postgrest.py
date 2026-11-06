@@ -29,15 +29,18 @@ def headers(
     prefer: str | None = None,
 ) -> dict[str, str]:
     """PostgREST headers. `bearer` is the caller's Supabase Auth access token
-    (forwarded verbatim so RLS runs as that user); without one the anon key
-    itself is the token. `service=True` switches to the service-role key."""
+    (forwarded verbatim so RLS runs as that user). Modern API keys go only
+    in `apikey`; legacy JWT keys also use Bearer. `service=True` selects the
+    backend secret/service-role key."""
     key = config.SUPABASE_SERVICE_ROLE_KEY if service else config.SUPABASE_ANON_KEY
-    token = bearer or key
     h = {
         "apikey": key,
-        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
+    if bearer:
+        h["Authorization"] = f"Bearer {bearer}"
+    elif not key.startswith(("sb_secret_", "sb_publishable_")):
+        h["Authorization"] = f"Bearer {key}"
     if prefer:
         h["Prefer"] = prefer
     return h

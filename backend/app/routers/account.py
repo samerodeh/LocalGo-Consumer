@@ -117,10 +117,7 @@ async def delete_account(authorization: str | None = Header(default=None)):
     try:
         gone = await client.delete(
             f"{AUTH_URL}/admin/users/{uid}",
-            headers={
-                "apikey": config.SUPABASE_SERVICE_ROLE_KEY,
-                "Authorization": f"Bearer {config.SUPABASE_SERVICE_ROLE_KEY}",
-            },
+            headers=headers(service=True),
         )
     except Exception as exc:  # noqa: BLE001
         print(f"[account] auth delete threw: {type(exc).__name__}: {exc}")

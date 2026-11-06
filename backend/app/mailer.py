@@ -20,7 +20,7 @@ from typing import Any
 import httpx
 
 from . import config
-from .postgrest import client
+from .postgrest import client, headers
 
 # A pickup photo is a phone snapshot of a bag on a counter. Anything larger than
 # this is not a photo we want to push through an SMTP relay (many cap the whole
@@ -40,10 +40,7 @@ async def customer_email(customer_id: str) -> str | None:
     try:
         res = await client.get(
             f"{config.SUPABASE_URL}/auth/v1/admin/users/{customer_id}",
-            headers={
-                "apikey": config.SUPABASE_SERVICE_ROLE_KEY,
-                "Authorization": f"Bearer {config.SUPABASE_SERVICE_ROLE_KEY}",
-            },
+            headers=headers(service=True),
         )
     except httpx.HTTPError as exc:
         print(f"[mailer] auth lookup failed: {exc}")
