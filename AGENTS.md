@@ -247,11 +247,22 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | Localhost signed-in acceptance passed; native/phone checkout deferred by owner |
+| *(No active work locks)* | - | - | - | Browser sandbox checkout verified (one paid order); remaining: decline/cancel/3DS/stale-code browser checks, native build, production gates |
 
 ---
 
 ## 5. Recent Work
+
+- 2026-11-06: Browser (Expo web) sandbox checkout now uses Stripe Payment Element
+  (sibling `payments.web.ts`); owner completed one payment, verified read-only as one
+  succeeded test-mode PaymentIntent ($13.26 CAD), one order with the same ID and one
+  consumed cart revision. Chat checkout phrases in sentences open the summary; Goer's
+  unsupported reply lists the chat commands. Added category-aware `search_menu`, card
+  data refusal before model/storage/tracing (Goer API and mobile send) and in-process
+  turn rate limits (20/min, 200/hour; multi-host needs a shared store). Replies average
+  ~2.4 s warm after reusing model clients and startup warm-up. 164 Goer tests, smoke
+  tests, 41 mobile/SQL cases and TypeScript pass. Decline/cancel/3DS/stale-code browser
+  checks, native build and production gates remain.
 
 - 2026-11-06: Localhost signed-in acceptance with flags enabled (backend 401 when
   unsigned, was 503). Two temporary development accounts were created, tested and
