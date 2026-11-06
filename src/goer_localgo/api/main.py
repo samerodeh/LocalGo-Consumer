@@ -17,11 +17,35 @@ from goer_localgo.domain.turns import TurnPending
 from goer_localgo.flow.authenticated import run_authenticated_turn
 from goer_localgo.integrations.localgo.cart_client import LocalGoCartClient
 from goer_localgo.integrations.localgo.catalog_repository import LocalGoCatalogRepository
-from goer_localgo.domain.conversations import ConversationConflict, ConversationNotFound
+from goer_localgo.domain.conversations import (
+    ConversationConflict, ConversationNotFound, get_conversation_repository,
+)
 from goer_localgo.flow.goer_flow import TurnInput, create_conversation, run_conversation_turn
 from goer_localgo.llm import warm_up
 from goer_localgo.observability import flush, setup_tracing
 from goer_localgo.schemas.chat import Card, ChatEnvelope, OpenProductAction
+
+
+logger = logging.getLogger(__name__)
+
+
+def retention_days() -> float:
+    try:
+        return float(os.environ.get("GOER_RETENTION_DAYS", "90"))
+    except ValueError:
+        return 90.0
+
+
+async def _purge_periodically() -> None:
+    """Delete conversations inactive for GOER_RETENTION_DAYS, now and every 24 h."""
+    while True:
+        try:
+            removed = await asyncio.to_thread(get_conversation_repository().purge_inactive, retention_days())
+            if removed:
+                logger.info("Purged %d inactive Goer conversations", removed)
+        except Exception as exc:
+            logger.warning("Conversation purge skipped (%s)", type(exc).__name__)
+        await asyncio.sleep(24 * 3600)
 
 
 @asynccontextmanager
@@ -32,15 +56,17 @@ async def lifespan(_app: FastAPI):
         setup_tracing()
         await asyncio.to_thread(warm_up)
     except Exception as exc:
-        logging.getLogger(__name__).warning("Startup warm-up skipped (%s)", type(exc).__name__)
+        logger.warning("Startup warm-up skipped (%s)", type(exc).__name__)
+    purge = asyncio.create_task(_purge_periodically())
     yield
+    purge.cancel()
     flush()
 
 
 app = FastAPI(title="Goer AI", version="0.1.0", lifespan=lifespan)
 origins = [origin.strip() for origin in os.environ.get("GOER_ALLOWED_ORIGINS", "").split(",") if origin.strip()]
 if origins:
-    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["POST", "GET"],
+    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["POST", "GET", "DELETE"],
                        allow_headers=["Authorization", "Content-Type"], allow_credentials=False)
 web_dir = Path(__file__).resolve().parent.parent / "web"
 
@@ -134,6 +160,21 @@ def _card_refusal(conversation_id: UUID, turn_id: UUID | None) -> ChatEnvelope:
     # Not stored, traced or sent to the model: the message itself is discarded.
     return ChatEnvelope(conversation_id=conversation_id, turn_id=turn_id or uuid4(),
                         text=CARD_REFUSAL, trace_id=uuid4())
+
+
+@app.delete("/v1/me/data")
+async def delete_my_data(session: Session | None = Depends(optional_session)) -> dict[str, int]:
+    """Delete every Goer conversation and journaled turn of the signed-in user.
+
+    Called by the app's account deletion before the LocalGo account is closed.
+    """
+    if session is None:
+        raise HTTPException(401, "A signed-in customer token is required.")
+    try:
+        removed = await asyncio.to_thread(get_conversation_repository().delete_user_data, session.user_id)
+    except Exception:
+        raise HTTPException(503, "Could not delete Goer data. Nothing was changed; try again.") from None
+    return {"deleted_conversations": removed}
 
 
 @app.post("/v1/conversations", response_model=ConversationResponse, status_code=201)
