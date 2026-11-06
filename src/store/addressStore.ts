@@ -49,12 +49,16 @@ function sortAddresses(list: Address[]): Address[] {
   });
 }
 
+let ownerGeneration = 0;
+
 export const useAddressStore = create<AddressState>((set, get) => ({
   ownerEmail: null,
   allAddresses: [],
   defaultAddress: null,
 
   configure: async (email) => {
+    const generation = ++ownerGeneration;
+    set({ ownerEmail: email, allAddresses: [], defaultAddress: null });
     if (!email) {
       set({ ownerEmail: null, allAddresses: [], defaultAddress: null });
       return;
@@ -66,6 +70,7 @@ export const useAddressStore = create<AddressState>((set, get) => ({
       await saveAddresses(email, list);
       list = sortAddresses(list);
     }
+    if (generation !== ownerGeneration || get().ownerEmail !== email) return;
     set({
       ownerEmail: email,
       allAddresses: list,
@@ -74,15 +79,18 @@ export const useAddressStore = create<AddressState>((set, get) => ({
   },
 
   setDefault: async (id) => {
+    const generation = ownerGeneration;
     const email = get().ownerEmail;
     if (!email) return;
     const list = get().allAddresses.map((a) => ({ ...a, isDefault: a.id === id }));
     const sorted = sortAddresses(list);
     await saveAddresses(email, sorted);
+    if (generation !== ownerGeneration || get().ownerEmail !== email) return;
     set({ allAddresses: sorted, defaultAddress: sorted.find((a) => a.isDefault) ?? null });
   },
 
   save: async (input) => {
+    const generation = ownerGeneration;
     const email = get().ownerEmail;
     if (!email) return;
     let list = [...get().allAddresses];
@@ -136,16 +144,19 @@ export const useAddressStore = create<AddressState>((set, get) => ({
 
     const sorted = sortAddresses(list);
     await saveAddresses(email, sorted);
+    if (generation !== ownerGeneration || get().ownerEmail !== email) return;
     set({ allAddresses: sorted, defaultAddress: sorted.find((a) => a.isDefault) ?? null });
   },
 
   remove: async (id) => {
+    const generation = ownerGeneration;
     const email = get().ownerEmail;
     if (!email) return;
     let list = get().allAddresses.filter((a) => a.id !== id);
     if (list.length > 0 && !list.some((a) => a.isDefault)) list[0].isDefault = true;
     const sorted = sortAddresses(list);
     await saveAddresses(email, sorted);
+    if (generation !== ownerGeneration || get().ownerEmail !== email) return;
     set({ allAddresses: sorted, defaultAddress: sorted.find((a) => a.isDefault) ?? null });
   },
 }));
