@@ -79,6 +79,10 @@ completed implementation milestones with a working, live customer deployment.
 The user has now selected the **existing LocalGo mobile app** and confirmed
 that the already-connected Supabase project is **development-only**. Continue
 that integration; do not add browser checkout or activate production resources.
+The latest request is to order and explicitly confirm checkout through typed
+chat without a separate Cart screen. That path is implemented behind the flags;
+secure Stripe card entry/bank authentication still requires its native prompt.
+Strictly typing-only first-time card charging is not implemented or promised.
 The local runtime now works (Node 26.13.0). The development backend's service-role
 key is empty and no database-admin connection is configured, so live migration
 and cart verification remain blocked until private credentials are supplied.
@@ -92,7 +96,7 @@ and cart verification remain blocked until private credentials are supplied.
 | Cart planning | Discovery/Cart routing exists. CartCrew reads and proposes a typed plan; Python persists the exact command before executing it. No agent can charge or place orders. |
 | Conversation storage | Reasoning snapshots/turn journal use **local SQLite** (`GOER_CONVERSATION_DB`, default `~/.localgo/goer/conversations.sqlite3`). Mobile account-linked **display transcripts** use Supabase; historical cart cards never mutate state. Completed-response retries publish history without resending cart work. Cloud history does not reconstruct missing SQLite state; retention/deletion and multi-host persistence remain unfinished. |
 | Cart/checkout storage | All three migrations/RPC/RLS assertions execute in isolated PGlite PostgreSQL. They are **not applied to connected Supabase**; real concurrent-session behavior remains unverified. |
-| Checkout | Revision-locked quotes, explicit payment confirmation, payment fingerprint validation and retry/cancel recovery exist in code. Real Stripe sandbox checkout remains unverified. |
+| Checkout | Typed address/tip/checkout and exact summary-code confirmation reuse the existing native payment pipeline. Original owner/request-bound receipts survive account switches/restarts; consumed pins cannot create replacement payments. Stripe secure UI may still be required. Real sandbox checkout remains unverified. |
 
 Repositories remain separate: this repository owns Goer reasoning/conversations;
 `../LocalGo-Consumer-RN` owns customer authentication, canonical pricing, carts,
@@ -121,7 +125,7 @@ follow-up in the same conversation). No signup, PaymentIntent/charge or native
 app runtime was exercised.
 
 **Latest results (2026-11-05):** 127 Goer tests (including 4 browser Node cases),
-116 pinned backend tests, 22 mobile/SQL Node cases (zero skips), mobile TypeScript
+116 pinned backend tests, 36 mobile/SQL Node cases (zero skips), mobile TypeScript
 and Android JS/assets export passed. Exporting JS is **not a native build or
 PaymentSheet test**. The 8 tool smoke scripts passed previously; tools did not
 change this session. Verify localhost services next session instead of assuming
@@ -225,11 +229,29 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-05 | AGENTS.md; docs/cart-integration-runbook.md | Document chatbot-only checkout implementation and verification gates | Active; development only, missing database credentials/admin access and native test device |
+| *(No active work locks)* | - | - | - | Typed-checkout increment committed; real connected acceptance remains blocked by private setup |
 
 ---
 
 ## 5. Recent Work
+
+- 2026-11-05: Added typed mobile checkout controls without Cart-screen navigation:
+  verified address search/selection, tips, complete CAD summary, exact
+  `CONFIRM ORDER <code>` and cancellation. Models cannot authorize payments.
+  Original owner/request-scoped receipts persist before payment; account-switch,
+  overlapping-waiter and storage-interruption recovery retains the real order
+  reference and refuses replacement payments. Serialized address hydration and
+  edits prevent lost addresses. Recovery review findings reproduced/fixed;
+  all 36 mobile/SQL cases, TypeScript, Android JS/assets export, 127 Goer tests
+  and 116 pinned backend tests pass. External Auth/model/payment are doubled in
+  typed-flow tests; no native payment or signed-in connected acceptance occurred.
+  Read-only dev Supabase checks return `404 PGRST205` for cart/checkout/history
+  tables; service-role key remains empty and admin access/test account/device
+  are needed. Flags/secrets/live schema were not changed. Local probes: Goer
+  8000, backend 8100 (Stripe test), refreshed Metro 8081 return 200. Metro now
+  uses Wi-Fi `192.168.2.26` for the backend process override; recheck on restart.
+  Follow `docs/cart-integration-runbook.md` section 6. Do not claim typing-only
+  first-time card payment: Stripe's secure prompt/bank challenge is still required.
 
 - 2026-11-05: Started Goer (8000), pinned LocalGo backend (8100) and Expo
   dev-client/Metro (8081). Real headless Edge/live-model smoke passed: Al-Taib
