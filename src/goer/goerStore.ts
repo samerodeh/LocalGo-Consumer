@@ -92,8 +92,8 @@ interface GoerState {
   /** Snapshots the live cart + tip + address into a StagedOrder and shows the
    *  confirmation card. Never places the order. */
   stageOrder: () => { ok: true; staged: StagedOrder } | { ok: false; error: string };
-  /** The ONLY chat path that places an order — bound to the card's button. */
-  confirmStagedOrder: () => Promise<void>;
+  /** Explicit confirmation only; typed chat may publish the returned reply itself. */
+  confirmStagedOrder: (renderText?: boolean) => Promise<string>;
   clearChat: () => void;
 }
 
@@ -269,12 +269,16 @@ export const useGoerStore = create<GoerState>((set, get) => ({
   },
 
   setChatTip: (chatTip) => {
-    set({ chatTip });
+    const staged = get().stagedOrder;
+    if (staged?.status === 'placing') return;
+    set({ chatTip, stagedOrder: staged ? { ...staged, status: 'stale' } : null });
     schedulePersist(get);
   },
 
   setChatAddressId: (chatAddressId) => {
-    set({ chatAddressId });
+    const staged = get().stagedOrder;
+    if (staged?.status === 'placing') return;
+    set({ chatAddressId, stagedOrder: staged ? { ...staged, status: 'stale' } : null });
     schedulePersist(get);
   },
 
@@ -287,6 +291,11 @@ export const useGoerStore = create<GoerState>((set, get) => ({
 
     const { chatTip, chatAddressId } = get();
     const addressStore = useAddressStore.getState();
+    if (serverCartEnabled && (!get().ownerEmail || cart.ownerEmail !== get().ownerEmail
+        || addressStore.ownerEmail !== get().ownerEmail
+        || useAuthStore.getState().currentUser?.email !== get().ownerEmail)) {
+      return { ok: false, error: 'Wait for your signed-in cart and delivery addresses to finish loading.' };
+    }
     const address = chatAddressId
       ? addressStore.allAddresses.find((a) => a.id === chatAddressId) ?? addressStore.defaultAddress
       : addressStore.defaultAddress;
@@ -296,7 +305,7 @@ export const useGoerStore = create<GoerState>((set, get) => ({
     if (!address || locationProblem) {
       return {
         ok: false,
-        error: `${locationProblem} The user must fix this on the Address screen before checkout.`,
+        error: `${locationProblem} Type "deliver to <street address>" or "addresses" to choose a verified address here in chat.`,
       };
     }
 
@@ -321,22 +330,19 @@ export const useGoerStore = create<GoerState>((set, get) => ({
     return { ok: true, staged };
   },
 
-  confirmStagedOrder: async () => {
+  confirmStagedOrder: async (renderText = true) => {
+    const epoch = ownerGeneration;
     const staged = get().stagedOrder;
-    // Status guard doubles as duplicate-tap protection: 'placing' and 'placed'
-    // no-op here.
-    if (!staged || staged.status !== 'staged') return;
+    const reply = (text: string) => {
+      if (renderText && ownerGeneration === epoch) get().appendMessage(goerMsg({ kind: 'system_note', text }));
+      return text;
+    };
+    if (!staged || staged.status !== 'staged') return reply('No current checkout is ready. Type "checkout" to review your order first.');
 
     if (computeCartHash(useCartStore.getState().lines) !== staged.cartHash
         || (serverCartEnabled && staged.cartRevision !== useCartStore.getState().revision)) {
       set({ stagedOrder: { ...staged, status: 'stale' } });
-      get().appendMessage(
-        goerMsg({
-          kind: 'system_note',
-          text: 'Your cart changed after this summary was made — ask Goer to check out again for an updated total.',
-        }),
-      );
-      return;
+      return reply('Your cart changed after this summary was made. Type "checkout" for an updated total.');
     }
 
     const owner = get().ownerEmail;
@@ -352,27 +358,15 @@ export const useGoerStore = create<GoerState>((set, get) => ({
       customer: useAuthStore.getState().currentUser,
       cartRevision: staged.cartRevision,
     });
-    if (get().ownerEmail !== owner) return;
+    if (ownerGeneration !== epoch || get().ownerEmail !== owner) return 'Account changed during checkout. Reconcile the original account before trying again.';
 
     if (!result.ok) {
       // Re-staging (not discarding) means the confirmation card stays usable,
       // so a declined card or a dismissed sheet can just be retried.
       set({ stagedOrder: { ...staged, status: 'staged' } });
-      get().appendMessage(
-        goerMsg({
-          kind: 'system_note',
-          text: result.canceled
-            ? "Payment canceled — nothing was charged. Your cart is still here when you're ready."
-            : `Couldn't place the order: ${result.error}`,
-        }),
-      );
-      return;
-    }
-
-    // Charged but not dispatched. Surfaced in chat for the same reason the Cart
-    // screen alerts: the customer has paid and needs to know.
-    if (result.warning) {
-      get().appendMessage(goerMsg({ kind: 'system_note', text: result.warning }));
+      return reply(result.canceled
+        ? 'Payment canceled. Your cart is still here. Type "checkout" when you are ready.'
+        : `Checkout needs attention: ${result.error}. Do not start another order if payment may be pending.`);
     }
 
     const placed: StagedOrder = { ...staged, status: 'placed' };
@@ -381,15 +375,12 @@ export const useGoerStore = create<GoerState>((set, get) => ({
       placedOrders: { ...s.placedOrders, [placed.id]: placed },
     }));
 
+    const confirmation = result.warning
+      ? `Payment confirmed for order ${result.orderId}. ${result.warning}`
+      : `Order placed! Reference: ${result.orderId}. Your payment is confirmed.`;
+    if (!renderText) return confirmation;
+    reply(confirmation);
     const record = useOrdersStore.getState().orders[0];
-    get().appendMessage(
-      goerMsg({
-        kind: 'text',
-        role: 'assistant',
-        agent: 'tracker',
-        text: 'Order placed! 🎉 Al Taib is on it — I’ll keep an eye out for your driver.',
-      }),
-    );
     get().appendMessage(
       goerMsg({
         kind: 'order_status',
@@ -399,7 +390,7 @@ export const useGoerStore = create<GoerState>((set, get) => ({
           status: record?.status ?? 'Placed',
           etaMinutes: null,
           placedAt: record?.placedAt ?? new Date().toISOString(),
-          restaurantName: record?.restaurantName ?? 'Al Taib',
+          restaurantName: record?.restaurantName ?? 'Restaurant',
           totalCents: record?.totalCents ?? Math.round(placed.total * 100),
           driverAccepted: false,
         },
@@ -409,8 +400,9 @@ export const useGoerStore = create<GoerState>((set, get) => ({
     // Give the model the ground truth for the rest of the conversation.
     get().appendApiMessage({
       role: 'user',
-      content: `[system event] The user tapped Confirm and the order was placed successfully (total $${placed.total.toFixed(2)}). The cart is now empty.`,
+      content: `[system event] ${confirmation}`,
     });
+    return confirmation;
   },
 
   clearChat: () => {
