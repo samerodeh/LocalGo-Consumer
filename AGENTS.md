@@ -31,9 +31,21 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-06 | AGENTS.md; private backend/.env and .env.local | Verify development database access and configure authenticated mobile services | Active; no production changes or unconfirmed payments |
+| *(No active work locks)* | - | - | - | Connected schema exposure verified; private-file guard blocks activation, native acceptance pending |
 
 ## Recent work
+- 2026-11-06: Read-only development checks validate the configured service key
+  (Auth admin 200), service-role `limit=0` access to all five expected tables,
+  expected columns and four exposed RPC names. Anonymous table reads fail with
+  401 / `42501`. User-run migrations are recorded, but exact policies/grants,
+  owner isolation/concurrency still require connected acceptance; do not blindly
+  reapply migrations. Reran 122 pinned backend tests, 36 mobile/SQL cases with
+  zero skips, mobile TypeScript and sibling's 127 Goer tests successfully.
+  Private `.env` access was blocked by the safety guard during activation, so
+  no flags, secrets, accounts, schema or payments changed. Services 8000/8100/8081
+  respond; cart remains disabled. No designated test sessions/admin SQL connection
+  or native SDK/device available. Follow sibling runbook for private URL/flag
+  configuration, restart and real authenticated/native sandbox acceptance.
 
 - 2026-11-06: Added support for `sb_secret_`/`sb_publishable_` API keys in shared
   backend request headers; modern keys use only `apikey`, while real user JWTs
