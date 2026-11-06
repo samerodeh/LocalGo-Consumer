@@ -220,6 +220,46 @@ pending turn** must publish the exact cached envelope without another Goer/cart
 HTTP call. App restarts and A-B-A account switches must preserve that request ID.
 Do not allow a new turn, reset or conversation switch while recovery is pending.
 
+### 6. Order and check out from authenticated chat
+
+The flagged mobile chat now intercepts checkout controls deterministically; these
+commands are not agent payment tools and do not navigate to the Cart screen:
+
+1. Ask Goer to add an available product, for example
+   `Add one Cheese Pizza Slice from Al-Taib`.
+2. Type `addresses` and `use address 1` to choose a verified saved destination.
+   With no saved destination, type `deliver to <full street address and city>`,
+   verify a geocoded suggestion and type `use address 1`. Searching does not save
+   a destination; explicit selection saves it in the account-scoped address store.
+   Out-of-zone/unverified results are excluded. Address loads/saves are fenced
+   across account transitions.
+3. Optionally type `tip $0`, `tip $2.00` or `tip 15%`.
+4. Type `checkout`. Review items, destination, delivery fee, tip and CAD total.
+   This stages a summary only; it does not pay. Address/tip/cart changes invalidate
+   that summary.
+5. Type the exact `CONFIRM ORDER <eight-character-code>` shown in that summary.
+   Generic confirmation, an old code or a question does not authorize payment.
+6. Complete Stripe's secure PaymentSheet/bank challenge, if required. Payment
+   stays in the checkout flow; no separate Cart/Checkout screen is required.
+   The chat then shows the real order reference or an honest recovery warning.
+7. `cancel checkout` requests cancellation through the existing server recovery
+   path. Paid/processing checkouts cannot be released by this command.
+
+A strictly typing-only first-time card payment is **not implemented**: card
+numbers must never be collected in chat. Existing descriptive saved-card records
+are not chargeable Stripe tokens. Do not bypass PaymentSheet/bank authentication
+or claim saved-method charging exists. Completed local checkout replies are
+cached under the existing request UUID before cloud history publication; a
+history-only retry must not invoke payment or the agent again.
+
+The typed sequence is covered by connected client-module tests with external
+Auth/model/payment services doubled, not by a real signed-in native payment.
+A read-only development-project check on 2026-11-05 returned `404 PGRST205` for
+`customer_carts`, `customer_cart_checkouts`, `goer_conversations` and
+`goer_history_turns`; these tables are not visible in the connected schema cache.
+The backend service-role key is still empty. Apply/verify the three migrations
+with owner-controlled admin access before activating customer flags.
+
 ## Runtime contracts
 
 - `POST /v1/conversations` with a bearer token creates an owned conversation.
