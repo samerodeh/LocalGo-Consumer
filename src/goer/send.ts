@@ -1,5 +1,6 @@
 import { authenticatedGoerEnabled, runAuthenticatedGoerTurn } from './authenticatedClient';
 import { goerMsg, goerOwnerGeneration, useGoerStore } from './goerStore';
+import { isCheckoutChatCommand, runCheckoutChatCommand } from './checkoutChat';
 
 /**
  * Single entry point for user input from the chat UI (typed text and
@@ -21,7 +22,8 @@ export async function sendGoerMessage(rawText: string, retryPending = false): Pr
 
   try {
     if (authenticatedGoerEnabled) {
-      await runAuthenticatedGoerTurn(text);
+      await runAuthenticatedGoerTurn(text, isCheckoutChatCommand(text)
+        ? () => runCheckoutChatCommand(text) : undefined);
     } else if (store.mode === 'llm') {
       const { runGoerTurn } = await import('./agentLoop');
       await runGoerTurn(text);

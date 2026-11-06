@@ -20,6 +20,7 @@ function harness() {
   }).outputText;
   vm.runInNewContext(code, { module, exports: module.exports, Error, console: { warn() {} },
     require: name => {
+      if (name === './checkoutChat') return { isCheckoutChatCommand: () => false };
       if (name === './authenticatedClient') return { authenticatedGoerEnabled: true,
         runAuthenticatedGoerTurn: () => response };
       if (name === './goerStore') return { goerMsg: m => m,
