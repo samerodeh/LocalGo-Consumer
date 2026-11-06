@@ -29,6 +29,9 @@ class TurnInput(BaseModel):
 
 
 class GoerFlow(Flow[GoerState]):
+    # Stable name for traces; without it spans are named "Flow_<random id>".
+    name = "GoerDiscoveryFlow"
+
     @start()
     def load_context(self):
         products = []
