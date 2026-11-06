@@ -9,7 +9,7 @@ import { DELIVERY_ZONE, isInDeliveryZone } from './deliveryZone';
 
 /** True when the address carries usable geocoded coordinates. (0, 0) is the
  *  "never geocoded" sentinel written by older saves, not a real dropoff. */
-export function hasVerifiedCoordinates(address: Address): boolean {
+export function hasVerifiedCoordinates(address: Pick<Address, 'latitude' | 'longitude'>): boolean {
   const { latitude, longitude } = address;
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
   if (latitude === 0 && longitude === 0) return false;
@@ -22,7 +22,7 @@ export function isValidDeliveryLocation(address: Address | null): address is Add
 
 /** Null when the address is a valid delivery location, otherwise a
  *  user-facing explanation of what's missing. */
-export function deliveryLocationProblem(address: Address | null): string | null {
+export function deliveryLocationProblem(address: Pick<Address, 'addressLine' | 'latitude' | 'longitude'> | null): string | null {
   if (!address) {
     return 'Please add a delivery address before placing an order.';
   }
