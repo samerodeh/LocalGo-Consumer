@@ -1,6 +1,7 @@
 // Account deletion — a Google Play requirement for any app that offers sign-up.
 //
-// Two halves, and the local half always runs:
+// Three parts, and the local part always runs:
+//   * Goer — DELETE /v1/me/data removes Goer's conversations and turn journal.
 //   * Server — DELETE /account anonymizes this customer's orders, removes their
 //     chat messages, and closes the Supabase account (which cascades their
 //     profile row and push token). See backend/app/routers/account.py.
@@ -31,6 +32,23 @@ export async function deleteAccount(email: string | null): Promise<DeleteAccount
     // rather than wiping the device and leaving the account alive.
     if (!accessToken) {
       return { ok: false, error: 'Your session has expired. Sign in again and retry.' };
+    }
+
+    // Goer's own conversation journal is separate from LocalGo's database, so
+    // delete it first, while the session that proves ownership is still valid.
+    const goerUrl = process.env.EXPO_PUBLIC_GOER_API_URL?.replace(/\/+$/, '');
+    if (goerUrl) {
+      try {
+        const goer = await fetch(`${goerUrl}/v1/me/data`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!goer.ok) {
+          return { ok: false, error: 'We could not delete your Goer chat data. Nothing was deleted; please try again.' };
+        }
+      } catch {
+        return { ok: false, error: 'We could not reach Goer to delete your chat data. Nothing was deleted; please try again.' };
+      }
     }
 
     try {
