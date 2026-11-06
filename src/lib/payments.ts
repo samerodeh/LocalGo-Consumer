@@ -4,45 +4,27 @@
 // through `placeOrder`, which is called outside React, and
 // initPaymentSheet/presentPaymentSheet are module-level functions.
 //
-// The app never computes or sends an amount. It posts item ids and quantities;
-// the backend reprices from its own menu (backend/app/pricing.py) and returns a
-// client secret for the amount it decided. Whatever total the cart is showing
-// is a display value only.
+// The web build resolves payments.web.ts instead (Stripe.js Payment Element);
+// both share the backend quote logic in paymentIntent.ts.
 //
-// The publishable key also comes from that response rather than from a bundled
-// env var, so there is exactly one place a Stripe key is configured (the
-// backend) and the two can never drift apart.
+// The publishable key comes from the intent response rather than from a
+// bundled env var, so there is exactly one place a Stripe key is configured
+// (the backend) and the two can never drift apart.
 import {
   initPaymentSheet,
   initStripe,
   presentPaymentSheet,
 } from '@stripe/stripe-react-native';
-import type { CartLine } from '../types';
-import { API_URL, isBackendConfigured } from './api';
-import { serverCartEnabled } from './serverCart';
+import {
+  createPaymentIntent,
+  precheckQuote,
+  type PaymentInput,
+  type PaymentQuote,
+  type PayOutcome,
+} from './paymentIntent';
 
-/** Real card payments require the backend that issues the PaymentIntent. */
-export const isPaymentsConfigured = isBackendConfigured;
-
-export interface PaymentQuote {
-  paymentIntentId: string;
-  clientSecret: string;
-  publishableKey: string;
-  currency: string;
-  subtotalCents: number;
-  deliveryFeeCents: number;
-  tipCents: number;
-  /** What the customer will actually be charged, per the server. */
-  totalCents: number;
-  paymentStatus?: string;
-  cartRevision?: number;
-}
-
-export type PayOutcome =
-  | { status: 'succeeded'; paymentIntentId: string; quote: PaymentQuote }
-  /** User dismissed the sheet. Not an error — the caller should stay put and say nothing. */
-  | { status: 'canceled' }
-  | { status: 'failed'; message: string };
+export { createPaymentIntent, isPaymentsConfigured } from './paymentIntent';
+export type { PaymentQuote, PayOutcome } from './paymentIntent';
 
 let stripeReadyFor: string | null = null;
 
@@ -54,72 +36,13 @@ async function ensureStripe(publishableKey: string): Promise<void> {
 }
 
 /**
- * Ask the backend to price this cart and open a PaymentIntent for it.
- * Throws on any failure — the message is safe to show the user.
- */
-export async function createPaymentIntent(input: {
-  orderId: string;
-  lines: CartLine[];
-  tip: number;
-  accessToken: string | null;
-  cartRevision?: number;
-}): Promise<PaymentQuote> {
-  if (!API_URL) throw new Error('Payments are unavailable right now.');
-
-  const res = await fetch(`${API_URL}/payments/intent`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(input.accessToken ? { Authorization: `Bearer ${input.accessToken}` } : {}),
-    },
-    body: JSON.stringify({
-      order_id: input.orderId,
-      // Ids and quantities only. Prices are the server's business.
-      ...(serverCartEnabled ? { cart_revision: input.cartRevision }
-        : { items: input.lines.map((l) => ({ id: l.item.id, quantity: l.quantity })) }),
-      tip_cents: Math.round(input.tip * 100),
-    }),
-  });
-
-  if (!res.ok) {
-    // The backend's 422s are written for humans (unknown item, tip too large,
-    // menu unavailable), so surface them as-is when we can parse one out.
-    const detail = await res
-      .json()
-      .then((body) => (typeof body?.detail === 'string' ? body.detail : body?.detail?.message ?? null))
-      .catch(() => null);
-    throw new Error(detail ?? 'We could not start your payment. Please try again.');
-  }
-
-  const data = await res.json();
-  return {
-    paymentIntentId: data.payment_intent_id,
-    clientSecret: data.client_secret,
-    publishableKey: data.publishable_key,
-    currency: data.currency,
-    subtotalCents: data.subtotal_cents,
-    deliveryFeeCents: data.delivery_fee_cents,
-    tipCents: data.tip_cents,
-    totalCents: data.total_cents,
-    paymentStatus: data.payment_status,
-    cartRevision: data.cart_revision,
-  };
-}
-
-/**
  * Full charge: quote it, open the sheet, wait for the customer.
  *
  * Never throws — every failure comes back as a `PayOutcome` so the caller can
  * tell "user changed their mind" apart from "card declined", which matter
  * differently to the UI.
  */
-export async function payForOrder(input: {
-  orderId: string;
-  lines: CartLine[];
-  tip: number;
-  accessToken: string | null;
-  cartRevision?: number;
-}): Promise<PayOutcome> {
+export async function payForOrder(input: PaymentInput): Promise<PayOutcome> {
   let quote: PaymentQuote;
   try {
     quote = await createPaymentIntent(input);
@@ -130,10 +53,8 @@ export async function payForOrder(input: {
     };
   }
 
-  if (quote.paymentStatus === 'succeeded') {
-    return { status: 'succeeded', paymentIntentId: quote.paymentIntentId, quote };
-  }
-  if (quote.paymentStatus === 'processing') return { status: 'failed', message: 'Payment is still processing. Reconcile this same checkout shortly.' };
+  const decided = precheckQuote(quote);
+  if (decided) return decided;
 
   try {
     await ensureStripe(quote.publishableKey);
