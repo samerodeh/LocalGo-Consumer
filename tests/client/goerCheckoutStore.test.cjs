@@ -73,7 +73,7 @@ test('explicit confirmation pays once and an A-B-A switch cannot accept the old 
   // Return to the same identity without resetting the generation fence.
   h.store.setState({ ownerEmail: 'a@test.invalid' });
   h.resolve({ ok: true, orderId: 'old-owner-order' });
-  assert.match(await pending, /account changed/i);
+  assert.match(await pending, /Reference: old-owner-order/);
   assert.equal(Object.keys(h.store.getState().placedOrders).length, 0);
 });
 

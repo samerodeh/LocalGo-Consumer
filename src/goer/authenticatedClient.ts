@@ -80,7 +80,7 @@ export async function restoreAuthenticatedConversation(selectedId?: string): Pro
   }
 }
 
-export async function runAuthenticatedGoerTurn(message: string, localReply?: () => Promise<string>): Promise<void> {
+export async function runAuthenticatedGoerTurn(message: string, localReply?: (requestId: string) => Promise<string>): Promise<void> {
   if (!GOER_URL) throw new Error('The authenticated Goer service is not configured.');
   const generation = goerOwnerGeneration();
   const email = useGoerStore.getState().ownerEmail;
@@ -117,8 +117,7 @@ export async function runAuthenticatedGoerTurn(message: string, localReply?: () 
       envelope = parseEnvelope(pending.response);
     } else if (localReply) {
       if (!current()) return;
-      const text = await localReply();
-      if (!current()) return;
+      const text = await localReply(pending.requestId);
       envelope = parseEnvelope({ conversation_id: pending.conversationId, turn_id: pending.requestId,
         trace_id: Crypto.randomUUID(), text, cards: [], actions: [] });
     } else {
@@ -134,12 +133,20 @@ export async function runAuthenticatedGoerTurn(message: string, localReply?: () 
     if (envelope.turn_id !== pending.requestId || envelope.conversation_id !== pending.conversationId) {
       throw new Error('Goer returned an invalid response identity.');
     }
-    if (!current() || (await customerToken(email)).userId !== userId || !current()) return;
-    // Durable completed response lets a history-only retry skip Goer entirely,
-    // even if the app restarts while Supabase is unavailable.
+    // Cache in the original owner/request slot even after a UI account switch.
+    // Concurrent waiters must reuse the first envelope (including its trace ID).
+    envelope = await sessionOperation(key, async latest => {
+      const slot = latest.pending;
+      if (!slot || slot.ownerId !== userId || slot.requestId !== pending.requestId
+          || slot.conversationId !== pending.conversationId) throw new Error('The original request is no longer pending.');
+      if (slot.response) return parseEnvelope(slot.response);
+      slot.response = envelope;
+      await AsyncStorage.setItem(key, JSON.stringify(latest));
+      return envelope;
+    });
     pending.response = envelope;
     const pendingIdentity = { conversationId: pending.conversationId, requestId: pending.requestId };
-    if (!await writeSession(key, saved, current, pendingIdentity) || !current()) return;
+    if (!current() || (await customerToken(email)).userId !== userId || !current()) return;
     for (const card of envelope.cards) {
       if (card.type === 'cart_summary' && card.cart) useCartStore.getState().acceptServerCart(card.cart);
     }

@@ -22,7 +22,14 @@ function problem(body: any): string {
   return typeof body?.detail === 'string' ? body.detail : body?.detail?.message ?? 'Could not reconcile checkout. Retry without starting another order.';
 }
 
-export async function beginCheckout(email: string, revision: number, tipCents: number): Promise<CheckoutPin> {
+export async function checkoutStatus(email: string, orderId: string): Promise<string | null> {
+  const response = await call(email, `/payments/cart/${encodeURIComponent(orderId)}`);
+  if (response.status === 404) return null;
+  if (response.status !== 200 || typeof response.body.status !== 'string') throw new Error(problem(response.body));
+  return response.body.status;
+}
+
+export async function beginCheckout(email: string, revision: number, tipCents: number, expectedOrderId?: string): Promise<CheckoutPin> {
   const { userId } = await customerToken(email);
   const key = keyFor(email, userId);
   let saved = JSON.parse(await AsyncStorage.getItem(key) ?? 'null') as CheckoutPin | null;
@@ -39,6 +46,9 @@ export async function beginCheckout(email: string, revision: number, tipCents: n
   }
   if (saved && (saved.revision !== revision || saved.tipCents !== tipCents)) {
     throw new Error('An earlier checkout is unfinished. Finish it with its original tip or cancel it before starting another.');
+  }
+  if (expectedOrderId && saved?.orderId !== expectedOrderId) {
+    throw new Error(`Reconcile original order ${expectedOrderId}; a replacement payment was not started.`);
   }
   const pin = saved ?? { ownerId: userId, orderId: Crypto.randomUUID(), revision, tipCents };
   await AsyncStorage.setItem(key, JSON.stringify(pin));

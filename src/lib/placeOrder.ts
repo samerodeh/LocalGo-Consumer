@@ -21,6 +21,7 @@ export interface PlaceOrderInput {
   deliveryAddress: Address | null;
   customer: StoredUser | null;
   cartRevision?: number;
+  expectedCheckoutId?: string;
 }
 
 export type PlaceOrderResult =
@@ -92,7 +93,7 @@ async function placeOrderInternal(input: PlaceOrderInput): Promise<PlaceOrderRes
           || cart.revision !== input.cartRevision) {
         return { ok: false, error: 'Refresh your signed-in cart and reconcile pending changes before confirming.' };
       }
-      checkpoint = await beginCheckout(email, input.cartRevision, Math.round(tip * 100));
+      checkpoint = await beginCheckout(email, input.cartRevision, Math.round(tip * 100), input.expectedCheckoutId);
       if (useCartStore.getState().ownerEmail !== email) return { ok: false, error: 'The active account changed.' };
       orderId = checkpoint.orderId;
     }

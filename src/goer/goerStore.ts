@@ -93,7 +93,7 @@ interface GoerState {
    *  confirmation card. Never places the order. */
   stageOrder: () => { ok: true; staged: StagedOrder } | { ok: false; error: string };
   /** Explicit confirmation only; typed chat may publish the returned reply itself. */
-  confirmStagedOrder: (renderText?: boolean) => Promise<string>;
+  confirmStagedOrder: (renderText?: boolean, expectedCheckoutId?: string) => Promise<string>;
   clearChat: () => void;
 }
 
@@ -330,7 +330,7 @@ export const useGoerStore = create<GoerState>((set, get) => ({
     return { ok: true, staged };
   },
 
-  confirmStagedOrder: async (renderText = true) => {
+  confirmStagedOrder: async (renderText = true, expectedCheckoutId) => {
     const epoch = ownerGeneration;
     const staged = get().stagedOrder;
     const reply = (text: string) => {
@@ -357,16 +357,22 @@ export const useGoerStore = create<GoerState>((set, get) => ({
       deliveryAddress: staged.address,
       customer: useAuthStore.getState().currentUser,
       cartRevision: staged.cartRevision,
+      expectedCheckoutId,
     });
-    if (ownerGeneration !== epoch || get().ownerEmail !== owner) return 'Account changed during checkout. Reconcile the original account before trying again.';
+    const outcomeText = result.ok
+      ? (result.warning ? `Payment confirmed for order ${result.orderId}. ${result.warning}`
+        : `Order placed! Reference: ${result.orderId}. Your payment is confirmed.`)
+      : (result.canceled ? 'Payment canceled. Your cart is still here. Type "checkout" when you are ready.'
+        : `Checkout needs attention: ${result.error}. Do not start another order if payment may be pending.`);
+    // The original request still needs its real receipt even when its UI owner
+    // changed. Never write that result into a different account's active store.
+    if (ownerGeneration !== epoch || get().ownerEmail !== owner) return outcomeText;
 
     if (!result.ok) {
       // Re-staging (not discarding) means the confirmation card stays usable,
       // so a declined card or a dismissed sheet can just be retried.
       set({ stagedOrder: { ...staged, status: 'staged' } });
-      return reply(result.canceled
-        ? 'Payment canceled. Your cart is still here. Type "checkout" when you are ready.'
-        : `Checkout needs attention: ${result.error}. Do not start another order if payment may be pending.`);
+      return reply(outcomeText);
     }
 
     const placed: StagedOrder = { ...staged, status: 'placed' };
@@ -375,9 +381,7 @@ export const useGoerStore = create<GoerState>((set, get) => ({
       placedOrders: { ...s.placedOrders, [placed.id]: placed },
     }));
 
-    const confirmation = result.warning
-      ? `Payment confirmed for order ${result.orderId}. ${result.warning}`
-      : `Order placed! Reference: ${result.orderId}. Your payment is confirmed.`;
+    const confirmation = outcomeText;
     if (!renderText) return confirmation;
     reply(confirmation);
     const record = useOrdersStore.getState().orders[0];

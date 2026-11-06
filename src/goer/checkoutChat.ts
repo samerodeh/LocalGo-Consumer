@@ -4,7 +4,10 @@ import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { searchAddresses, type GeoResult } from '../lib/geocoding';
 import { deliveryLocationProblem } from '../lib/deliveryLocation';
-import { cancelPendingCheckout } from '../lib/checkoutSession';
+import { beginCheckout, cancelPendingCheckout, checkoutStatus, type CheckoutPin } from '../lib/checkoutSession';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { customerToken } from '../lib/serverCart';
+import type { StagedOrder } from './types';
 
 const checkout = /^(?:please )?(?:check ?out|place (?:my |the )?order|order now|ready to order|pay)(?: please)?[.!]?$/i;
 const addressList = /^(?:my |delivery )?addresses[.!]?$/i;
@@ -15,8 +18,57 @@ export function isCheckoutChatCommand(text: string): boolean {
   return checkout.test(text) || addressList.test(text) || /^(?:confirm order|cancel checkout|deliver to|use address|tip)\b/i.test(text);
 }
 
+interface Receipt { message: string; pin: CheckoutPin; staged: StagedOrder; reply?: string }
+const confirmations = new Map<string, Promise<string>>();
+
+async function confirmCheckout(text: string, requestId: string, email: string, assertOwner: () => void): Promise<string> {
+  const { userId } = await customerToken(email);
+  assertOwner();
+  const key = `localgo.goer.checkout:${email.toLowerCase()}:${userId}:${requestId}`;
+  const running = confirmations.get(key);
+  if (running) return running;
+  const work = (async () => {
+    let receipt = JSON.parse(await AsyncStorage.getItem(key) ?? 'null') as Receipt | null;
+    assertOwner();
+    if (receipt && (receipt.message !== text || receipt.pin.ownerId !== userId)) throw new Error('Checkout receipt identity changed.');
+    if (receipt?.reply) return receipt.reply;
+    if (receipt) {
+      const status = await checkoutStatus(email, receipt.pin.orderId);
+      assertOwner();
+      if (status === 'consumed' || status === 'released') {
+        const reply = status === 'consumed'
+          ? `Order placed! Reference: ${receipt.pin.orderId}. Your payment is confirmed.`
+          : `Checkout ${receipt.pin.orderId} was canceled. No replacement payment was started.`;
+        await AsyncStorage.setItem(key, JSON.stringify({ ...receipt, reply }));
+        return reply;
+      }
+    } else {
+      const staged = useGoerStore.getState().stagedOrder;
+      if (!staged || staged.status !== 'staged') return 'No current summary is ready. Type "checkout" to review your cart, delivery address and total first.';
+      if (text.toLowerCase() !== `confirm order ${staged.id.slice(0, 8)}`.toLowerCase()) {
+        return `To explicitly authorize the displayed ${money(staged.total)} total, type CONFIRM ORDER ${staged.id.slice(0, 8)}. Nothing has been charged by this message.`;
+      }
+      if (staged.cartRevision === undefined) throw new Error('Refresh your signed-in cart before confirming.');
+      const pin = await beginCheckout(email, staged.cartRevision, Math.round(staged.tip * 100));
+      assertOwner();
+      receipt = { message: text, pin, staged };
+      // Persist the exact snapshot and stable order before payment can start.
+      await AsyncStorage.setItem(key, JSON.stringify(receipt));
+    }
+    assertOwner();
+    useGoerStore.setState({ stagedOrder: { ...receipt.staged, status: 'staged' } });
+    const reply = await useGoerStore.getState().confirmStagedOrder(false, receipt.pin.orderId);
+    // An inactive UI must not erase the original owner's completed receipt.
+    await AsyncStorage.setItem(key, JSON.stringify({ ...receipt, reply }));
+    return reply;
+  })();
+  confirmations.set(key, work);
+  try { return await work; }
+  finally { if (confirmations.get(key) === work) confirmations.delete(key); }
+}
+
 /** Deterministic checkout controls: model prose is never authorization to pay. */
-export async function runCheckoutChatCommand(text: string): Promise<string> {
+export async function runCheckoutChatCommand(text: string, requestId?: string): Promise<string> {
   const generation = goerOwnerGeneration();
   const email = useGoerStore.getState().ownerEmail;
   const current = () => generation === goerOwnerGeneration() && email === useGoerStore.getState().ownerEmail;
@@ -38,12 +90,8 @@ export async function runCheckoutChatCommand(text: string): Promise<string> {
     return `${lines}\nDelivery: ${staged.address.addressLine}\nSubtotal: ${money(staged.subtotal)}\nDelivery fee: ${money(staged.deliveryFee)}\nTip: ${money(staged.tip)}\nTotal: ${money(staged.total)}\n\nNo payment has been made. To authorize this checkout, type CONFIRM ORDER ${staged.id.slice(0, 8)}. Stripe may ask for secure payment details or bank verification without leaving the checkout flow. Type "tip $0", "addresses", or "cancel checkout" to change your choice.`;
   }
   if (/^confirm order\b/i.test(text)) {
-    const staged = useGoerStore.getState().stagedOrder;
-    if (!staged || staged.status !== 'staged') return 'No current summary is ready. Type "checkout" to review your cart, delivery address and total first.';
-    if (text.toLowerCase() !== `confirm order ${staged.id.slice(0, 8)}`.toLowerCase()) {
-      return `To explicitly authorize the displayed ${money(staged.total)} total, type CONFIRM ORDER ${staged.id.slice(0, 8)}. Nothing has been charged by this message.`;
-    }
-    return useGoerStore.getState().confirmStagedOrder(false);
+    if (!requestId) throw new Error('A durable chat request is required before payment.');
+    return confirmCheckout(text, requestId, email!, assertOwner);
   }
   if (/^cancel checkout\b/i.test(text)) {
     if (text.toLowerCase() !== 'cancel checkout') return 'Type "cancel checkout" exactly to request cancellation of an unfinished checkout.';

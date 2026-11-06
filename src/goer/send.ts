@@ -23,7 +23,7 @@ export async function sendGoerMessage(rawText: string, retryPending = false): Pr
   try {
     if (authenticatedGoerEnabled) {
       await runAuthenticatedGoerTurn(text, isCheckoutChatCommand(text)
-        ? () => runCheckoutChatCommand(text) : undefined);
+        ? requestId => runCheckoutChatCommand(text, requestId) : undefined);
     } else if (store.mode === 'llm') {
       const { runGoerTurn } = await import('./agentLoop');
       await runGoerTurn(text);
