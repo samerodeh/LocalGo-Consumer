@@ -225,7 +225,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active locks)* | - | - | - | Running-service/browser verification complete; native/authenticated journey still blocked |
+| Agent | 2026-11-05 | AGENTS.md; docs/cart-integration-runbook.md | Document chatbot-only checkout implementation and verification gates | Active; development only, missing database credentials/admin access and native test device |
 
 ---
 
