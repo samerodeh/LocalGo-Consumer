@@ -247,11 +247,42 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | Read-only connectivity verified; activation blocked by private-file guard and missing native/test-session access |
+| *(No active work locks)* | - | - | - | Localhost signed-in acceptance passed; native/phone checkout deferred by owner |
 
 ---
 
 ## 5. Recent Work
+
+- 2026-11-06: Localhost signed-in acceptance with flags enabled (backend 401 when
+  unsigned, was 503). Two temporary development accounts were created, tested and
+  deleted (Auth admin 200). Passed: canonical pricing, idempotent replay, same-key/
+  different-command 409, stale revision 409, 6 concurrent same-revision writes with
+  exactly one winner, per-user idempotency keys, cross-account cart/history isolation
+  through direct Supabase reads/RPC/writes (403/404/no rows), owned Goer conversations
+  (other account 404), retry with the same request_id returns the same envelope
+  without a second cart write. Fixed merchant display-name matching (`Al-Taib` returned
+  no pizza) in `domain/catalog.py` with regression tests; 133 tests and catalog smoke
+  tests pass. Not exercised: mobile-published Supabase history, Goer restart
+  persistence, checkout/PaymentIntent (no unconfirmed payments) and native app.
+  Mobile URLs/flag are a Metro process override; `.env.local` is still stale.
+- 2026-11-06: Owner tested the signed-in journey in the Expo web build
+  (`localhost:8082`; sibling `src/lib/payments.web.ts` refuses payment on web and
+  never creates PaymentIntents) and reported sign-in, discovery, cart, history and
+  isolation working. Fixed: (1) sibling sign-up now discards the session Supabase
+  issues when email confirmation is off and returns to Sign In with a notice;
+  (2) discovery cards prefer the latest non-empty search/detail over a later
+  full-menu dump and narrow menu-only cards to the request (real model: a pizza
+  request previously showed bowls). 137 Goer tests, smoke tests, 36 mobile/SQL cases
+  (zero skips with `LOCALGO_PGLITE_MODULE`) and TypeScript pass. Uncommitted.
+
+- 2026-11-06: Persisted the user-authorized completion plan in
+  `docs/development-activation-checklist.md`, including explicit connected/native
+  acceptance, payment confirmation boundaries and cleanup. Continue executable
+  items without repeated permission, but do not bypass safety blocks. Fresh probes:
+  Goer/backend/Metro and 145-product catalog return 200; unsigned session 401;
+  cart still 503. ADB absent from PATH/common configured SDK locations. No private
+  files, flags, accounts or payments changed; configuration/test-session/device
+  dependencies keep acceptance open. Documentation-only; suites were not rerun.
 
 - 2026-11-06: Verified connected development service-key access, five expected
   tables/columns and four RPC names without mutations; anonymous reads denied.
