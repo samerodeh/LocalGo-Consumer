@@ -127,7 +127,15 @@ Structure: `app/auth.py` verifies identity; `app/cart/models.py` defines schemas
 `service.py` is pure pricing/validation; `manager.py` handles request replay;
 `repository.py` calls PostgREST; `app/routers/cart.py` is the HTTP surface.
 
-Verification: **116 backend tests pass** under the pinned requirements with
+For Supabase's current API Keys page, save the backend-only `sb_secret_...`
+value as `SUPABASE_SERVICE_ROLE_KEY` in `backend/.env`; the variable name is
+retained for compatibility. Legacy service-role JWTs also work. Modern secret
+and publishable API keys are sent only as `apikey`; user JWTs remain separate
+Bearer tokens so customer requests still enforce RLS. Never copy a secret into
+mobile/public configuration or source control. Restart the backend after editing
+its private environment.
+
+Verification: **122 backend tests pass** under the pinned requirements with
 stubbed Auth/PostgREST/Stripe calls. Run `python -m pytest tests -o addopts='' -q`.
 The mobile type check, **36 mobile/SQL Node cases** (zero skips) and Android
 JS/assets export also pass. Exporting JS is not a native build/PaymentSheet test.
