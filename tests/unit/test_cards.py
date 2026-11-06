@@ -49,6 +49,38 @@ def test_empty_search_produces_empty_list():
     assert build_cards(results)[0].total == 0
 
 
+def test_search_beats_later_full_menu():
+    with collect_catalog_results() as results:
+        SearchMenuTool()._run("pizza", "al-taib")
+        GetMenuTool()._run("al-taib")
+    names = [item.name for item in build_cards(results, "show me the pizza option at Al-Taib")[0].items]
+    assert names and all("Pizza" in name for name in names)
+
+
+def test_menu_only_card_is_narrowed_to_the_request():
+    with collect_catalog_results() as results:
+        GetMenuTool()._run("al-taib")
+    card = build_cards(results, "show me the pizzas at Al-Taib")[0]
+    assert card.items and all("pizza" in item.name.lower() for item in card.items)
+    assert card.total == len([p for p in merchant_menu("al-taib") if "pizza" in
+                              f"{p['name']} {p.get('category') or ''}".lower()])
+
+
+def test_menu_request_without_topic_keeps_menu_order():
+    with collect_catalog_results() as results:
+        GetMenuTool()._run("al-taib")
+    expected = [item["product_id"] for category in results[0].payload["categories"]
+                for item in category["items"]][:5]
+    assert shown_product_ids(build_cards(results, "show me the menu at Al-Taib")) == expected
+
+
+def test_empty_search_does_not_hide_earlier_matches():
+    with collect_catalog_results() as results:
+        SearchMenuTool()._run("pizza", "al-taib")
+        SearchMenuTool()._run("pizza options", "al-taib")
+    assert all("Pizza" in item.name for item in build_cards(results)[0].items)
+
+
 def test_collector_is_nested_and_thread_isolated():
     def lookup(merchant):
         with collect_catalog_results() as results:

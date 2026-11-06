@@ -1,5 +1,6 @@
 """Request-local tool collection and deterministic discovery card assembly."""
 
+import re
 from contextlib import contextmanager
 from contextvars import ContextVar
 from copy import deepcopy
@@ -39,10 +40,11 @@ def record_catalog_result(tool: str, payload: dict[str, Any]) -> None:
     elif tool == "get_product":
         products = [payload]
     elif tool == "get_menu":
-        # The compact menu omits raw prices. Resolve the first five IDs while
-        # collecting, not later, so the cards keep the turn's catalog snapshot.
+        # The compact menu omits raw prices. Resolve IDs while collecting, not
+        # later, so the cards keep the turn's catalog snapshot. All menu items
+        # are kept so build_cards can narrow them to what the user asked for.
         ids = [item["product_id"] for category in payload["categories"]
-               for item in category["items"]][:5]
+               for item in category["items"]]
         products = [product_detail(p) for pid in ids if (p := get_product(pid)) is not None]
     else:
         return
@@ -55,11 +57,42 @@ def _product_card(product: dict[str, Any]) -> ProductCard:
     return ProductCard.model_validate({key: value for key, value in product.items() if key in fields})
 
 
-def build_cards(results: list[CatalogResult]) -> list[Card]:
-    """One latest successful lookup, in the exact order offered to the user."""
+_STOPWORDS = {"show", "me", "the", "a", "an", "some", "any", "what", "options", "option",
+               "menu", "please", "can", "you", "at", "from", "for", "with", "and", "or",
+               "do", "does", "have", "has", "is", "are", "i", "want", "like", "see", "get"}
+
+
+def _terms(text: str) -> set[str]:
+    words = {w for w in re.findall(r"[a-z]+", text.lower()) if len(w) >= 3 and w not in _STOPWORDS}
+    # Cheap singular form so "pizzas"/"slices" match "pizza"/"slice".
+    return words | {w[:-1] for w in words if w.endswith("s") and len(w) > 3}
+
+
+def _matching_menu_items(products: list[dict[str, Any]], query: str | None) -> list[dict[str, Any]]:
+    """Menu items whose name or category mentions what the user asked about."""
+    wanted = _terms(query or "")
+    if not wanted:
+        return []
+    return [p for p in products
+            if wanted & _terms(f"{p.get('name', '')} {p.get('category') or ''}")]
+
+
+def _pick_result(results: list[CatalogResult]) -> CatalogResult:
+    """Latest focused lookup (search/detail) with products beats a full menu dump;
+    a full menu is used only when nothing more specific found products. If every
+    lookup came back empty, the latest one stands so references are cleared."""
+    for tools in (("search_menu", "get_product"), ("get_menu",)):
+        for result in reversed(results):
+            if result.tool in tools and result.products:
+                return result
+    return results[-1]
+
+
+def build_cards(results: list[CatalogResult], query: str | None = None) -> list[Card]:
+    """One lookup's products, in the exact order offered to the user."""
     if not results:
         return []
-    result = results[-1]
+    result = _pick_result(results)
     if result.tool == "get_product":
         product = result.products[0]
         return [ProductDetailCard(
@@ -68,9 +101,14 @@ def build_cards(results: list[CatalogResult]) -> list[Card]:
             allows_notes=product.get("allows_notes", False),
             option_groups=product.get("option_groups", []),
         )]
+    products, total = result.products, result.payload.get("total", result.payload.get("product_count", 0))
+    if result.tool == "get_menu":
+        matching = _matching_menu_items(products, query)
+        if matching:
+            products, total = matching, len(matching)
     return [ProductListCard(
-        items=[_product_card(product) for product in result.products],
-        total=result.payload.get("total", result.payload.get("product_count", 0)),
+        items=[_product_card(product) for product in products[:5]],
+        total=total,
     )]
 
 

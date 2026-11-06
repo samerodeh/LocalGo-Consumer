@@ -53,7 +53,7 @@ class GoerFlow(Flow[GoerState]):
                 # Never expose provider errors, credentials, or prompt contents.
                 logger.warning("Discovery turn failed (%s)", type(exc).__name__)
                 self.state.answer = "I couldn't finish that request. Please try again; here is anything I found."
-            self.state.cards = build_cards(results)
+            self.state.cards = build_cards(results, self.state.user_message)
 
     @listen(answer_turn)
     def compose_response(self):
