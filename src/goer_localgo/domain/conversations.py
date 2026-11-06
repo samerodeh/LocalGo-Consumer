@@ -1,17 +1,24 @@
 """Application-owned sessions, independent of CrewAI execution/checkpoint IDs.
 
-SQLite is for local development. The compare-and-swap revision also prevents
-lost context updates across processes; rejected turns have no persisted effect.
+Storage is SQLite by default and Postgres when GOER_DATABASE_URL is set (see
+``storage.py``). The compare-and-swap revision prevents lost context updates
+across processes; rejected turns have no persisted effect.
 """
 
 import json
-import os
-import sqlite3
-from contextlib import contextmanager
+import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator, Protocol
+from typing import Any, Protocol
 from uuid import uuid4
+
+from goer_localgo.domain.storage import Database, SQLiteDatabase, conversation_db_path, get_database
+
+__all__ = [
+    "Conversation", "ConversationConflict", "ConversationNotFound", "ConversationRepository",
+    "SQLConversationRepository", "SQLiteConversationRepository", "conversation_db_path",
+    "get_conversation_repository",
+]
 
 
 class ConversationNotFound(Exception):
@@ -36,37 +43,21 @@ class ConversationRepository(Protocol):
     def save(self, conversation: Conversation, snapshot: dict[str, Any]) -> None: ...
 
 
-class SQLiteConversationRepository:
-    def __init__(self, path: Path):
-        self.path = path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
-            db.execute("""CREATE TABLE IF NOT EXISTS conversations (
-                id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
-                revision INTEGER NOT NULL DEFAULT 0, snapshot TEXT NOT NULL
-            )""")
-
-    @contextmanager
-    def _connect(self) -> Iterator[sqlite3.Connection]:
-        db = sqlite3.connect(self.path, timeout=10)
-        try:
-            with db:
-                yield db
-        finally:
-            # A connection's own context manager commits but does not close it.
-            db.close()
+class SQLConversationRepository:
+    def __init__(self, database: Database):
+        self.database = database
 
     def create(self, user_id: str) -> Conversation:
         conversation = Conversation(str(uuid4()), user_id, 0, {})
-        with self._connect() as db:
-            db.execute("INSERT INTO conversations (id, user_id, snapshot) VALUES (?, ?, ?)",
-                       (conversation.id, user_id, "{}"))
+        with self.database.transaction() as tx:
+            tx.execute("INSERT INTO {conversations} (id, user_id, snapshot, updated_at) VALUES (?, ?, ?, ?)",
+                       (conversation.id, user_id, "{}", time.time()))
         return conversation
 
     def load(self, conversation_id: str, user_id: str) -> Conversation:
-        with self._connect() as db:
-            row = db.execute(
-                "SELECT revision, snapshot FROM conversations WHERE id = ? AND user_id = ?",
+        with self.database.transaction() as tx:
+            row = tx.execute(
+                "SELECT revision, snapshot FROM {conversations} WHERE id = ? AND user_id = ?",
                 (conversation_id, user_id),
             ).fetchone()
         if row is None:
@@ -75,22 +66,43 @@ class SQLiteConversationRepository:
         return Conversation(conversation_id, user_id, row[0], json.loads(row[1]))
 
     def save(self, conversation: Conversation, snapshot: dict[str, Any]) -> None:
-        with self._connect() as db:
-            result = db.execute("""UPDATE conversations
-                SET snapshot = ?, revision = revision + 1
+        with self.database.transaction() as tx:
+            result = tx.execute("""UPDATE {conversations}
+                SET snapshot = ?, revision = revision + 1, updated_at = ?
                 WHERE id = ? AND user_id = ? AND revision = ?""",
-                (json.dumps(snapshot, ensure_ascii=False), conversation.id,
+                (json.dumps(snapshot, ensure_ascii=False), time.time(), conversation.id,
                  conversation.user_id, conversation.revision),
             )
             if result.rowcount != 1:
                 raise ConversationConflict("Conversation changed while answering; retry your message.")
 
+    def delete_user_data(self, user_id: str) -> int:
+        """Remove every conversation and journaled turn owned by ``user_id``."""
+        with self.database.transaction(immediate=True) as tx:
+            tx.execute("DELETE FROM {chat_turns} WHERE owner = ?", (user_id,))
+            return tx.execute("DELETE FROM {conversations} WHERE user_id = ?", (user_id,)).rowcount
 
-def conversation_db_path() -> Path:
-    return Path(os.environ.get(
-        "GOER_CONVERSATION_DB", str(Path.home() / ".localgo" / "goer" / "conversations.sqlite3")
-    ))
+    def purge_inactive(self, max_age_days: float, *, now: float | None = None) -> int:
+        """Delete conversations (and their turns) untouched for ``max_age_days``.
+
+        Conversations with an unfinished turn are kept so an in-flight cart
+        command can still be reconciled with its original request ID.
+        """
+        cutoff = (now if now is not None else time.time()) - max_age_days * 86400
+        with self.database.transaction(immediate=True) as tx:
+            stale = """SELECT id FROM {conversations} c WHERE c.updated_at < ?
+                AND NOT EXISTS (SELECT 1 FROM {chat_turns} t
+                    WHERE t.conversation_id = c.id AND t.status <> 'completed')"""
+            tx.execute(f"DELETE FROM {{chat_turns}} WHERE conversation_id IN ({stale})", (cutoff,))
+            return tx.execute(f"DELETE FROM {{conversations}} WHERE id IN ({stale})", (cutoff,)).rowcount
 
 
-def get_conversation_repository() -> ConversationRepository:
-    return SQLiteConversationRepository(conversation_db_path())
+class SQLiteConversationRepository(SQLConversationRepository):
+    """Repository over one SQLite file (kept for callers that pass a path)."""
+
+    def __init__(self, path: Path):
+        super().__init__(SQLiteDatabase(path))
+
+
+def get_conversation_repository() -> SQLConversationRepository:
+    return SQLConversationRepository(get_database())
