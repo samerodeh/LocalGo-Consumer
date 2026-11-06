@@ -129,7 +129,7 @@ Structure: `app/auth.py` verifies identity; `app/cart/models.py` defines schemas
 
 Verification: **116 backend tests pass** under the pinned requirements with
 stubbed Auth/PostgREST/Stripe calls. Run `python -m pytest tests -o addopts='' -q`.
-The mobile type check, **22 mobile/SQL Node cases** (zero skips) and Android
+The mobile type check, **36 mobile/SQL Node cases** (zero skips) and Android
 JS/assets export also pass. Exporting JS is not a native build/PaymentSheet test.
 Run `node --test tests/client/*.test.cjs` from the repository root; set
 `LOCALGO_PGLITE_MODULE` to a temporary installed `@electric-sql/pglite@0.5.15`
@@ -142,6 +142,23 @@ are cached before history publication; Retry pending turn does not resend a cart
 edit. Historical cart cards cannot change current cart state. Goer's SQLite
 reasoning/command journal remains separate and must be preserved to resume a
 conversation; cloud display history does not replace it.
+
+Authenticated chat now supports `addresses`, `deliver to <full street address>`,
+`use address 1`, `tip $2.00`, `checkout`, exact `CONFIRM ORDER <summary-code>`
+and `cancel checkout`. It reuses the shared cart and existing payment pipeline,
+not an agent payment tool. The summary shows destination and the complete CAD
+breakdown; changing address/tip/cart invalidates it. Stripe PaymentSheet/bank
+verification is still required when applicable: first-time card details must
+never be collected in chat. No separate Cart screen is needed.
+
+Typed confirmations persist their original owner/request-bound order pin and
+snapshot before payment. Completed receipts survive account switches and native
+storage interruption; retry checks the original checkout and cannot replace a
+consumed order with a new payment. Address hydration/edits are serialized per
+owner. Automated typed-flow tests isolate Auth/model/payment; they are not proof
+of a native signed-in sandbox charge. A read-only check still reports missing
+cart/history tables (`404 PGRST205`) in the development project, and the backend
+service-role key is empty. Keep activation flags closed until setup/verification.
 
 The separate CrewAI service lives in sibling `../goer-ai` relative to this
 repository root, not in the older `app/goer/` implementation. Read its
