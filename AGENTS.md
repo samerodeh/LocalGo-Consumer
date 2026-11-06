@@ -64,6 +64,24 @@ goer-ai/
 
 ---
 
+## Latest development verification — 2026-11-06
+
+This update supersedes the older empty-service-key/missing-schema statements below.
+Read-only connected checks validate the backend service key (Auth admin 200), all
+five expected tables via service-role `limit=0` reads, expected columns and four
+RPC names. Public-key table reads are denied (401 / `42501`). Sibling records
+report user-run migrations; do not blindly reapply them. Exact SQL policies/grants,
+authenticated isolation, concurrency and native checkout are still unverified.
+
+The user authorized development-only setup and acceptance testing. Private `.env`
+access was then blocked by the safety guard, so no flags, credentials, migrations,
+test accounts or payments changed. Configure non-secret service URLs/flags privately
+using the runbook once permitted, restart services, then exercise designated test
+sessions. No database-admin connection/test sessions or native SDK/device were
+available. Existing services respond on 8000/8100/8081; cart remains disabled.
+Latest offline rerun: 127 Goer tests, 122 pinned backend tests, 36 mobile/SQL cases
+(zero skips), mobile TypeScript passed. No native export or payment test was run.
+
 ## Session Handoff — 2026-11-05
 
 ### User goal and selected development client
@@ -229,11 +247,21 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-06 | AGENTS.md; docs/cart-integration-runbook.md; private .env | Verify connected development storage, configure gated services, and exercise available authenticated acceptance checks | Active; development only, no production or unconfirmed payments |
+| *(No active work locks)* | - | - | - | Read-only connectivity verified; activation blocked by private-file guard and missing native/test-session access |
 
 ---
 
 ## 5. Recent Work
+
+- 2026-11-06: Verified connected development service-key access, five expected
+  tables/columns and four RPC names without mutations; anonymous reads denied.
+  Exact policies/grants/owner isolation/concurrency remain unverified. Reran 127
+  Goer tests, 122 pinned backend tests, 36 mobile/SQL cases (zero skips) and mobile
+  TypeScript successfully. Activation stopped at the private `.env` safety block;
+  no flags, secrets, schema, test accounts or payments changed. Native SDK/device
+  and designated test sessions/admin SQL access remain unavailable. Updated runbook
+  and handoff; next configure development URLs/flags privately, restart and perform
+  authenticated/native acceptance. No production activation authorized.
 
 - 2026-11-05: Added typed mobile checkout controls without Cart-screen navigation:
   verified address search/selection, tips, complete CAD summary, exact
