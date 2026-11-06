@@ -92,6 +92,22 @@ function harness(shared = { data: new Map(), turns: new Map(), goerWrites: 0 }) 
     saved: () => JSON.parse(shared.data.get('localgo.goer.session:alice@example.test:alice-id') ?? '{}') };
 }
 
+test('a completed local checkout reply survives a history outage without another payment or agent request', async () => {
+  const h = harness(); h.historyDown(true);
+  let confirmations = 0;
+  const confirm = async () => { confirmations++; return 'Order placed! Reference: stable-paid-order.'; };
+  await assert.rejects(h.api.runAuthenticatedGoerTurn('confirm order abc12345', confirm), /turn completed/);
+  assert.equal(confirmations, 1);
+  assert.equal(h.shared.goerWrites, 0);
+  assert.ok(h.saved().pending.response);
+  const restarted = harness(h.shared);
+  await restarted.api.runAuthenticatedGoerTurn('confirm order abc12345', confirm);
+  assert.equal(confirmations, 1);
+  assert.equal(h.shared.goerWrites, 0);
+  assert.equal(h.shared.turns.size, 1);
+  assert.equal(restarted.saved().pending, undefined);
+});
+
 test('a history outage retains the completed response and retries without another Goer/cart write after restart', async () => {
   const h = harness(); h.historyDown(true);
   await assert.rejects(h.api.runAuthenticatedGoerTurn('add pizza'), /turn completed/);

@@ -80,7 +80,7 @@ export async function restoreAuthenticatedConversation(selectedId?: string): Pro
   }
 }
 
-export async function runAuthenticatedGoerTurn(message: string): Promise<void> {
+export async function runAuthenticatedGoerTurn(message: string, localReply?: () => Promise<string>): Promise<void> {
   if (!GOER_URL) throw new Error('The authenticated Goer service is not configured.');
   const generation = goerOwnerGeneration();
   const email = useGoerStore.getState().ownerEmail;
@@ -115,6 +115,12 @@ export async function runAuthenticatedGoerTurn(message: string): Promise<void> {
     let envelope: Envelope;
     if (pending.response) {
       envelope = parseEnvelope(pending.response);
+    } else if (localReply) {
+      if (!current()) return;
+      const text = await localReply();
+      if (!current()) return;
+      envelope = parseEnvelope({ conversation_id: pending.conversationId, turn_id: pending.requestId,
+        trace_id: Crypto.randomUUID(), text, cards: [], actions: [] });
     } else {
       const response = await fetch(`${GOER_URL}/v1/conversations/${encodeURIComponent(pending.conversationId)}/turns`, {
         method: 'POST', headers, signal: abort.signal,
