@@ -74,6 +74,15 @@ def test_menu_request_without_topic_keeps_menu_order():
     assert shown_product_ids(build_cards(results, "show me the menu at Al-Taib")) == expected
 
 
+def test_merchant_name_words_do_not_narrow_a_menu():
+    with collect_catalog_results() as results:
+        GetMenuTool()._run("chateau-kabab")
+    expected = [item["product_id"] for category in results[0].payload["categories"]
+                for item in category["items"]][:5]
+    for query in ("show me the menu at Chateau Kabab", "show me the menu at Château Kabab"):
+        assert shown_product_ids(build_cards(results, query)) == expected
+
+
 def test_empty_search_does_not_hide_earlier_matches():
     with collect_catalog_results() as results:
         SearchMenuTool()._run("pizza", "al-taib")

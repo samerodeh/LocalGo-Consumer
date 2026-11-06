@@ -7,7 +7,12 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Iterator
 
-from goer_localgo.domain.catalog import get_product, product_detail
+from goer_localgo.domain.catalog import get_product, merchant_key, product_detail
+
+
+def merchant_key_text(text: str) -> str:
+    """Accent-folded text ("Château" -> "chateau") for word matching."""
+    return merchant_key(text).replace("-", " ")
 from goer_localgo.schemas.chat import Card, ProductCard, ProductDetailCard, ProductListCard
 
 
@@ -63,14 +68,17 @@ _STOPWORDS = {"show", "me", "the", "a", "an", "some", "any", "what", "options", 
 
 
 def _terms(text: str) -> set[str]:
-    words = {w for w in re.findall(r"[a-z]+", text.lower()) if len(w) >= 3 and w not in _STOPWORDS}
+    folded = merchant_key_text(text)
+    words = {w for w in re.findall(r"[a-z]+", folded) if len(w) >= 3 and w not in _STOPWORDS}
     # Cheap singular form so "pizzas"/"slices" match "pizza"/"slice".
     return words | {w[:-1] for w in words if w.endswith("s") and len(w) > 3}
 
 
 def _matching_menu_items(products: list[dict[str, Any]], query: str | None) -> list[dict[str, Any]]:
     """Menu items whose name or category mentions what the user asked about."""
-    wanted = _terms(query or "")
+    # Words from the merchant's own name ("Chateau Kabab") say where, not what.
+    merchant_words = set().union(*(_terms(p["merchant_id"]) for p in products)) if products else set()
+    wanted = _terms(query or "") - merchant_words
     if not wanted:
         return []
     return [p for p in products
