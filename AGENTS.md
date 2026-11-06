@@ -31,9 +31,28 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-05 | src/goer/checkoutChat.ts; src/goer/send.ts; src/goer/goerStore.ts; src/goer/authenticatedClient.ts; src/goer/history.ts; src/store/addressStore.ts; src/lib/deliveryLocation.ts; src/lib/checkoutSession.ts; src/lib/placeOrder.ts; tests/client/; AGENTS.md; backend/README.md | Connect typed checkout, delivery selection and explicit confirmation inside authenticated chat; preserve owner/payment retry guards | Active; no production activation; real DB/native checkout blocked by private prerequisites |
+| *(No active work locks)* | - | - | - | Typed checkout committed; connected acceptance awaits private development setup |
 
 ## Recent work
+
+- 2026-11-05: Implemented deterministic typed checkout in authenticated Goer chat:
+  address search/explicit selection, tip, full CAD summary, exact confirmation
+  code and cancel command; no Cart-screen navigation or model payment tools.
+  Stripe secure entry/bank verification still uses native PaymentSheet; no
+  chargeable saved-method or strictly typing-only first-time payment exists.
+  Durable original-order receipts and stable-pin enforcement recover real
+  outcomes across A-B-A switches/restarts/storage interruption without creating
+  replacement payments. Overlapping waiters reuse the first immutable envelope.
+  Serialized per-owner address loading/edits prevents hydration overwrites.
+  Recovery review fixes verified; 36 mobile/SQL cases (zero skips), TypeScript,
+  Android JS/assets export and 116 pinned backend tests pass; sibling Goer 127
+  tests pass. Tests isolate external Auth/model/payment, not a connected native
+  checkout. Dev Supabase cart/checkout/history tables still return `404 PGRST205`;
+  backend service-role key remains empty. No flags, secrets, live migrations,
+  signup or PaymentIntent/charge changed. Real account/admin/device access is
+  still required before claiming the user's end-to-end acceptance goal complete.
+  Refreshed Metro listens on 8081; backend process override uses current Wi-Fi
+  `192.168.2.26:8100`, not the stale `.env.local` LAN address. Recheck on restart.
 
 - 2026-11-05: Finished gated mobile account-linked display history: immutable
   owner-scoped Supabase publication, conversation picker, New conversation and
