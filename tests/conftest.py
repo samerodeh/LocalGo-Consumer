@@ -34,6 +34,9 @@ def offline(monkeypatch, tmp_path):
         raise RuntimeError(f"test tried to use the network: {address!r}")
 
     monkeypatch.setenv("GOER_CONVERSATION_DB", str(tmp_path / "conversations.sqlite3"))
+    # Each test starts with an empty per-principal rate-limit window.
+    from goer_localgo.api import guards
+    guards.turn_limiter._events.clear()
     monkeypatch.setattr(socket.socket, "connect", guarded_connect)
     # Agents resolve their default LLM at construction; a dummy key keeps that
     # from failing before tests swap in the stub.

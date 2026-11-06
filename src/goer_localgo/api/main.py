@@ -4,14 +4,15 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from goer_localgo.api.auth import Session, optional_session, carts_enabled
+from goer_localgo.api.guards import CARD_REFUSAL, contains_payment_card_data, turn_limiter
 from goer_localgo.domain.turns import TurnPending
 from goer_localgo.flow.authenticated import run_authenticated_turn
 from goer_localgo.integrations.localgo.cart_client import LocalGoCartClient
@@ -116,6 +117,25 @@ async def _execute_turn(
         raise HTTPException(status_code=503, detail="Goer could not complete the request.") from exc
 
 
+def _principal(session: Session | None, http_request: Request) -> str:
+    if session is not None:
+        return f"user:{session.user_id}"
+    return f"ip:{http_request.client.host if http_request.client else 'unknown'}"
+
+
+def _enforce_rate_limit(principal: str) -> None:
+    wait = turn_limiter.retry_after(principal)
+    if wait is not None:
+        raise HTTPException(429, "You're sending messages too quickly. Please wait a moment and try again.",
+                            headers={"Retry-After": str(wait)})
+
+
+def _card_refusal(conversation_id: UUID, turn_id: UUID | None) -> ChatEnvelope:
+    # Not stored, traced or sent to the model: the message itself is discarded.
+    return ChatEnvelope(conversation_id=conversation_id, turn_id=turn_id or uuid4(),
+                        text=CARD_REFUSAL, trace_id=uuid4())
+
+
 @app.post("/v1/conversations", response_model=ConversationResponse, status_code=201)
 def new_conversation(session: Session | None = Depends(optional_session)) -> ConversationResponse:
     try:
@@ -125,8 +145,11 @@ def new_conversation(session: Session | None = Depends(optional_session)) -> Con
 
 
 @app.post("/v1/conversations/{conversation_id}/turns", response_model=ChatEnvelope)
-async def conversation_turn(conversation_id: UUID, request: TurnRequest,
+async def conversation_turn(conversation_id: UUID, request: TurnRequest, http_request: Request,
                             session: Session | None = Depends(optional_session)) -> ChatEnvelope:
+    _enforce_rate_limit(_principal(session, http_request))
+    if contains_payment_card_data(request.message):
+        return _card_refusal(conversation_id, request.request_id)
     if session is None:
         return await _execute_turn(request.message, conversation_id, DEMO_USER_ID)
     if request.request_id is None:
@@ -150,13 +173,17 @@ async def conversation_turn(conversation_id: UUID, request: TurnRequest,
 
 @app.post("/v1/chat", response_model=ChatResponse)
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, session: Session | None = Depends(optional_session)) -> ChatResponse:
+async def chat(request: ChatRequest, http_request: Request,
+               session: Session | None = Depends(optional_session)) -> ChatResponse:
     if session is not None:
         raise HTTPException(422, "Use the conversation turns endpoint with a stable request_id when signed in.")
     owner = DEMO_USER_ID
-    response = await _execute_turn(
-        _latest_message(request), request.conversation_id, owner,
-    )
+    _enforce_rate_limit(_principal(None, http_request))
+    message = _latest_message(request)
+    if contains_payment_card_data(message):
+        return ChatResponse(user_id=owner, message=CARD_REFUSAL,
+                            conversation_id=request.conversation_id or uuid4())
+    response = await _execute_turn(message, request.conversation_id, owner)
     return ChatResponse(
         user_id=owner, message=response.text,
         conversation_id=response.conversation_id, cards=response.cards, actions=response.actions,
