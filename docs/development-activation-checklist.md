@@ -101,6 +101,23 @@ This checklist tracks execution, not a replacement architecture. Follow
 
 ## Evidence and blockers
 
+Localhost browser acceptance (2026-11-06, Expo web build, Stripe test mode). The owner
+reports these all passed; agent verification is noted where it exists:
+- Sign-up returns to Sign In; sign-in, discovery cards, chat and button cart edits,
+  history and account isolation work.
+- Chat checkout: address via `deliver to` / `use address`, tip, full CAD summary,
+  exact `CONFIRM ORDER <code>`; Stripe Payment Element opens for the server total.
+- `4242…` succeeded. Agent read-only check: exactly one succeeded test-mode
+  PaymentIntent ($13.26 CAD), one `orders` row with the same ID and PaymentIntent, and
+  one `consumed` checkout for cart revision 3.
+- Declined card (`4000…0002`) keeps the form open; Cancel leaves no order and the cart
+  unchanged; 3-D Secure (`4000 0025 0000 3155`) completes; an old confirmation code
+  after a cart change is refused.
+- Card numbers typed into chat are refused before storage, tracing or the model.
+
+Still open: native (EAS) build with the PaymentSheet on a device, restart/account-switch
+recovery during payment, exact SQL policy/grant review, and all production gates.
+
 Latest completed offline checks (2026-11-06): 127 Goer tests, 122 pinned backend
 tests, 36 mobile/SQL cases with zero skips, and mobile TypeScript passed. SQL cases
 use isolated PGlite, not connected concurrent Supabase sessions. The earlier Android
