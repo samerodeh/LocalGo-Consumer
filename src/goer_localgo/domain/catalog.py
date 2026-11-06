@@ -100,20 +100,46 @@ def _same_merchant(product: Product, merchant_id: str) -> bool:
     return merchant_key(product["merchant_id"]) == merchant_key(merchant_id)
 
 
+_SEARCH_FILLER = {"and", "the", "of", "with", "some", "any", "option", "options", "item", "items",
+                  "food", "menu", "please", "show", "me", "all"}
+
+
+def _search_words(text: str) -> set[str]:
+    words = re.findall(r"[a-z0-9]+", merchant_key(text).replace("-", " "))
+    # Plurals: "desserts" ~ "dessert", "grills" ~ "grill".
+    return {w[:-1] if len(w) > 3 and w.endswith("s") else w for w in words}
+
+
 def search_products(
     product_name: str,
     merchant_id: str | None = None,
 ) -> list[Product]:
+    """Products whose name, then category, matches the query.
+
+    Ranked: phrase in the name, phrase in the category ("desserts"), then every
+    query word in the name or category ("chicken grills"). Catalog order is
+    kept within each rank.
+    """
     query = product_name.strip().lower()
     if not query:
         return []
+    wanted = _search_words(query) - _SEARCH_FILLER
 
-    return [
-        product
-        for product in load_catalog()
-        if (merchant_id is None or _same_merchant(product, merchant_id))
-        and query in product["name"].lower()
-    ]
+    ranked: list[tuple[int, Product]] = []
+    for product in load_catalog():
+        if merchant_id is not None and not _same_merchant(product, merchant_id):
+            continue
+        name, category = product["name"].lower(), (product.get("category") or "").lower()
+        if query in name:
+            rank = 0
+        elif query in category:
+            rank = 1
+        elif wanted and wanted <= _search_words(f"{name} {category}"):
+            rank = 2
+        else:
+            continue
+        ranked.append((rank, product))
+    return [product for _, product in sorted(ranked, key=lambda pair: pair[0])]
 
 
 def merchant_menu(merchant_id: str) -> list[Product]:

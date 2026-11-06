@@ -1,4 +1,4 @@
-"""Search the catalog by product name."""
+"""Search the catalog by product name or menu category."""
 
 from crewai.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field
@@ -17,7 +17,8 @@ class SearchMenuInput(BaseModel):
 class SearchMenuTool(BaseTool):
     name: str = "search_menu"
     description: str = (
-        "Search LocalGo menu items by a word or phrase in their name. "
+        "Search LocalGo menu items by a food word or phrase, matched against "
+        "product names and menu categories (e.g. 'pizza', 'desserts', 'drinks'). "
         "Optionally restrict the search to one merchant. Returns at most 10 "
         "results plus the total match count; display_price is ready to show."
     )
