@@ -1,0 +1,41 @@
+# Gate on the mobile app's TypeScript and client test suite.
+#
+# Hermetic like the backend suite: Supabase, Goer, Stripe and storage are test
+# doubles. PGlite (an in-process PostgreSQL) executes the cart/checkout/history
+# migrations so the SQL ownership case runs instead of being skipped.
+
+name: app tests
+
+on:
+  push:
+    branches: [dev, main]
+    paths-ignore:
+      - "backend/**"
+  pull_request:
+    paths-ignore:
+      - "backend/**"
+
+jobs:
+  client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install PGlite for SQL migration tests
+        run: npm install --no-save @electric-sql/pglite
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Client and SQL tests
+        env:
+          LOCALGO_PGLITE_MODULE: ${{ github.workspace }}/node_modules/@electric-sql/pglite
+        run: node --test tests/client/*.test.cjs
