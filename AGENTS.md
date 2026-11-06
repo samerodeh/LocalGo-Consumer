@@ -31,7 +31,7 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | Modern Supabase keys supported; private secret configuration and connected acceptance remain pending |
+| Agent | 2026-11-06 | AGENTS.md; private backend/.env and .env.local | Verify development database access and configure authenticated mobile services | Active; no production changes or unconfirmed payments |
 
 ## Recent work
 
