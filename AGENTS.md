@@ -64,6 +64,64 @@ goer-ai/
 
 ---
 
+## Current handoff — 2026-11-06 (evening) — read this first
+
+This section supersedes the older handoffs below where they conflict.
+
+**Branches and commits.** Work happens on `dev` in both repositories; pushes go to
+`origin dev` only. Local `main` in this repository holds old pre-cleanup commit IDs
+and must never be pushed. Commits are authored by the owner only (Rule 1a).
+CI runs on pushes to `dev`/`main` and on PRs: `.github/workflows/tests.yml` here
+(SQLite and Postgres matrix plus tool smoke scripts) and `app-tests.yml` in the
+sibling repository (TypeScript, client and PGlite SQL tests). Both passed.
+
+**Verified on localhost (Expo web build at :8082, Stripe test mode).** Sign-up
+returns to Sign In; discovery cards; chat and button edits to the shared server cart;
+history; account isolation; typed chat checkout (`deliver to` / `use address N` /
+`tip` / `checkout` phrases / exact `CONFIRM ORDER <code>`); Stripe Payment Element
+in the browser (`src/lib/payments.web.ts`); declined, cancelled, 3-D Secure and
+stale-code cases. A read-only check confirmed one succeeded test PaymentIntent,
+one `orders` row and one consumed checkout. Evidence is in
+`docs/development-activation-checklist.md`.
+
+**Added this session.**
+- Langfuse tracing (`observability.py`): one trace per turn, sessions by
+  conversation ID, hashed user IDs, masking of tokens, keys, emails and card numbers.
+  Disabled without keys or when `OTEL_SDK_DISABLED=true`.
+- Latency: shared model clients (`llm.py`), startup warm-up, brief replies matching
+  the cards. About 2.4 s warm and 4.2 s for the first turn after a restart.
+- Discovery: merchant display-name matching, card selection that prefers focused
+  results, category-aware `search_menu`, stable flow trace name.
+- Safety: card numbers are refused before storage, tracing or the model, both in the
+  Goer API (`api/guards.py`) and in the app's send path. In-process turn rate
+  limits are 20/min and 200/hour per user or IP (multi-host needs a shared store).
+- Storage (`domain/storage.py`): `GOER_DATABASE_URL` selects Postgres (private `goer`
+  schema, RLS on, row locks); SQLite stays the default and existing files are
+  upgraded in place. Retention via `GOER_RETENTION_DAYS` (default 90) and
+  `DELETE /v1/me/data`, which the app's account deletion calls first.
+- Latest checks: 177 Goer tests (Postgres included), 8 smoke scripts, 41 mobile/SQL
+  cases with zero skips, and TypeScript all pass, locally and in CI.
+
+**Local development notes.** Services: LocalGo backend 8100, Goer 8000, Expo web
+8082 and Metro 8081. The mobile `EXPO_PUBLIC_*` values were passed as process
+overrides. The owner put them in `backend/.env`; they belong in `.env.local`. The
+real SQLite journal was backed up to
+`~/.localgo/goer/conversations.sqlite3.backup-2026-11-06` before the schema upgrade.
+Never read or print private `.env` values.
+
+**Next, in order.**
+1. Owner runs the read-only `supabase/checks/verify_cart_security.sql` (sibling
+   repository) in the development SQL Editor; review RLS, policies, grants and RPC
+   privileges against the migrations.
+2. Native build: EAS development build on an Android device (owner needs an Expo
+   account), then PaymentSheet checkout, restart, account-switch and A→B→A recovery.
+3. Plain-sentence address input ("my address is …", "postal code is …") mapped
+   onto the existing verified `deliver to` search.
+4. Production setup, which needs owner decisions: host Goer (the LocalGo backend
+   already uses Render), a separate production Supabase project, live Stripe keys
+   plus webhook, `GOER_DATABASE_URL`, and a shared rate-limit store. Then a $1–2 live
+   payment and refund, and app store builds and listings.
+
 ## Latest development verification — 2026-11-06
 
 This update supersedes the older empty-service-key/missing-schema statements below.
