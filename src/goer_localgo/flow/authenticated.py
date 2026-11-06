@@ -12,6 +12,7 @@ from goer_localgo.domain.money import format_cents
 from goer_localgo.domain.turns import TurnJournal, TurnPending
 from goer_localgo.flow.goer_flow import GoerFlow, TurnInput
 from goer_localgo.flow.routing import classify
+from goer_localgo.observability import TurnTrace, envelope_output, turn_trace
 from goer_localgo.schemas.cart import CartPlan, CartSnapshot
 from goer_localgo.schemas.chat import CartSummaryCard, ChatEnvelope
 from goer_localgo.tools.cart.add_cart_item import AddCartItemTool
@@ -46,16 +47,34 @@ def run_authenticated_turn(message: str, conversation_id: str, request_id: str,
                            owner: str, client, cart_enabled: bool, catalog_repository=None) -> ChatEnvelope:
     message = TurnInput(message=message).message
     request_id, conversation_id = str(UUID(request_id)), str(UUID(conversation_id))
+    with turn_trace("goer-signed-in-turn", conversation_id=conversation_id, user_id=owner,
+                    message=message, tags=["signed-in"],
+                    metadata={"request_id": request_id, "cart_enabled": cart_enabled}) as trace:
+        response = _authenticated_turn(message, conversation_id, request_id, owner, client,
+                                       cart_enabled, catalog_repository, trace)
+        trace.update(output=envelope_output(response))
+        return response
+
+
+def _authenticated_turn(message: str, conversation_id: str, request_id: str, owner: str, client,
+                        cart_enabled: bool, catalog_repository, trace: TurnTrace) -> ChatEnvelope:
     journal = TurnJournal()
     record = journal.begin(owner, conversation_id, request_id, message)
     if record.response:
+        # Same request_id retried after completion: cached reply, no model or cart work.
+        trace.update(metadata={"replay": "completed-response"})
         return ChatEnvelope.model_validate(record.response)
     key = "chat-" + hashlib.sha256(f"{owner}:{conversation_id}:{request_id}".encode()).hexdigest()
     try:
+        if record.plan is not None:
+            trace.update(metadata={"replay": "staged-plan"})
         if record.plan is None:
             with catalog_repository_scope(catalog_repository or get_catalog_repository()):
                 context = context_text(record.context)
-                intent = classify(message, context)
+                with trace.step("route-intent", as_type="chain", input={"message": message}) as step:
+                    intent = classify(message, context)
+                    step.update(output={"intent": intent})
+                trace.update(metadata={"intent": intent})
                 if intent == "discovery":
                     flow = GoerFlow()
                     flow.kickoff(inputs={"conversation_id": conversation_id, "user_id": owner,
@@ -94,7 +113,13 @@ def run_authenticated_turn(message: str, conversation_id: str, request_id: str,
                         arguments["product_id"] = command["product_id"]
                     if operation in ("add", "set"):
                         arguments["quantity"] = command["quantity"]
-                    result = json.loads(tool.run(**arguments))
+                    with trace.step("apply-cart-command", as_type="tool",
+                                    input={"operation": operation, **arguments}) as step:
+                        result = json.loads(tool.run(**arguments))
+                        error = result.get("error", {}).get("code")
+                        step.update(output={"error": error} if error else
+                                    {"cart_revision": result.get("cart", {}).get("revision")},
+                                    **({"level": "WARNING", "status_message": error} if error else {}))
                     if result.get("error", {}).get("code") in (
                         "CART_UNAVAILABLE", "INVALID_CART_RESPONSE", "AUTHENTICATION_REQUIRED",
                     ):

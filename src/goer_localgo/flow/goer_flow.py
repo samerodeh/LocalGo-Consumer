@@ -10,6 +10,7 @@ from goer_localgo.domain.cards import build_cards, collect_catalog_results, show
 from goer_localgo.domain.catalog import get_product
 from goer_localgo.domain.conversations import get_conversation_repository
 from goer_localgo.flow.state import GoerState, TurnSummary
+from goer_localgo.observability import envelope_output, turn_trace
 from goer_localgo.schemas.chat import ChatEnvelope, OpenProductAction, ProductListCard
 
 
@@ -94,6 +95,14 @@ def run_conversation_turn(
         conversation = repository.create(user_id)
     else:
         conversation = repository.load(str(UUID(conversation_id)), user_id)
+    with turn_trace("goer-guest-turn", conversation_id=conversation.id, user_id=user_id,
+                    message=message, tags=["guest", "discovery"]) as trace:
+        response = _run_guest_flow(conversation, user_id, message, repository)
+        trace.update(output=envelope_output(response))
+    return response
+
+
+def _run_guest_flow(conversation, user_id: str, message: str, repository) -> ChatEnvelope:
     flow = GoerFlow()
     flow.kickoff(inputs={
         "conversation_id": conversation.id, "user_id": user_id, "user_message": message,
