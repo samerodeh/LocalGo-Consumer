@@ -1,5 +1,7 @@
 import asyncio
+import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -16,10 +18,25 @@ from goer_localgo.integrations.localgo.cart_client import LocalGoCartClient
 from goer_localgo.integrations.localgo.catalog_repository import LocalGoCatalogRepository
 from goer_localgo.domain.conversations import ConversationConflict, ConversationNotFound
 from goer_localgo.flow.goer_flow import TurnInput, create_conversation, run_conversation_turn
+from goer_localgo.llm import warm_up
+from goer_localgo.observability import flush, setup_tracing
 from goer_localgo.schemas.chat import Card, ChatEnvelope, OpenProductAction
 
 
-app = FastAPI(title="Goer AI", version="0.1.0")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Pay one-time costs (HTTPS client setup, tracing instrumentation) at
+    # startup instead of inside the first customer's turn.
+    try:
+        setup_tracing()
+        await asyncio.to_thread(warm_up)
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Startup warm-up skipped (%s)", type(exc).__name__)
+    yield
+    flush()
+
+
+app = FastAPI(title="Goer AI", version="0.1.0", lifespan=lifespan)
 origins = [origin.strip() for origin in os.environ.get("GOER_ALLOWED_ORIGINS", "").split(",") if origin.strip()]
 if origins:
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["POST", "GET"],
