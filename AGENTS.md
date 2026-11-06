@@ -229,7 +229,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | Typed-checkout increment committed; real connected acceptance remains blocked by private setup |
+| Agent | 2026-11-06 | AGENTS.md; docs/cart-integration-runbook.md; private .env | Verify connected development storage, configure gated services, and exercise available authenticated acceptance checks | Active; development only, no production or unconfirmed payments |
 
 ---
 
