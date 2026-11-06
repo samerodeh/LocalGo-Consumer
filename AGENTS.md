@@ -31,9 +31,20 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-06 | backend/app/postgrest.py; backend/app/mailer.py; backend/app/routers/account.py; backend/tests/; backend/.env.example; backend/README.md; AGENTS.md | Support Supabase secret/publishable API keys without JWT bearer misuse; retain legacy key compatibility | Active; backend only, no credentials or activation flags changed |
+| *(No active work locks)* | - | - | - | Modern Supabase keys supported; private secret configuration and connected acceptance remain pending |
 
 ## Recent work
+
+- 2026-11-06: Added support for `sb_secret_`/`sb_publishable_` API keys in shared
+  backend request headers; modern keys use only `apikey`, while real user JWTs
+  retain Bearer authentication/RLS and legacy JWT API keys remain compatible.
+  Auth-admin mail/account calls now reuse the same header logic. All 122 pinned
+  backend tests pass, including six key-format/identity cases. Keep the existing
+  `SUPABASE_SERVICE_ROLE_KEY` variable for the new backend-only secret; no secrets
+  or activation flags were changed. Restart after private `.env` setup. Read-only
+  connected checks now return permission-denied rather than missing-table errors
+  for cart/checkout/history, following user-run migrations; actual owner/service
+  grants, concurrency and native checkout still require connected verification.
 
 - 2026-11-05: Implemented deterministic typed checkout in authenticated Goer chat:
   address search/explicit selection, tip, full CAD summary, exact confirmation
