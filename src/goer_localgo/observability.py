@@ -28,6 +28,8 @@ _SECRET_PATTERNS = [
     (re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+"), "[REDACTED_JWT]"),
     (re.compile(r"\b(sk|pk|rk)[-_](?:live|test|proj|lf)?[-_]?[A-Za-z0-9_-]{12,}"), "[REDACTED_KEY]"),
     (re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"), "[REDACTED_EMAIL]"),
+    # Card-like digit runs (the API refuses these first; this is a backstop).
+    (re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)"), "[REDACTED_NUMBER]"),
 ]
 
 
