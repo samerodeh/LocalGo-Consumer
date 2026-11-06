@@ -7,6 +7,8 @@ a Postgres implementation can replace it later via ``set_catalog_repository``.
 
 import copy
 import json
+import re
+import unicodedata
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
@@ -87,6 +89,17 @@ def load_catalog() -> list[Product]:
     return get_catalog_repository().list_products()
 
 
+def merchant_key(value: str) -> str:
+    """Canonical comparison key so "Al-Taib", "al taib" and "Château Kabab"
+    match the slug IDs ("al-taib", "chateau-kabab") models often paraphrase."""
+    ascii_text = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", ascii_text.lower()).strip("-")
+
+
+def _same_merchant(product: Product, merchant_id: str) -> bool:
+    return merchant_key(product["merchant_id"]) == merchant_key(merchant_id)
+
+
 def search_products(
     product_name: str,
     merchant_id: str | None = None,
@@ -98,7 +111,7 @@ def search_products(
     return [
         product
         for product in load_catalog()
-        if (merchant_id is None or product["merchant_id"] == merchant_id)
+        if (merchant_id is None or _same_merchant(product, merchant_id))
         and query in product["name"].lower()
     ]
 
@@ -107,7 +120,7 @@ def merchant_menu(merchant_id: str) -> list[Product]:
     return [
         product
         for product in load_catalog()
-        if product["merchant_id"] == merchant_id
+        if _same_merchant(product, merchant_id)
     ]
 
 
@@ -182,7 +195,7 @@ def menu_overview(merchant_id: str) -> Product | None:
         )
 
     return {
-        "merchant_id": merchant_id,
+        "merchant_id": products[0]["merchant_id"],
         "product_count": len(products),
         "categories": [
             {"name": name, "items": items} for name, items in categories.items()
