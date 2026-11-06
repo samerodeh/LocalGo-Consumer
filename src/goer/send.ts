@@ -1,6 +1,7 @@
 import { authenticatedGoerEnabled, runAuthenticatedGoerTurn } from './authenticatedClient';
 import { goerMsg, goerOwnerGeneration, useGoerStore } from './goerStore';
 import { isCheckoutChatCommand, runCheckoutChatCommand } from './checkoutChat';
+import { CARD_REFUSAL, containsPaymentCardData } from './cardGuard';
 
 /**
  * Single entry point for user input from the chat UI (typed text and
@@ -12,6 +13,11 @@ export async function sendGoerMessage(rawText: string, retryPending = false): Pr
   const store = useGoerStore.getState();
   if (!text || store.isStreaming || store.isHistoryLoading) return;
   if (authenticatedGoerEnabled && store.pendingMessage && (!retryPending || store.pendingMessage !== text)) return;
+  if (containsPaymentCardData(text)) {
+    // Not displayed, sent or saved; only the refusal note is shown.
+    store.appendMessage(goerMsg({ kind: 'system_note', text: CARD_REFUSAL }));
+    return;
+  }
   const generation = goerOwnerGeneration();
 
   if (!retryPending) {

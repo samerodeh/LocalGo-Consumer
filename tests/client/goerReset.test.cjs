@@ -34,6 +34,7 @@ function harness() {
         if (dependency === './config') return { isGoerLLMConfigured: true, MAX_UI_MESSAGES: 50, MAX_API_MESSAGES: 24 };
         if (dependency === './authenticatedClient') return authenticated;
         if (dependency === './checkoutChat') return { isCheckoutChatCommand: () => false };
+        if (dependency === './cardGuard') return { CARD_REFUSAL: 'refused', containsPaymentCardData: () => false };
         if (dependency === './goerStore') return load('goerStore');
         throw Error(`Unexpected dependency ${dependency}`);
       },
