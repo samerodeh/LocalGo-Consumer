@@ -31,7 +31,7 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active locks)* | - | - | - | Code/tests/docs complete; connected development activation awaits private credentials/admin access |
+| Agent | 2026-11-05 | src/goer/checkoutChat.ts; src/goer/send.ts; src/goer/goerStore.ts; src/goer/authenticatedClient.ts; src/goer/history.ts; tests/client/; AGENTS.md; backend/README.md | Connect typed checkout, delivery selection and explicit confirmation inside authenticated chat; preserve owner/payment retry guards | Active; no production activation; real DB/native checkout blocked by private prerequisites |
 
 ## Recent work
 
