@@ -8,14 +8,14 @@ import { beginCheckout, cancelPendingCheckout, checkoutStatus, type CheckoutPin 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { customerToken } from '../lib/serverCart';
 import type { StagedOrder } from './types';
+import { isCheckoutRequest } from './checkoutIntent';
 
-const checkout = /^(?:please )?(?:check ?out|place (?:my |the )?order|order now|ready to order|pay)(?: please)?[.!]?$/i;
 const addressList = /^(?:my |delivery )?addresses[.!]?$/i;
 const money = (value: number) => `$${value.toFixed(2)} CAD`;
 let choices: { generation: number; values: Array<{ id?: string; location: GeoResult }> } | null = null;
 
 export function isCheckoutChatCommand(text: string): boolean {
-  return checkout.test(text) || addressList.test(text) || /^(?:confirm order|cancel checkout|deliver to|use address|tip)\b/i.test(text);
+  return isCheckoutRequest(text) || addressList.test(text) || /^(?:confirm order|cancel checkout|deliver to|use address|tip)\b/i.test(text);
 }
 
 interface Receipt { message: string; pin: CheckoutPin; staged: StagedOrder; reply?: string }
@@ -79,7 +79,7 @@ export async function runCheckoutChatCommand(text: string, requestId?: string): 
     }
   };
   assertOwner();
-  if (checkout.test(text)) {
+  if (isCheckoutRequest(text)) {
     await useCartStore.getState().refresh();
     assertOwner();
     const outcome = useGoerStore.getState().stageOrder();

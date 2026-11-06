@@ -86,7 +86,7 @@ function harness(shared = {}) {
           { label: address.addressLine, addressLine: address.addressLine, postalCode: address.postalCode, city: 'Montreal', latitude: address.latitude, longitude: address.longitude },
           { label: 'Outside delivery zone', addressLine: '123 Far Street', postalCode: '', city: 'Toronto', latitude: 43.65, longitude: -79.38 } ] };
         if (dependency === './config') return { isGoerLLMConfigured: true, MAX_API_MESSAGES: 24, MAX_UI_MESSAGES: 50 };
-        const actual = { './authenticatedClient': 'authenticatedClient', './goerStore': 'goerStore', './checkoutChat': 'checkoutChat', './history': 'history',
+        const actual = { './authenticatedClient': 'authenticatedClient', './goerStore': 'goerStore', './checkoutChat': 'checkoutChat', './checkoutIntent': 'checkoutIntent', './history': 'history',
           '../store/addressStore': 'addressStore', '../lib/deliveryLocation': 'deliveryLocation', './deliveryZone': 'deliveryZone', '../lib/checkoutSession': 'checkoutSession', './serverCart': 'serverCart' }[dependency];
         if (actual) return load(actual);
         throw Error(`Unexpected dependency ${dependency}`);
