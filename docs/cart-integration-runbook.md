@@ -250,10 +250,21 @@ numbers must never be collected in chat. Existing descriptive saved-card records
 are not chargeable Stripe tokens. Do not bypass PaymentSheet/bank authentication
 or claim saved-method charging exists. Completed local checkout replies are
 cached under the existing request UUID before cloud history publication; a
-history-only retry must not invoke payment or the agent again.
+history-only retry must not invoke payment or the agent again. Before a typed
+confirmation can pay, an owner/request-scoped local receipt records its exact
+snapshot and stable order pin. Account-switch/restart recovery reconciles that
+original order even without an in-memory summary; a consumed pin cannot create
+a replacement payment. Concurrent waiters reuse one immutable response. These
+local recovery receipts contain delivery information and currently have no
+retention/deletion policy, alongside the other documented persistence gaps.
 
 The typed sequence is covered by connected client-module tests with external
 Auth/model/payment services doubled, not by a real signed-in native payment.
+Latest offline checks: 127 Goer tests, 116 pinned backend tests, 36 mobile/SQL
+cases (zero skips), TypeScript and Android JS/assets export pass. Tests include
+wrong-code refusal, address hydration, A-B-A payment completion/overlapping
+waiters and interruption before receipt/envelope caching. Export is not a native
+build, PaymentSheet execution or connected Supabase/Stripe verification.
 A read-only development-project check on 2026-11-05 returned `404 PGRST205` for
 `customer_carts`, `customer_cart_checkouts`, `goer_conversations` and
 `goer_history_turns`; these tables are not visible in the connected schema cache.
