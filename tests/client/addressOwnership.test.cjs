@@ -33,14 +33,28 @@ test('delayed address hydration cannot replace the newer signed-in account', asy
   assert.equal(h.store.getState().allAddresses.length, 0);
 });
 
-test('a delayed save stays in its original scope and cannot overwrite a fresh A-B-A session', async () => {
+test('A-B-A hydration waits for its earlier native save rather than reading stale addresses', async () => {
   const h = harness(); await h.store.getState().configure('a@test.invalid'); let finish;
   h.blockSave(new Promise(resolve => { finish = resolve; }));
   const pending = h.store.getState().save({ addressLine: '123 Old Street', latitude: 45.5, longitude: -73.57 });
+  await new Promise(setImmediate);
   await h.store.getState().configure('b@test.invalid');
-  await h.store.getState().configure('a@test.invalid');
-  finish(); await pending;
+  const returned = h.store.getState().configure('a@test.invalid');
+  assert.equal(h.store.getState().isHydrated, false);
+  finish(); await pending; await returned;
   assert.equal(h.saved.get('a@test.invalid').length, 1);
-  assert.equal(h.store.getState().allAddresses.length, 0);
-  assert.equal(h.store.getState().defaultAddress, null);
+  assert.equal(h.store.getState().allAddresses.length, 1);
+  assert.equal(h.store.getState().isHydrated, true);
+});
+
+test('saving during hydration and concurrent edits preserve the existing list', async () => {
+  const h = harness(); let finish;
+  h.saved.set('a@test.invalid', [{ id: 'existing', addressLine: 'Existing address', isDefault: true, sortOrder: 0 }]);
+  h.blockLoad(new Promise(resolve => { finish = resolve; }));
+  const loading = h.store.getState().configure('a@test.invalid');
+  const first = h.store.getState().save({ addressLine: 'Second address' });
+  const second = h.store.getState().save({ addressLine: 'Third address' });
+  assert.equal(h.store.getState().isHydrated, false);
+  finish(); await Promise.all([loading, first, second]);
+  assert.deepEqual(Array.from(h.saved.get('a@test.invalid'), a => a.addressLine), ['Existing address', 'Second address', 'Third address']);
 });

@@ -22,7 +22,7 @@ export async function runCheckoutChatCommand(text: string): Promise<string> {
   const current = () => generation === goerOwnerGeneration() && email === useGoerStore.getState().ownerEmail;
   const assertOwner = () => {
     if (!current() || !email || useAuthStore.getState().currentUser?.email !== email
-        || useAddressStore.getState().ownerEmail !== email) {
+        || useAddressStore.getState().ownerEmail !== email || useAddressStore.getState().isHydrated === false) {
       throw new Error('Wait for your signed-in account and addresses to load, then retry.');
     }
   };
@@ -63,7 +63,7 @@ export async function runCheckoutChatCommand(text: string): Promise<string> {
     return 'Tip updated. Type "checkout" to review the new total before confirming payment.';
   }
   if (addressList.test(text)) {
-    const addresses = useAddressStore.getState().allAddresses.filter(address => !deliveryLocationProblem(address));
+    const addresses = useAddressStore.getState().allAddresses.filter(address => !deliveryLocationProblem(address)).slice(0, 6);
     choices = { generation, values: addresses.map(address => ({ id: address.id, location: {
       label: address.addressLine, addressLine: address.addressLine, postalCode: address.postalCode,
       city: '', latitude: address.latitude, longitude: address.longitude,

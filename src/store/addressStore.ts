@@ -33,6 +33,7 @@ interface SaveInput {
 
 interface AddressState {
   ownerEmail: string | null;
+  isHydrated: boolean;
   allAddresses: Address[];
   defaultAddress: Address | null;
 
@@ -50,20 +51,31 @@ function sortAddresses(list: Address[]): Address[] {
 }
 
 let ownerGeneration = 0;
+const operations = new Map<string, Promise<void>>();
+function serialize(email: string, action: () => Promise<void>): Promise<void> {
+  const work = (operations.get(email) ?? Promise.resolve()).then(action);
+  const tail = work.then(() => {}, () => {});
+  operations.set(email, tail);
+  void tail.then(() => { if (operations.get(email) === tail) operations.delete(email); });
+  return work;
+}
 
 export const useAddressStore = create<AddressState>((set, get) => ({
   ownerEmail: null,
+  isHydrated: false,
   allAddresses: [],
   defaultAddress: null,
 
   configure: async (email) => {
     const generation = ++ownerGeneration;
-    set({ ownerEmail: email, allAddresses: [], defaultAddress: null });
+    set({ ownerEmail: email, isHydrated: false, allAddresses: [], defaultAddress: null });
     if (!email) {
       set({ ownerEmail: null, allAddresses: [], defaultAddress: null });
       return;
     }
+    return serialize(email, async () => {
     let list = sortAddresses(await loadAddresses(email));
+    if (generation !== ownerGeneration || get().ownerEmail !== email) return;
     // Ensure something is marked default so the home header shows an address.
     if (list.length > 0 && !list.some((a) => a.isDefault)) {
       list[0].isDefault = true;
@@ -73,8 +85,10 @@ export const useAddressStore = create<AddressState>((set, get) => ({
     if (generation !== ownerGeneration || get().ownerEmail !== email) return;
     set({
       ownerEmail: email,
+      isHydrated: true,
       allAddresses: list,
       defaultAddress: list.find((a) => a.isDefault) ?? null,
+    });
     });
   },
 
@@ -82,17 +96,24 @@ export const useAddressStore = create<AddressState>((set, get) => ({
     const generation = ownerGeneration;
     const email = get().ownerEmail;
     if (!email) return;
+    return serialize(email, async () => {
+    if (generation !== ownerGeneration || get().ownerEmail !== email) return;
+    if (!get().isHydrated) throw new Error('Wait for saved addresses to load before editing.');
     const list = get().allAddresses.map((a) => ({ ...a, isDefault: a.id === id }));
     const sorted = sortAddresses(list);
     await saveAddresses(email, sorted);
     if (generation !== ownerGeneration || get().ownerEmail !== email) return;
     set({ allAddresses: sorted, defaultAddress: sorted.find((a) => a.isDefault) ?? null });
+    });
   },
 
   save: async (input) => {
     const generation = ownerGeneration;
     const email = get().ownerEmail;
     if (!email) return;
+    return serialize(email, async () => {
+    if (generation !== ownerGeneration || get().ownerEmail !== email) return;
+    if (!get().isHydrated) throw new Error('Wait for saved addresses to load before editing.');
     let list = [...get().allAddresses];
 
     if (input.id) {
@@ -146,17 +167,22 @@ export const useAddressStore = create<AddressState>((set, get) => ({
     await saveAddresses(email, sorted);
     if (generation !== ownerGeneration || get().ownerEmail !== email) return;
     set({ allAddresses: sorted, defaultAddress: sorted.find((a) => a.isDefault) ?? null });
+    });
   },
 
   remove: async (id) => {
     const generation = ownerGeneration;
     const email = get().ownerEmail;
     if (!email) return;
+    return serialize(email, async () => {
+    if (generation !== ownerGeneration || get().ownerEmail !== email) return;
+    if (!get().isHydrated) throw new Error('Wait for saved addresses to load before editing.');
     let list = get().allAddresses.filter((a) => a.id !== id);
     if (list.length > 0 && !list.some((a) => a.isDefault)) list[0].isDefault = true;
     const sorted = sortAddresses(list);
     await saveAddresses(email, sorted);
     if (generation !== ownerGeneration || get().ownerEmail !== email) return;
     set({ allAddresses: sorted, defaultAddress: sorted.find((a) => a.isDefault) ?? null });
+    });
   },
 }));
