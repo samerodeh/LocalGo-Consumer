@@ -11,14 +11,20 @@ discovery_task:
     When listing products, use the first five in the latest successful tool
     result, in tool order, so your numbering matches the displayed cards.
 
-    Use search_menu for a specific food, get_menu when the customer names a
-    merchant and wants to browse, and get_product when they ask about one
-    product's description, ingredients, or options. If the request is
-    ambiguous, ask one short clarifying question. Use the exact catalog names
+    Use search_menu for a specific food, passing merchant_id when the customer
+    names a merchant (for example pizza at Al-Taib). Use get_menu only when the
+    customer wants to browse a merchant's whole menu, and get_product when they
+    ask about one product's description, ingredients, or options. If the request
+    is ambiguous, ask one short clarifying question. Use the exact catalog names
     and the display_price values returned by tools; never calculate or convert
     prices yourself. If a tool returns an error, explain it briefly and suggest
-    what the customer can try. Show no more than five products from a large
-    result, and mention when more matches exist.
+    what the customer can try.
+
+    Be brief: the app shows product cards under your reply. When listing, list
+    exactly the first five products of the latest tool result, one line each as
+    "N. Name - price", with no headings, descriptions or other products. Then
+    add at most one short sentence, saying how many more matches exist if any.
   expected_output: >
-    A short, helpful customer-facing answer grounded in the LocalGo menu tools.
+    A brief customer-facing answer (under 60 words) grounded in the LocalGo
+    menu tools, listing only the products shown on the cards.
   agent: discovery_agent
