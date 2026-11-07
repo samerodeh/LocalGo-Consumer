@@ -11,11 +11,12 @@ import type { StagedOrder } from './types';
 import { isCheckoutRequest } from './checkoutIntent';
 
 const addressList = /^(?:my |delivery )?addresses[.!]?$/i;
+const addressInput = /^(?:deliver to|(?:my )?(?:delivery )?address is|(?:my )?postal code is)\b\s*(.*)$/i;
 const money = (value: number) => `$${value.toFixed(2)} CAD`;
 let choices: { generation: number; values: Array<{ id?: string; location: GeoResult }> } | null = null;
 
 export function isCheckoutChatCommand(text: string): boolean {
-  return isCheckoutRequest(text) || addressList.test(text) || /^(?:confirm order|cancel checkout|deliver to|use address|tip)\b/i.test(text);
+  return isCheckoutRequest(text) || addressList.test(text) || addressInput.test(text) || /^(?:confirm order|cancel checkout|use address|tip)\b/i.test(text);
 }
 
 interface Receipt { message: string; pin: CheckoutPin; staged: StagedOrder; reply?: string }
@@ -119,8 +120,9 @@ export async function runCheckoutChatCommand(text: string, requestId?: string): 
     if (!addresses.length) return 'No verified saved delivery addresses. Type "deliver to <full street address>" to search and choose one here.';
     return `${addresses.map((address, i) => `${i + 1}. ${address.addressLine}`).join('\n')}\nType "use address 1" to select one, then "checkout".`;
   }
-  const query = /^deliver to\s+(.+)$/i.exec(text);
+  const query = addressInput.exec(text);
   if (query) {
+    if (!query[1].trim()) return 'Type "my address is <full street address and city>" or "postal code is <postal code>" to search, then choose a verified destination.';
     if (query[1].length > 500) return 'Use a street address under 500 characters.';
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15000);

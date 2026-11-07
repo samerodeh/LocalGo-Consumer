@@ -14,7 +14,7 @@ function harness(shared = {}) {
   const ownerId = shared.ownerId ??= randomUUID(), conversationId = shared.conversationId ??= randomUUID();
   const data = shared.data ??= new Map(), history = shared.history ??= new Map(), modules = {};
   const statuses = shared.statuses ??= new Map();
-  const state = shared.state ??= { payments: 0, agentTurns: 0, cartRevision: 1 };
+  const state = shared.state ??= { payments: 0, agentTurns: 0, cartRevision: 1, addressQueries: [] };
   let paymentGate; 
   const address = { id: 'home', ownerEmail: email, isDefault: true, sortOrder: 0,
     addressLine: '1510 Boulevard De Maisonneuve Ouest', postalCode: 'H3G 1M8',
@@ -82,9 +82,12 @@ function harness(shared = {}) {
           cart.lines = []; cart.revision++;
           return { ok: true, orderId: input.expectedCheckoutId }; } };
         if (dependency === './api') return { API_URL: 'https://localgo.test' };
-        if (dependency === '../lib/geocoding') return { searchAddresses: async () => [
-          { label: address.addressLine, addressLine: address.addressLine, postalCode: address.postalCode, city: 'Montreal', latitude: address.latitude, longitude: address.longitude },
-          { label: 'Outside delivery zone', addressLine: '123 Far Street', postalCode: '', city: 'Toronto', latitude: 43.65, longitude: -79.38 } ] };
+        if (dependency === '../lib/geocoding') return { searchAddresses: async query => {
+          state.addressQueries.push(query);
+          return shared.searchResults ?? [
+            { label: address.addressLine, addressLine: address.addressLine, postalCode: address.postalCode, city: 'Montreal', latitude: address.latitude, longitude: address.longitude },
+            { label: 'Outside delivery zone', addressLine: '123 Far Street', postalCode: '', city: 'Toronto', latitude: 43.65, longitude: -79.38 } ];
+        } };
         if (dependency === './config') return { isGoerLLMConfigured: true, MAX_API_MESSAGES: 24, MAX_UI_MESSAGES: 50 };
         const actual = { './authenticatedClient': 'authenticatedClient', './goerStore': 'goerStore', './checkoutChat': 'checkoutChat', './checkoutIntent': 'checkoutIntent', './cardGuard': 'cardGuard', './history': 'history',
           '../store/addressStore': 'addressStore', '../lib/deliveryLocation': 'deliveryLocation', './deliveryZone': 'deliveryZone', '../lib/checkoutSession': 'checkoutSession', './serverCart': 'serverCart' }[dependency];
@@ -103,6 +106,49 @@ function harness(shared = {}) {
     payments: () => state.payments, agentTurns: () => state.agentTurns,
     lastText: () => store.getState().uiMessages.filter(m => m.kind === 'text' && m.role === 'assistant').at(-1)?.text };
 }
+
+test('plain-sentence address and postal inputs search without saving or authorizing payment', async () => {
+  for (const [text, query] of [
+    ['my address is 1510 Boulevard De Maisonneuve Ouest Montreal', '1510 Boulevard De Maisonneuve Ouest Montreal'],
+    ['My delivery address is 1510 Boulevard De Maisonneuve Ouest', '1510 Boulevard De Maisonneuve Ouest'],
+    ['postal code is H3G 1M8', 'H3G 1M8'],
+    ['my postal code is H3G 1M8', 'H3G 1M8'],
+  ]) {
+    const h = harness(); await h.start();
+    await h.send('add a cheese pizza slice');
+    const before = h.addressStore.getState().allAddresses.length;
+    await h.send(text);
+    assert.deepEqual(h.shared.state.addressQueries, [query]);
+    assert.match(h.lastText(), /use address 1/);
+    assert.doesNotMatch(h.lastText(), /Outside delivery zone/);
+    assert.equal(h.addressStore.getState().allAddresses.length, before);
+    assert.equal(h.store.getState().chatAddressId, null);
+    assert.equal(h.store.getState().stagedOrder, null);
+    assert.equal(h.agentTurns(), 1);
+    assert.equal(h.payments(), 0);
+    await h.send('use address 1');
+    assert.match(h.lastText(), /Delivery set/);
+    await h.send('checkout');
+    assert.match(h.lastText(), /CONFIRM ORDER/);
+    assert.equal(h.payments(), 0);
+  }
+});
+
+test('empty, oversized and unmatched address inputs never fall through to the model or payment', async () => {
+  const h = harness({ searchResults: [] }); await h.start();
+  for (const text of ['my address is', 'postal code is', `my address is ${'x'.repeat(501)}`]) {
+    await h.send(text);
+    assert.match(h.lastText(), /Type|under 500/);
+  }
+  assert.deepEqual(h.shared.state.addressQueries, []);
+  await h.send('postal code is H0H 0H0');
+  assert.match(h.lastText(), /No verified address/);
+  await h.send('use address 1');
+  assert.match(h.lastText(), /first/);
+  assert.equal(h.store.getState().chatAddressId, null);
+  assert.equal(h.agentTurns(), 0);
+  assert.equal(h.payments(), 0);
+});
 
 test('signed-in chat orders, stages, explicitly confirms and saves the outcome without cart-screen navigation', async () => {
   const h = harness(); await h.start();
