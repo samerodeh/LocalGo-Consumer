@@ -305,7 +305,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | Browser sandbox checkout verified (one paid order); remaining: decline/cancel/3DS/stale-code browser checks, native build, production gates |
+| Agent | 2026-11-06 | src/goer_localgo/api/guards.py; src/goer_localgo/api/main.py; src/goer_localgo/domain/storage.py; tests/unit/test_guards.py; tests/integration/test_chat_guards.py; tests/unit/test_storage_backends.py | Shared Postgres rate limits with atomic admission and fail-closed outages | Active |
 
 ---
 
