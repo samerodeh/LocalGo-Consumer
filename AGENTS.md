@@ -31,7 +31,7 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | Connected schema exposure verified; private-file guard blocks activation, native acceptance pending |
+| Agent | 2026-11-06 | src/goer/checkoutChat.ts; tests/client/goerChatCheckout.test.cjs | Route plain-sentence address and postal input through verified search | Active |
 
 ## Recent work
 - 2026-11-06: Read-only development checks validate the configured service key
