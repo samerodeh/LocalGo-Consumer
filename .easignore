@@ -46,9 +46,13 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files — never upload these; the build reads eas.json's `env` block
-# instead (see the EAS Build section of CLAUDE.md)
-.env*.local
+# Private environment files must not ride along in the build archive.
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!.env.*.example
 
 # typescript
 *.tsbuildinfo
