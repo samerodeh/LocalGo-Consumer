@@ -31,9 +31,10 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-06 | src/goer/checkoutChat.ts; tests/client/goerChatCheckout.test.cjs | Route plain-sentence address and postal input through verified search | Active |
+| Agent | 2026-11-06 | eas.json; .easignore; docs/android-development-build.md | Prepare development APK profile and safe upload instructions without starting a build | Active |
 
 ## Recent work
+- 2026-11-06: Plain-sentence address/postal inputs now reuse verified geocoding and explicit address selection; empty/oversized/unmatched inputs cannot reach the model or authorize payment. TypeScript and 43 client/SQL tests pass with zero skips. Goer regression suite: 172 passed, 5 Postgres cases skipped (no disposable database configured). Local services 8000/8100/8082 returned 200. Native payment remains unverified.
 - 2026-11-06: Read-only development checks validate the configured service key
   (Auth admin 200), service-role `limit=0` access to all five expected tables,
   expected columns and four exposed RPC names. Anonymous table reads fail with
