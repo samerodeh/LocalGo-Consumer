@@ -31,9 +31,10 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-06 | eas.json; .easignore; docs/android-development-build.md | Prepare development APK profile and safe upload instructions without starting a build | Active |
+| *(No active work locks)* | - | - | - | Awaiting owner SQL results, Expo access and Android device |
 
 ## Recent work
+- 2026-11-06: Added development-only internal APK/dev-client EAS profile, excluded root/nested private environment files from uploads, and documented owner setup plus native acceptance in `docs/android-development-build.md`. TypeScript and 43 client/SQL tests pass (zero skips). No EAS upload/build, credentials, private configuration, payments or production activation changed. Owner SQL results, Expo project access and a device remain required.
 - 2026-11-06: Plain-sentence address/postal inputs now reuse verified geocoding and explicit address selection; empty/oversized/unmatched inputs cannot reach the model or authorize payment. TypeScript and 43 client/SQL tests pass with zero skips. Goer regression suite: 172 passed, 5 Postgres cases skipped (no disposable database configured). Local services 8000/8100/8082 returned 200. Native payment remains unverified.
 - 2026-11-06: Read-only development checks validate the configured service key
   (Auth admin 200), service-role `limit=0` access to all five expected tables,
