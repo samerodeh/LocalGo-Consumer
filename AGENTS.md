@@ -31,9 +31,14 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | Production EAS variables and native acceptance remain open |
+| *(No active work locks)* | - | - | - | Payment disposition and native acceptance remain open |
 
 ## Recent work
+- 2026-11-08: Added a read-only Stripe succeeded-event audit with a 15-minute
+  race grace, 48-hour scan window, deduplication, service-role order checks and
+  nonzero exit for missing or uncertain orders. All 125 backend tests pass.
+  No live Stripe call, refund, scheduler or order publication was performed.
+  Scheduling and paid-without-order disposition still need an owner choice.
 - 2026-11-08: Store profile now selects the EAS production environment and
   enables server cart without hardcoding development service URLs. A pre-install
   guard rejects missing/invalid public endpoints or a disabled server cart;
