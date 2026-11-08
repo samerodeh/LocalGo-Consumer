@@ -36,9 +36,14 @@ Status as of **2026-08-31**. Play listing exists; app is at the "Get ready to pu
       `https://<backend>/payments/webhook`, events `payment_intent.succeeded` +
       `payment_intent.payment_failed`) and put its `whsec_…` in `STRIPE_WEBHOOK_SECRET`. Until
       then the endpoint returns 503.
-- [ ] Add a periodic sweep over recent PaymentIntents. The webhook alone can't close this: Stripe
-      often delivers it *before* the app's own `POST /orders`, so a charge can look orphaned and
-      then resolve seconds later. The hook flags candidates; it doesn't confirm them.
+- [x] Added a read-only audit of succeeded Stripe events older than 15 minutes:
+      `python -m app.payment_reconciliation` from `backend/`. It checks the last 48 hours
+      against service-role order reads, reports missing/unknown orders without card data,
+      and exits nonzero for operator attention. Offline tests cover duplicate events and lookup failure.
+- [ ] Schedule the audit more often than its 48-hour window and alert on nonzero exit.
+      The webhook alone can flag a false orphan before `POST /orders` completes.
+- [ ] Choose and implement the final response to confirmed paid-without-order cases
+      (manual recovery or an idempotent refund after a review window).
 - [ ] Decide on sales tax. Nothing charges GST/QST today; see the PRICING NOTE in `pricing.py`.
 
 ### 2. Dead auth buttons — **done**
