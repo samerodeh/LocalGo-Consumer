@@ -31,9 +31,17 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | Payment disposition and native acceptance remain open |
 
 ## Recent work
+- 2026-11-08: Added the one-hour automatic refund path for paid server-cart
+  checkouts without a dispatch order. The new migration serializes refund claims
+  with order inserts and records the provider refund ID; the backend verifies
+  the bound charge, rechecks order absence, and reconciles existing Stripe refunds
+  on retry. Mobile blocks checkout reuse during refunding. Default event scan is
+  30 days; auto mode requires a 60-minute grace. Backend 128 tests, 45 client/SQL
+  tests with zero skips, and TypeScript pass. No connected migration, live refund,
+  production scheduler, or native device test was performed. Apply the migration,
+  configure an hourly scheduled run and alert, then validate with Stripe test mode.
 - 2026-11-08: Added a read-only Stripe succeeded-event audit with a 15-minute
   race grace, 48-hour scan window, deduplication, service-role order checks and
   nonzero exit for missing or uncertain orders. All 125 backend tests pass.
