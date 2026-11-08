@@ -37,13 +37,19 @@ Status as of **2026-08-31**. Play listing exists; app is at the "Get ready to pu
       `payment_intent.payment_failed`) and put its `whsec_…` in `STRIPE_WEBHOOK_SECRET`. Until
       then the endpoint returns 503.
 - [x] Added a read-only audit of succeeded Stripe events older than 15 minutes:
-      `python -m app.payment_reconciliation` from `backend/`. It checks the last 48 hours
-      against service-role order reads, reports missing/unknown orders without card data,
-      and exits nonzero for operator attention. Offline tests cover duplicate events and lookup failure.
-- [ ] Schedule the audit more often than its 48-hour window and alert on nonzero exit.
-      The webhook alone can flag a false orphan before `POST /orders` completes.
-- [ ] Choose and implement the final response to confirmed paid-without-order cases
-      (manual recovery or an idempotent refund after a review window).
+      `python -m app.payment_reconciliation` from `backend/`. It scans up to 30 days,
+      checks service-role order records and exits nonzero for missing or uncertain orders.
+- [x] Implemented the chosen one-hour response for paid server-cart checkouts with no
+      dispatch order. Apply `202611080001_payment_refund_reconciliation.sql` first, then
+      run `python -m app.payment_reconciliation --auto-refund --grace-minutes 60`.
+      An atomic database fence prevents a late order insert after a refund claim;
+      retries check Stripe for an existing refund before creating another. A pending
+      refund keeps the cart locked until Stripe reports success. Legacy or ambiguous
+      payments remain manual review and cause a nonzero exit.
+- [ ] Schedule the one-hour reconciliation at least hourly using backend-only Stripe
+      and Supabase service credentials; alert on nonzero exit. The 30-day Stripe
+      event window still requires manual review after a longer outage. Verify a
+      real test charge/refund and the production scheduler before live payments.
 - [ ] Decide on sales tax. Nothing charges GST/QST today; see the PRICING NOTE in `pricing.py`.
 
 ### 2. Dead auth buttons — **done**
