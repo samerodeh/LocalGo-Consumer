@@ -41,6 +41,7 @@
     "typescript": "~5.9.2"
   },
   "scripts": {
+    "eas-build-pre-install": "node scripts/validate-eas-production-env.cjs",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
