@@ -11,6 +11,7 @@ import re
 import unicodedata
 from contextlib import contextmanager
 from contextvars import ContextVar
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Iterator, Protocol
 
@@ -102,6 +103,19 @@ def _same_merchant(product: Product, merchant_id: str) -> bool:
 
 _SEARCH_FILLER = {"and", "the", "of", "with", "some", "any", "option", "options", "item", "items",
                   "food", "menu", "please", "show", "me", "all"}
+_BUDGET_RE = re.compile(
+    r"^(?:(under|below|less than|up to|at most|no more than|max|maximum)\s+)?"
+    r"\$?(\d{1,4}(?:\.\d{1,2})?)\s*(?:cad)?$", re.IGNORECASE,
+)
+
+
+def parse_budget(budget: str) -> tuple[int, bool]:
+    """Return integer cents and whether the quoted limit is exclusive."""
+    match = _BUDGET_RE.fullmatch(budget.strip())
+    if match is None:
+        raise ValueError("Use a CAD budget such as 'under $15' or 'up to $15'.")
+    cents = int(Decimal(match.group(2)) * 100)
+    return cents, (match.group(1) or "").lower() in {"under", "below", "less than"}
 
 
 def _search_words(text: str) -> set[str]:
@@ -113,32 +127,45 @@ def _search_words(text: str) -> set[str]:
 def search_products(
     product_name: str,
     merchant_id: str | None = None,
+    *,
+    budget: str | None = None,
 ) -> list[Product]:
-    """Products whose name, then category, matches the query.
+    """Products whose name, category, then description matches the query.
 
     Ranked: phrase in the name, phrase in the category ("desserts"), then every
-    query word in the name or category ("chicken grills"). Catalog order is
-    kept within each rank.
+    query word in the name/category, then every word in the description-backed
+    product text. Catalog order is kept within each rank.
     """
     query = product_name.strip().lower()
-    if not query:
+    if not query and budget is None:
         return []
     wanted = _search_words(query) - _SEARCH_FILLER
+    price_limit, exclusive = parse_budget(budget) if budget is not None else (None, False)
 
     ranked: list[tuple[int, Product]] = []
     for product in load_catalog():
         if merchant_id is not None and not _same_merchant(product, merchant_id):
             continue
+        if price_limit is not None and (product["price_cents"] >= price_limit if exclusive
+                                        else product["price_cents"] > price_limit):
+            continue
         name, category = product["name"].lower(), (product.get("category") or "").lower()
-        if query in name:
+        description = product.get("description") or ""
+        if not query:
+            rank = 0
+        elif query in name:
             rank = 0
         elif query in category:
             rank = 1
         elif wanted and wanted <= _search_words(f"{name} {category}"):
             rank = 2
+        elif wanted and wanted <= _search_words(f"{name} {category} {description}"):
+            rank = 3
         else:
             continue
         ranked.append((rank, product))
+    if not query:
+        return [product for _, product in sorted(ranked, key=lambda pair: pair[1]["price_cents"])]
     return [product for _, product in sorted(ranked, key=lambda pair: pair[0])]
 
 
@@ -190,8 +217,10 @@ def search_results(
     product_name: str,
     merchant_id: str | None = None,
     limit: int = 10,
+    *,
+    budget: str | None = None,
 ) -> Product:
-    matches = search_products(product_name, merchant_id)
+    matches = search_products(product_name, merchant_id, budget=budget)
     return {
         "total": len(matches),
         "returned": min(len(matches), limit),
