@@ -41,7 +41,9 @@ export async function beginCheckout(email: string, revision: number, tipCents: n
   else if (saved) {
     if (saved.ownerId !== userId) throw new Error('The saved checkout belongs to another account.');
     const status = await call(email, `/payments/cart/${encodeURIComponent(saved.orderId)}`);
-    if (status.status === 200 && ['consumed', 'released'].includes(status.body.status)) saved = null;
+    if (status.status === 200 && ['consumed', 'released', 'refunded'].includes(status.body.status)) saved = null;
+    else if (status.status === 200 && status.body.status === 'refunding')
+      throw new Error('This payment is being refunded. Wait for the refund before starting another checkout.');
     else if (status.status !== 200 && status.status !== 404) throw new Error(problem(status.body));
   }
   if (saved && (saved.revision !== revision || saved.tipCents !== tipCents)) {

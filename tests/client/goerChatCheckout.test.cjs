@@ -26,7 +26,7 @@ function harness(shared = {}) {
     refresh: async () => {}, acceptServerCart: value => { cart.lines = value.lines.length ? [line] : []; cart.revision = value.revision; } };
   const reply = value => ({ ok: true, status: 200, json: async () => value });
   const fetch = async (url, options = {}) => {
-    if (url.endsWith('/v1/cart/checkout')) return reply({ checkout: [...statuses.values()].find(s => !['consumed', 'released'].includes(s.status)) ?? null });
+    if (url.endsWith('/v1/cart/checkout')) return reply({ checkout: [...statuses.values()].find(s => !['consumed', 'released', 'refunding', 'refunded'].includes(s.status)) ?? null });
     if (url.includes('/payments/cart/')) {
       const value = statuses.get(url.split('/').at(-1));
       return value ? reply(value) : { ok: false, status: 404, json: async () => ({ detail: 'Not found' }) };
@@ -248,3 +248,17 @@ for (const boundary of ['receipt', 'envelope']) {
     assert.ok([...restarted.history.values()].some(row => row.p_response.text.includes('payment is confirmed')));
   });
 }
+
+test('refund in progress blocks a new payment and completed refund releases the saved pin', async () => {
+  const h = harness(); await h.start();
+  const orderId = randomUUID(), ownerId = h.shared.ownerId;
+  const saved = { ownerId, orderId, revision: 1, tipCents: 0 };
+  h.data.set(`localgo.checkout:alice@example.test:${ownerId}`, JSON.stringify(saved));
+  h.shared.statuses.set(orderId, { order_id: orderId, cart_revision: 1, tip_cents: 0, status: 'refunding' });
+  await assert.rejects(h.beginCheckout('alice@example.test', 1, 0), /being refunded/);
+  assert.equal(h.payments(), 0);
+  h.shared.statuses.get(orderId).status = 'refunded';
+  const next = await h.beginCheckout('alice@example.test', 1, 0);
+  assert.notEqual(next.orderId, orderId);
+  assert.equal(h.payments(), 0);
+});
