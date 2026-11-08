@@ -127,3 +127,21 @@ def test_quote_fingerprint_cannot_be_replaced_by_equal_total(client, live_cart):
     assert client.post('/payments/intent', json=body, headers=headers).status_code == 200
     intent.metadata['quote_hash'] = 'wrong-even-if-total-matches'
     assert client.post('/payments/intent', json=body, headers=headers).status_code == 409
+
+
+def test_refunding_checkout_cannot_reopen_cancel_or_publish(client, live_cart):
+    _, order_id, record, intent, calls = live_cart
+    headers = {'Authorization': 'Bearer customer'}
+    assert client.post('/payments/intent', json={
+        'order_id': str(order_id), 'cart_revision': 1, 'tip_cents': 200}, headers=headers).status_code == 200
+    record.status = 'refunding'
+    intent.status = 'succeeded'
+    assert client.post('/payments/intent', json={
+        'order_id': str(order_id), 'cart_revision': 1, 'tip_cents': 200}, headers=headers).status_code == 409
+    assert len(calls) == 1
+    assert client.post(f'/payments/cart/{order_id}/cancel', headers=headers).status_code == 409
+    body = {'id': str(order_id), 'payment_intent_id': intent.id, 'restaurant_name': 'Al Taib',
+            'dropoff_address': '2125 Guy Street', 'latitude': 45.49, 'longitude': -73.58,
+            'subtotal': 0, 'delivery_fee': 0, 'tip': 0, 'total': 0,
+            'items': [{'name': 'Pizza', 'quantity': 1}]}
+    assert client.post('/orders', json=body, headers=headers).status_code == 409

@@ -21,6 +21,7 @@ class Checkout(BaseModel):
     status: str
     quote: dict | None = None
     payment_intent_id: str | None = None
+    refund_id: str | None = None
 
     def priced(self) -> pricing.Quote:
         if self.quote is None:
@@ -71,6 +72,17 @@ class CheckoutRepository:
                      payment_id: str | None = None) -> Checkout:
         return await self._rpc('update_customer_checkout', {'p_user_id': str(record.user_id),
             'p_order_id': str(record.order_id), 'p_action': action, 'p_quote': quote, 'p_payment_id': payment_id})
+
+    async def claim_refund(self, record: Checkout) -> Checkout:
+        return await self._rpc('claim_customer_checkout_refund', {
+            'p_user_id': str(record.user_id), 'p_order_id': str(record.order_id),
+            'p_payment_id': record.payment_intent_id})
+
+    async def record_refund(self, record: Checkout, refund_id: str, *, succeeded: bool) -> Checkout:
+        return await self._rpc('record_customer_checkout_refund', {
+            'p_user_id': str(record.user_id), 'p_order_id': str(record.order_id),
+            'p_payment_id': record.payment_intent_id, 'p_refund_id': refund_id,
+            'p_succeeded': succeeded})
 
     async def prepare(self, record: Checkout) -> Checkout:
         if record.quote is not None:

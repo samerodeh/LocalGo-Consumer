@@ -167,8 +167,8 @@ async def place_order(body: PlaceOrderBody, authorization: str | None = Header(d
             raise HTTPException(422, "order id must be a UUID") from None
         except CartError as exc:
             raise HTTPException(exc.status, {"code": exc.code, "message": exc.message}) from None
-        if checkout.payment_intent_id != body.payment_intent_id or checkout.status == "released":
-            raise HTTPException(409, "This payment is not attached to the active checkout.")
+        if checkout.payment_intent_id != body.payment_intent_id or checkout.status not in ("pending", "consumed"):
+            raise HTTPException(409, "This payment is not attached to an active checkout.")
         stripe.api_key = config.STRIPE_SECRET_KEY
         try:
             intent = stripe.PaymentIntent.retrieve(body.payment_intent_id)

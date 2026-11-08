@@ -138,6 +138,8 @@ async def _server_cart_intent(body: IntentBody, authorization: str | None):
     repository = CheckoutRepository()
     try:
         record = await repository.lock(customer.user_id, uuid.UUID(body.order_id), body.cart_revision, body.tip_cents)
+        if record.status != "pending":
+            raise HTTPException(409, "This checkout is closed or being refunded.")
         record = await repository.prepare(record)
         quote = record.priced()
         metadata = {**quote.as_metadata(), "order_id": str(record.order_id),
@@ -188,6 +190,8 @@ async def cancel_cart_checkout(order_id: uuid.UUID, authorization: str | None = 
             return {"released": True}
         if record.status == "consumed":
             raise HTTPException(409, "This checkout is already placed.")
+        if record.status in ("refunding", "refunded"):
+            raise HTTPException(409, "This payment is being refunded or has been refunded.")
         if record.payment_intent_id:
             try:
                 intent = stripe.PaymentIntent.retrieve(record.payment_intent_id)
