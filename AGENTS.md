@@ -305,7 +305,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | - |
+| Agent | 2026-11-08 | src/goer_localgo/domain/catalog.py; src/goer_localgo/tools/catalog/search_menu.py; src/goer_localgo/crews/discovery_crew/config/tasks.yaml; tests/unit/test_catalog_search.py; tests/unit/test_catalog_tools.py; AGENTS.md | Improve catalog-backed recommendations with description and budget matching | Active |
 
 ---
 
