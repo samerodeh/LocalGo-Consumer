@@ -31,9 +31,16 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | Awaiting owner SQL results, Expo access and Android device |
+| *(No active work locks)* | - | - | - | Production EAS variables and native acceptance remain open |
 
 ## Recent work
+- 2026-11-08: Store profile now selects the EAS production environment and
+  enables server cart without hardcoding development service URLs. A pre-install
+  guard rejects missing/invalid public endpoints or a disabled server cart;
+  simulated missing and valid configurations passed. Read-only EAS CLI queries
+  under the linked Expo account showed no production variables at project or
+  account scope, so no release build was attempted. Production endpoints must be
+  configured in this linked EAS project; native payment still needs device tests.
 - 2026-11-06: Added development-only internal APK/dev-client EAS profile, excluded root/nested private environment files from uploads, and documented owner setup plus native acceptance in `docs/android-development-build.md`. TypeScript and 43 client/SQL tests pass (zero skips). No EAS upload/build, credentials, private configuration, payments or production activation changed. Owner SQL results, Expo project access and a device remain required.
 - 2026-11-06: Plain-sentence address/postal inputs now reuse verified geocoding and explicit address selection; empty/oversized/unmatched inputs cannot reach the model or authorize payment. TypeScript and 43 client/SQL tests pass with zero skips. Goer regression suite: 172 passed, 5 Postgres cases skipped (no disposable database configured). Local services 8000/8100/8082 returned 200. Native payment remains unverified.
 - 2026-11-06: Read-only development checks validate the configured service key
