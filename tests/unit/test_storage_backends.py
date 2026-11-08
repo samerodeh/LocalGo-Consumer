@@ -25,6 +25,11 @@ def database(request, tmp_path):
     if request.param == "sqlite":
         yield SQLiteDatabase(tmp_path / "goer.sqlite3")
         return
+    yield request.getfixturevalue("postgres_database")
+
+
+@pytest.fixture
+def postgres_database():
     if not PG_URL:
         pytest.skip("GOER_TEST_DATABASE_URL is not set")
     import psycopg
@@ -33,6 +38,55 @@ def database(request, tmp_path):
     db = PostgresDatabase(PG_URL, min_size=1, max_size=4)
     yield db
     db.close()
+
+
+def test_shared_rate_limit_is_atomic_across_independent_pools(postgres_database):
+    from concurrent.futures import ThreadPoolExecutor
+    from goer_localgo.api.guards import PostgresRateLimiter
+
+    other = PostgresDatabase(PG_URL, min_size=1, max_size=4)
+    try:
+        limiters = [PostgresRateLimiter(db, ((3, 60), (5, 3600)))
+                    for db in (postgres_database, other)]
+        barrier = threading.Barrier(8)
+        def attempt(index):
+            barrier.wait()
+            return limiters[index % 2].retry_after("user:alice")
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            outcomes = list(executor.map(attempt, range(8)))
+        assert outcomes.count(None) == 3
+        assert all(value is None or 1 <= value <= 61 for value in outcomes)
+        assert limiters[0].retry_after("user:bob") is None
+        with postgres_database.transaction() as tx:
+            rows = tx.execute("SELECT key, events FROM {rate_limits}").fetchall()
+            assert sorted(len(row["events"]) for row in rows) == [1, 3]
+            assert all(len(row["key"]) == 64 and "alice" not in row["key"] for row in rows)
+            assert tx.execute("SELECT relrowsecurity FROM pg_class WHERE oid = 'goer.rate_limits'::regclass").fetchone()["relrowsecurity"]
+    finally:
+        other.close()
+
+
+def test_shared_rate_limit_windows_expire_and_cleanup(postgres_database):
+    import hashlib
+    from goer_localgo.api.guards import PostgresRateLimiter
+
+    limiter = PostgresRateLimiter(postgres_database, ((3, 60), (5, 3600)))
+    key = hashlib.sha256(b"user:alice").hexdigest()
+    assert [limiter.retry_after("user:alice") for _ in range(3)] == [None] * 3
+    assert limiter.retry_after("user:alice") is not None
+    with postgres_database.transaction() as tx:
+        tx.execute("""UPDATE {rate_limits} SET events = array_fill(
+            EXTRACT(EPOCH FROM clock_timestamp())::double precision - 61, ARRAY[3]) WHERE key = ?""", (key,))
+    assert [limiter.retry_after("user:alice") for _ in range(2)] == [None] * 2
+    assert limiter.retry_after("user:alice") > 3500
+    with postgres_database.transaction() as tx:
+        tx.execute("""UPDATE {rate_limits} SET events = array_fill(
+            EXTRACT(EPOCH FROM clock_timestamp())::double precision - 3601, ARRAY[5]), expires_at = 0""")
+        tx.execute("INSERT INTO {rate_limits} VALUES ('expired', ARRAY[0]::double precision[], 0)")
+    assert limiter.retry_after("user:alice") is None
+    with postgres_database.transaction() as tx:
+        rows = tx.execute("SELECT key, events FROM {rate_limits}").fetchall()
+        assert len(rows) == 1 and rows[0]["key"] == key and len(rows[0]["events"]) == 1
 
 
 def test_conversations_are_owned_and_compare_and_swap(database):

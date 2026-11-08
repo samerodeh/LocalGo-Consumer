@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 from stub_llm import StubLLM
 
 from goer_localgo.api import main as api
-from goer_localgo.api.guards import CARD_REFUSAL
+from goer_localgo.api.guards import CARD_REFUSAL, RateLimitUnavailable
 
 client = TestClient(api.app)
 
@@ -22,6 +22,21 @@ def test_card_numbers_are_refused_before_the_model(use_stub, monkeypatch):
     legacy = client.post("/v1/chat", json={"message": "my card 4242424242424242"})
     assert legacy.status_code == 200 and legacy.json()["message"] == CARD_REFUSAL
     assert called == [] and stub.calls == []
+
+
+def test_shared_limiter_outage_refuses_turns_before_model_work(monkeypatch):
+    called = []
+    monkeypatch.setattr(api, "run_conversation_turn", lambda *a, **k: called.append(a))
+    def unavailable(key):
+        raise RateLimitUnavailable("private connection details")
+    monkeypatch.setattr(api.turn_limiter, "retry_after", unavailable)
+    conversation = client.post("/v1/conversations").json()["conversation_id"]
+    for url in [f"/v1/conversations/{conversation}/turns", "/v1/chat"]:
+        response = client.post(url, json={"message": "pizza"})
+        assert response.status_code == 503
+        assert response.headers["Retry-After"] == "5"
+        assert "private" not in response.text
+    assert called == []
 
 
 def test_turns_are_rate_limited_per_principal(monkeypatch):

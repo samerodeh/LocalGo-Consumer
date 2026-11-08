@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from goer_localgo.api.auth import Session, optional_session, carts_enabled
-from goer_localgo.api.guards import CARD_REFUSAL, contains_payment_card_data, turn_limiter
+from goer_localgo.api.guards import CARD_REFUSAL, RateLimitUnavailable, contains_payment_card_data, turn_limiter
 from goer_localgo.domain.turns import TurnPending
 from goer_localgo.flow.authenticated import run_authenticated_turn
 from goer_localgo.integrations.localgo.cart_client import LocalGoCartClient
@@ -149,8 +149,12 @@ def _principal(session: Session | None, http_request: Request) -> str:
     return f"ip:{http_request.client.host if http_request.client else 'unknown'}"
 
 
-def _enforce_rate_limit(principal: str) -> None:
-    wait = turn_limiter.retry_after(principal)
+async def _enforce_rate_limit(principal: str) -> None:
+    try:
+        wait = await asyncio.to_thread(turn_limiter.retry_after, principal)
+    except RateLimitUnavailable:
+        raise HTTPException(503, "Goer admission is temporarily unavailable. Please retry later.",
+                            headers={"Retry-After": "5"}) from None
     if wait is not None:
         raise HTTPException(429, "You're sending messages too quickly. Please wait a moment and try again.",
                             headers={"Retry-After": str(wait)})
@@ -188,7 +192,7 @@ def new_conversation(session: Session | None = Depends(optional_session)) -> Con
 @app.post("/v1/conversations/{conversation_id}/turns", response_model=ChatEnvelope)
 async def conversation_turn(conversation_id: UUID, request: TurnRequest, http_request: Request,
                             session: Session | None = Depends(optional_session)) -> ChatEnvelope:
-    _enforce_rate_limit(_principal(session, http_request))
+    await _enforce_rate_limit(_principal(session, http_request))
     if contains_payment_card_data(request.message):
         return _card_refusal(conversation_id, request.request_id)
     if session is None:
@@ -219,7 +223,7 @@ async def chat(request: ChatRequest, http_request: Request,
     if session is not None:
         raise HTTPException(422, "Use the conversation turns endpoint with a stable request_id when signed in.")
     owner = DEMO_USER_ID
-    _enforce_rate_limit(_principal(None, http_request))
+    await _enforce_rate_limit(_principal(None, http_request))
     message = _latest_message(request)
     if contains_payment_card_data(message):
         return ChatResponse(user_id=owner, message=CARD_REFUSAL,

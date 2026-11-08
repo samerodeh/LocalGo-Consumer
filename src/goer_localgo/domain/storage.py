@@ -18,7 +18,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator, Protocol
 
-TABLES = ("conversations", "chat_turns")
+TABLES = ("conversations", "chat_turns", "rate_limits")
 
 
 class Transaction(Protocol):
@@ -124,10 +124,15 @@ POSTGRES_SCHEMA = (
         ON goer.chat_turns (owner, conversation_id) WHERE status <> 'completed'""",
     "CREATE INDEX IF NOT EXISTS conversations_updated ON goer.conversations (updated_at)",
     "CREATE INDEX IF NOT EXISTS conversations_user ON goer.conversations (user_id)",
+    """CREATE TABLE IF NOT EXISTS goer.rate_limits (
+        key text PRIMARY KEY, events double precision[] NOT NULL,
+        expires_at double precision NOT NULL)""",
+    "CREATE INDEX IF NOT EXISTS rate_limits_expiry ON goer.rate_limits (expires_at)",
     # Backstop: no policies means no access for API roles even if the schema is
     # ever exposed. The server connects as the owning role, which bypasses RLS.
     "ALTER TABLE goer.conversations ENABLE ROW LEVEL SECURITY",
     "ALTER TABLE goer.chat_turns ENABLE ROW LEVEL SECURITY",
+    "ALTER TABLE goer.rate_limits ENABLE ROW LEVEL SECURITY",
     "REVOKE ALL ON SCHEMA goer FROM PUBLIC",
 )
 

@@ -1,6 +1,6 @@
 import pytest
 
-from goer_localgo.api.guards import RateLimiter, contains_payment_card_data
+from goer_localgo.api.guards import RateLimiter, RateLimitUnavailable, TurnRateLimiter, contains_payment_card_data
 
 
 @pytest.mark.parametrize("text", [
@@ -26,6 +26,35 @@ def test_payment_card_data_is_detected(text):
 ])
 def test_ordinary_messages_are_allowed(text):
     assert not contains_payment_card_data(text)
+
+
+def test_shared_rate_limiter_never_falls_back_on_database_failure(monkeypatch):
+    from goer_localgo.domain import storage
+
+    monkeypatch.setenv("GOER_DATABASE_URL", "postgresql://unused")
+    def unavailable():
+        raise RuntimeError("private connection details")
+    monkeypatch.setattr(storage, "get_database", unavailable)
+    limiter = TurnRateLimiter(((1, 60),))
+    with pytest.raises(RateLimitUnavailable, match="^Shared rate limit is unavailable.$"):
+        limiter.retry_after("user:alice")
+    assert not limiter._events
+
+
+def test_shared_rate_limiter_selects_configured_database(monkeypatch):
+    from goer_localgo.api import guards
+    from goer_localgo.domain import storage
+
+    database = object()
+    monkeypatch.setenv("GOER_DATABASE_URL", "postgresql://unused")
+    monkeypatch.setattr(storage, "get_database", lambda: database)
+    seen = []
+    def retry_after(self, key):
+        seen.append((self._database, self._limits, key))
+        return 17
+    monkeypatch.setattr(guards.PostgresRateLimiter, "retry_after", retry_after)
+    assert TurnRateLimiter(((1, 60),)).retry_after("user:alice") == 17
+    assert seen == [(database, ((1, 60),), "user:alice")]
 
 
 def test_rate_limiter_enforces_each_window():
