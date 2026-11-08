@@ -305,11 +305,17 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-06 | src/goer_localgo/api/guards.py; src/goer_localgo/api/main.py; src/goer_localgo/domain/storage.py; tests/unit/test_guards.py; tests/integration/test_chat_guards.py; tests/unit/test_storage_backends.py | Shared Postgres rate limits with atomic admission and fail-closed outages | Active |
+| *(No active work locks)* | - | - | - | - |
 
 ---
 
 ## 5. Recent Work
+
+- 2026-11-08: Shared Postgres turn rate limits now admit requests atomically
+  across Goer hosts and return 503 when shared admission is unavailable. Local
+  SQLite development retains in-process limits. The full local Goer suite passed
+  (175 tests; seven Postgres-dependent cases skipped without a test database).
+  The Postgres matrix in CI remains the verification gate for those cases.
 
 - 2026-11-06: Browser (Expo web) sandbox checkout now uses Stripe Payment Element
   (sibling `payments.web.ts`); owner completed one payment, verified read-only as one
