@@ -10,6 +10,7 @@ from goer_localgo.tools.catalog_tools import (
     GetProductTool,
     SearchMenuTool,
 )
+from goer_localgo.tools.catalog.search_menu import SearchMenuInput
 
 
 def test_search_menu_returns_matching_localgo_products():
@@ -28,6 +29,19 @@ def test_search_menu_tool_returns_capped_summaries():
     assert first["product_id"]
     assert first["currency"] == "CAD"
     assert "image_url" not in first and "option_groups" not in first
+
+
+def test_search_menu_uses_descriptions_and_literal_budget():
+    result = json.loads(SearchMenuTool().run(product_name="spicy", budget="under $10"))
+    assert "mexican-pizza-slice" in [item["product_id"] for item in result["results"]]
+    assert result["results"] and all(item["price_cents"] < 1000 for item in result["results"])
+
+
+def test_budget_only_search_is_valid_but_unbounded_search_is_not():
+    assert SearchMenuInput.model_validate({"budget": "up to $10"}).product_name == ""
+    for payload in ({}, {"product_name": " "}, {"product_name": "pizza", "budget": "about $10"}):
+        with pytest.raises(ValidationError):
+            SearchMenuInput.model_validate(payload)
 
 
 def test_get_menu_input_validates_merchant():
