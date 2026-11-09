@@ -1,6 +1,7 @@
 # Authenticated cart integration: setup and recovery
 
-Updated 2026-11-06. This is the operational companion to section 16 of
+Updated 2026-11-09 for the combined repository. This is the operational
+companion to section 16 of
 [the architecture plan](localgo-delivery-architecture-plan.md), not a new roadmap.
 
 ## Status
@@ -38,7 +39,7 @@ cart/checkout/history tables; the expected columns and four RPC names are expose
 Public-key reads return 401 / `42501`, consistent with anonymous denial. These
 checks confirm connectivity and expected schema exposure, not exact migration
 application, SQL grants/policies, authenticated owner isolation or concurrency.
-Sibling records report user-run migrations; do not blindly reapply them.
+LocalGo records report user-run migrations; do not blindly reapply them.
 
 The backend service key is now present and valid, superseding the earlier empty-key
 handoff. No database-admin connection or designated test sessions were available.
@@ -55,9 +56,9 @@ concurrent guest/signed-in turns cannot switch one another's repository. The
 browser can render cart cards, but its provided UI is guest-only; the mobile
 client supplies real Supabase sessions for authenticated cart interaction.
 
-## Repositories and layout
+## Service directories in this repository
 
-### `goer-ai`
+### `goer/`
 
 ```text
 src/goer_localgo/
@@ -79,7 +80,7 @@ src/goer_localgo/
     base.py                           private dependencies/shared helpers
 ```
 
-### `LocalGo-Consumer-RN`
+### Repository root
 
 ```text
 backend/app/
@@ -136,7 +137,7 @@ is automatically run at startup.
 
 ### 2. Configure LocalGo backend
 
-Use `LocalGo-Consumer-RN/backend/.env` or deployment secrets:
+Use `backend/.env` or deployment secrets:
 
 ```dotenv
 SUPABASE_URL=<staging project URL>
@@ -152,7 +153,7 @@ role and Stripe secret remain in LocalGo, never in Goer, the app bundle, or a
 model prompt. The separate Goer service does not need the older Groq/RAG pipeline.
 Do not turn off an existing configured feature without checking its callers.
 
-Run from `LocalGo-Consumer-RN/backend` on a port separate from Goer:
+Run from `backend` on a port separate from Goer:
 
 ```powershell
 uv run --no-project --with-requirements requirements.txt python -m uvicorn app.main:app --host 127.0.0.1 --port 8100
@@ -160,7 +161,7 @@ uv run --no-project --with-requirements requirements.txt python -m uvicorn app.m
 
 ### 3. Configure Goer
 
-Use `goer-ai/.env` or deployment environment:
+Use `goer/.env` or deployment environment:
 
 ```dotenv
 MODEL=openai/gpt-4.1-mini
@@ -174,7 +175,7 @@ GOER_ALLOWED_ORIGINS=http://localhost:8081
 `GOER_ALLOWED_ORIGINS` is optional and comma-separated, for Expo web preview.
 Native requests do not use browser CORS. Remote LocalGo URLs must be HTTPS;
 HTTP is accepted only for loopback development. Environment values override
-`.env` values. Start Goer from its repository root:
+`.env` values. Start Goer from `goer/`:
 
 ```powershell
 uv run python -m uvicorn goer_localgo.api.main:app --host 127.0.0.1 --port 8000
@@ -191,7 +192,7 @@ store: deleting or losing the SQLite file is not repaired by a cloud transcript.
 
 ### 4. Configure the mobile app
 
-Use `LocalGo-Consumer-RN/.env.local`:
+Use `.env.local`:
 
 ```dotenv
 EXPO_PUBLIC_API_URL=<LocalGo backend URL>
