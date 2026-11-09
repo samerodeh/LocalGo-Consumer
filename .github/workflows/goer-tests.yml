@@ -5,16 +5,25 @@
 # Postgres service runs the storage tests (GOER_TEST_DATABASE_URL), and the
 # "postgres" job repeats the whole suite with Goer itself on Postgres.
 
-name: tests
+name: goer tests
 
 on:
   push:
     branches: [dev, main]
+    paths:
+      - "goer/**"
+      - ".github/workflows/goer-tests.yml"
   pull_request:
+    paths:
+      - "goer/**"
+      - ".github/workflows/goer-tests.yml"
 
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: goer
     strategy:
       fail-fast: false
       matrix:
