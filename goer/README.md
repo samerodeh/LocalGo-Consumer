@@ -1,5 +1,9 @@
 # Goer AI
 
+Goer lives in `goer/` inside the LocalGo consumer repository. Run the Goer
+commands below from this directory; the Expo app stays at the repository root
+and the LocalGo backend stays in `backend/`. They remain separate services.
+
 **A conversational restaurant menu assistant built with CrewAI Flow, typed tools, and FastAPI.**
 
 Goer searches menus and plans cart edits for LocalGo. Guest/demo discovery uses a **138-product fixture**; authenticated turns use LocalGo's **145-product canonical catalog**. Discovery and Cart are separate specialists. The Cart Agent reads data and proposes a typed plan; Python journals and executes it against LocalGo's existing backend. No agent can place an order or charge a payment.
@@ -50,7 +54,7 @@ locally before cloud publication, so history retries cannot resend cart work.
 Isolated PostgreSQL migration/RPC/RLS tests pass; the connected project is unchanged.
 
 See **[the setup and recovery runbook](docs/cart-integration-runbook.md)** for
-both repositories, environment variables, migration order, and remaining gates.
+the app, backend, and Goer, environment variables, migration order, and remaining gates.
 The supplied browser/CLI remain guest discovery clients; the signed-in mobile
 integration supplies customer sessions. LocalGo owns cart/payment/order truth.
 
@@ -196,7 +200,7 @@ uv run python src/goer_localgo/tools/try-out-tools/get_product_smoke.py
 ## Repository Structure
 
 ```text
-goer-ai/
+goer/
 ├── src/
 │   └── goer_localgo/
 │       ├── api/
