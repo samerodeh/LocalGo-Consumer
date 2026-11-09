@@ -13,7 +13,9 @@ services:
   - type: web
     name: localgo-backend
     runtime: python
-    plan: free
+    # starter, not free: the free plan sleeps after ~15 min and a paid checkout
+    # must never wait 30-50s for a cold start.
+    plan: starter
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -47,8 +49,76 @@ services:
         sync: false
       - key: GOER_MODEL
         value: llama-3.1-8b-instant
+      # Server cart flags. Keep false until the signed-in cart flow passes
+      # device acceptance (checklist step 1).
+      - key: SERVER_CART_ENABLED
+        sync: false
+      - key: GOER_CART_ENABLED
+        sync: false
       # No CHROMA_PATH: the default (app/goer/chroma_db) is fine on ephemeral
       # storage, since startup re-embeds the menu and FAQ every boot. Budget
       # ~30-60s for the first boot after a deploy — Chroma also downloads its
       # ONNX embedder (~80 MB) then. Set CHROMA_PATH to a mounted disk on a
       # paid instance if you'd rather persist the index across deploys.
+
+  # Goer: the separate CrewAI ordering-assistant server (goer/).
+  - type: web
+    name: localgo-goer
+    runtime: python
+    plan: starter
+    rootDir: goer
+    buildCommand: pip install .
+    startCommand: uvicorn goer_localgo.api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MODEL
+        sync: false
+      # The deployed backend's https URL (localgo-backend above).
+      - key: LOCALGO_API_URL
+        sync: false
+      - key: GOER_CART_ENABLED
+        sync: false
+      # Durable conversation + turn journal. Render's disk is ephemeral, so the
+      # SQLite default would lose every journal on deploy. Use the Supabase
+      # Postgres connection string (session pooler, port 5432); tables go in a
+      # private "goer" schema and share the project's backups.
+      - key: GOER_DATABASE_URL
+        sync: false
+      - key: GOER_DB_AUTO_MIGRATE
+        value: "true"
+      - key: GOER_RETENTION_DAYS
+        value: "90"
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: LANGFUSE_SECRET_KEY
+        sync: false
+
+  # Hourly audit for charges that succeeded but never became an order.
+  # Exits nonzero when it finds one, so Render's failed-run notification is
+  # the alert. Audit only: add --auto-refund after the refund path has been
+  # validated in Stripe test mode (checklist step 3).
+  - type: cron
+    name: localgo-payment-reconciliation
+    runtime: python
+    plan: starter
+    rootDir: backend
+    schedule: "0 * * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.payment_reconciliation
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
