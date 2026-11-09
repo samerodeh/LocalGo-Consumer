@@ -24,8 +24,8 @@ Updated: 2026-11-09. Work through these steps in order. A checked box needs conn
 
 ## 4. Configure production environments
 
-- [ ] Set the four required public HTTPS variables in the linked Expo project's production EAS environment; keep secrets server-side.
-- [ ] Configure the deployed LocalGo and Goer services, including cart flags, Stripe keys, and the webhook signing secret.
+- [x] Set the four required public HTTPS variables in the linked Expo project's production EAS environment; keep secrets server-side. Set 2026-11-09 (`EXPO_PUBLIC_SUPABASE_URL`, `_SUPABASE_ANON_KEY`, `_API_URL` = `localgo-backend-md2s`, `_GOER_API_URL` = `localgo-goer-md2s`); `scripts/validate-eas-production-env.cjs` passes with them.
+- [ ] Configure the deployed LocalGo and Goer services, including cart flags, Stripe keys, and the webhook signing secret. Stripe test keys and webhook secret are set. Release decision 2026-11-09: full mode (server cart + Goer). Flip backend `SERVER_CART_ENABLED=true` and Goer `GOER_CART_ENABLED=true` only together with the production release, after step 1 device acceptance: the backend flag immediately breaks checkout on installed legacy-checkout builds (`orders.py` requires a server-cart checkout). The backend's `GOER_CART_ENABLED` is unused.
 - [ ] Check the deployed health endpoints and intended Stripe mode before live traffic.
 
 ## 5. Close business and privacy decisions
