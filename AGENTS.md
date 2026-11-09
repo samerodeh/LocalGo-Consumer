@@ -305,7 +305,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | - |
+| Agent | 2026-11-09 | src/goer_localgo/domain/storage.py; src/goer_localgo/api/guards.py; tests/unit/test_storage_backends.py; AGENTS.md | Repair shared Postgres rate limits without changing storage row shape | Active |
 
 ---
 
