@@ -311,11 +311,12 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-09 | AGENTS.md; README.md; docs/cart-integration-runbook.md; .github/workflows/tests.yml | Update Goer guidance and CI paths after monorepo import | Active |
 
 ---
 
 ## 5. Recent Work
+
+- 2026-11-09: Imported Goer with full Git history into the LocalGo consumer repository under `goer/`. Moved its test workflow to root `.github/workflows/goer-tests.yml`, updated runbook paths and documentation, and verified 191 tests passed, seven environment-dependent skips, and eight smoke scripts passed from the imported path. The migration remains local; no push or deployment occurred.
 
 - 2026-11-09: Discovery replies with catalog cards now use exact selected
   product names, prices, order and descriptions; no-card turns can only return

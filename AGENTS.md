@@ -31,9 +31,9 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-09 | AGENTS.md; README.md; backend/README.md; goer/; .github/workflows/goer-tests.yml; .github/workflows/app-tests.yml; .easignore; render.yaml | Import Goer history into the LocalGo repository and wire independent builds | Active |
 
 ## Recent work
+- 2026-11-09: Imported the standalone Goer Git history under `goer/`. Added root Goer CI with a SQLite/Postgres matrix and all eight tool smoke scripts; scoped app CI away from Goer-only changes; excluded Goer from EAS archives. Updated repository guides and cart runbook for the combined layout. Goer validation in the imported path: 191 tests passed, seven environment-dependent skips, eight smoke scripts passed. This is a local migration only; no push or deployment occurred.
 - 2026-11-08: Added the one-hour automatic refund path for paid server-cart
   checkouts without a dispatch order. The new migration serializes refund claims
   with order inserts and records the provider refund ID; the backend verifies
