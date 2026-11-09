@@ -1,10 +1,12 @@
+import pytest
+
 from goer_localgo.domain.catalog import catalog_repository_scope, search_results
 
 
 class _Repo:
     _products = [
         {"product_id": "p1", "merchant_id": "chateau-kabab", "name": "Baklava", "category": "Desserts",
-         "price_cents": 600, "currency": "CAD"},
+         "price_cents": 600, "currency": "CAD", "description": "Honey, pistachios, and walnuts."},
         {"product_id": "p2", "merchant_id": "chateau-kabab", "name": "Chicken Kabab", "category": "The Grills",
          "price_cents": 1900, "currency": "CAD"},
         {"product_id": "p3", "merchant_id": "al-taib", "name": "Cheese Pizza Slice", "category": "Pizza Slices",
@@ -22,9 +24,9 @@ class _Repo:
         return next((dict(p) for p in self._products if p["product_id"] == product_id), None)
 
 
-def ids(query, merchant=None):
+def ids(query, merchant=None, *, budget=None):
     with catalog_repository_scope(_Repo()):
-        return [r["product_id"] for r in search_results(query, merchant)["results"]]
+        return [r["product_id"] for r in search_results(query, merchant, budget=budget)["results"]]
 
 
 def test_category_words_find_products():
@@ -46,3 +48,21 @@ def test_every_word_must_match_name_or_category():
 
 def test_unrelated_query_still_finds_nothing():
     assert ids("sushi") == []
+
+
+def test_ingredient_only_in_description_is_searchable_after_name_matches():
+    assert ids("walnuts") == ["p1"]
+    assert ids("pizza") == ["p3", "p4"]
+
+
+def test_budget_filters_exact_cents_and_preserves_relevance():
+    assert ids("pizza", budget="under $5.50") == ["p4"]
+    assert ids("pizza", budget="up to $5.50") == ["p3", "p4"]
+    assert ids("", budget="up to $6 CAD") == ["p5", "p4", "p3", "p1"]
+    assert ids("pizza", "Château Kabab", budget="under $20") == []
+
+
+@pytest.mark.parametrize("budget", ["$15.999", "about $15", "-$5", "", "$10000"])
+def test_ambiguous_or_invalid_budget_is_rejected(budget):
+    with pytest.raises(ValueError, match="CAD budget"):
+        ids("pizza", budget=budget)
