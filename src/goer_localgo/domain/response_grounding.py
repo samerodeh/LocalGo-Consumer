@@ -18,10 +18,12 @@ _UNVERIFIED = "I couldn't verify that from the menu. Ask me to search for an ite
 
 
 def ground_discovery_reply(model_text: str, cards: list[Card], request: str) -> str:
-    """Use exact card facts and reject prices when no catalog card exists."""
+    """Use exact card facts; allow only price-free clarification without cards."""
     if not cards:
         text = model_text.strip()
-        return _UNVERIFIED if not text or _PRICE_CLAIM.search(text) else text
+        if text.endswith("?") and not _PRICE_CLAIM.search(text):
+            return text
+        return _UNVERIFIED
 
     card = cards[0]
     if isinstance(card, ProductListCard):
