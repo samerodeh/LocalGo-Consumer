@@ -66,6 +66,9 @@ yarn-error.*
 # secrets away from the build servers entirely.
 backend/
 
+# Goer is a separately deployed Python service, not part of the Expo app.
+goer/
+
 # Docs and release paperwork — not part of the app
 LIST.md
 PLAY-SETUP.md
