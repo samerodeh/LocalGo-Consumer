@@ -5,7 +5,7 @@ This repository contains the LocalGo consumer app and its two Python services. O
 | Component | Directory | Local command |
 |---|---|---|
 | Expo consumer app | repository root | `npm install`, then `npx expo start` |
-| LocalGo API, carts, payments, orders | `backend/` | `cd backend`, then `uv run uvicorn app.main:app --port 8100` |
+| LocalGo API, carts, payments, orders | `backend/` | `cd backend`, install `requirements.txt`, then `uvicorn app.main:app --port 8100` |
 | Goer CrewAI discovery and cart planning | `goer/` | `cd goer`, then `uv run uvicorn goer_localgo.api.main:app --port 8000` |
 
 See [backend/README.md](backend/README.md), [goer/README.md](goer/README.md), and [Goer's cart integration runbook](goer/docs/cart-integration-runbook.md) for configuration and activation. Keep service secrets in their respective private environments; the app uses only `EXPO_PUBLIC_*` configuration. The services have independent databases and deployment settings.
