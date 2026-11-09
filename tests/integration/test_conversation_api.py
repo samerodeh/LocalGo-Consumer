@@ -34,11 +34,14 @@ def test_conversation_api_preserves_memory_and_cards(use_stub):
 
 
 def test_legacy_chat_retains_shape_and_can_continue(use_stub):
-    stub = use_stub(StubLLM(responses=["Final Answer: Hello.", "Final Answer: Welcome back."]))
+    stub = use_stub(StubLLM(responses=[
+        "Final Answer: Which pizza would you like?",
+        "Final Answer: Would you like me to search for it?",
+    ]))
     first = client.post("/api/chat", json={"messages": [{"role": "user", "content": "pizza"}]})
     assert first.status_code == 200
     assert first.json()["user_id"] == "demo-user"
-    assert first.json()["message"] == "Hello."
+    assert first.json()["message"] == "Which pizza would you like?"
     second = client.post("/v1/chat", json={
         "conversation_id": first.json()["conversation_id"], "message": "What did I ask?",
     })
