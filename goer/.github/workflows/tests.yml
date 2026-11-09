@@ -1,0 +1,62 @@
+# Goer test gate.
+#
+# The suite is hermetic: no secrets are configured, conftest.py blocks
+# non-loopback network access, and the model is a deterministic stub. A real
+# Postgres service runs the storage tests (GOER_TEST_DATABASE_URL), and the
+# "postgres" job repeats the whole suite with Goer itself on Postgres.
+
+name: tests
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        storage: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      GOER_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+      UV_PYTHON: "3.12"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"   # browser chat client tests run under Node
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Run tests
+        run: |
+          if [ "${{ matrix.storage }}" = "postgres" ]; then
+            export GOER_DATABASE_URL="$GOER_TEST_DATABASE_URL"
+          fi
+          uv run python -m pytest tests -q
+
+      - name: Run tool smoke tests
+        if: matrix.storage == 'sqlite'
+        run: |
+          for script in src/goer_localgo/tools/try-out-tools/*_smoke.py; do
+            echo "== $script"
+            uv run python "$script"
+          done
