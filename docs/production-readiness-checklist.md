@@ -12,8 +12,9 @@ Updated: 2026-11-09. Work through these steps in order. A checked box needs conn
 
 ## 2. Connected database verification
 
-- [ ] Inspect the actual Supabase migration state, RLS policies, grants, owner isolation, and concurrent cart behavior.
-- [ ] Check whether `202611080001_payment_refund_reconciliation.sql` has been applied; apply it only after reviewing the connected state.
+- [x] Inspect the actual Supabase migration state, RLS policies, grants, and owner isolation. Verified 2026-11-09 against the connected project: migrations 0001-0003 present; RLS on for all five cart/Goer tables; `anon` has no grants; `authenticated` has only owner-filtered (`auth.uid()`) SELECT on `customer_carts`, `goer_conversations`, `goer_history_turns`; requests/checkouts are service-role only; cart RPCs are service-role only and `save_goer_history_turn` derives the owner from `auth.uid()`; all functions pin `search_path`.
+- [ ] Verify concurrent cart behavior against the connected database (needs a direct DB connection; not yet run).
+- [x] Check whether `202611080001_payment_refund_reconciliation.sql` has been applied; apply it only after reviewing the connected state. It was missing while the backend already called its RPCs; applied 2026-11-09 via the SQL Editor (2 existing checkouts, both `consumed`), and `refund_id` plus both refund RPCs are confirmed over the API.
 
 ## 3. Deploy and operate both services
 
