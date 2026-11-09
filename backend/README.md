@@ -168,9 +168,9 @@ of a native signed-in sandbox charge. A read-only check still reports missing
 cart/history tables (`404 PGRST205`) in the development project, and the backend
 service-role key is empty. Keep activation flags closed until setup/verification.
 
-The separate CrewAI service lives in sibling `../goer-ai` relative to this
-repository root, not in the older `app/goer/` implementation. Read its
-`docs/cart-integration-runbook.md` for the complete activation/recovery sequence,
+The separate CrewAI service lives in `goer/` at this repository root, not
+in the older `backend/app/goer/` implementation. Read
+`goer/docs/cart-integration-runbook.md` for the complete activation/recovery sequence,
 remaining privacy/tax/production gates, and feature-flag configuration.
 
 ## Run
