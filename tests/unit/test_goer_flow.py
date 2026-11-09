@@ -16,7 +16,7 @@ def final(text: str) -> str:
     return f"Thought: I can answer now.\nFinal Answer: {text}"
 
 
-def test_turn_runs_search_tool_and_returns_final_answer(use_stub):
+def test_turn_runs_search_tool_and_returns_grounded_answer(use_stub):
     stub = use_stub(StubLLM(responses=[
         tool_call("search_menu", {"product_name": "pizza slice"}),
         final("Cheese Pizza Slice is $5.50."),
@@ -24,7 +24,8 @@ def test_turn_runs_search_tool_and_returns_final_answer(use_stub):
 
     response = run_turn("Any pizza slices at Al-Taib?")
 
-    assert response == "Cheese Pizza Slice is $5.50."
+    assert response.startswith("1. Cheese Pizza Slice - $5.50")
+    assert "Pepperoni Pizza Slice - $6.50" in response
     assert len(stub.calls) == 2
 
     first_prompt = prompt_text(stub.calls[0])
@@ -47,6 +48,25 @@ def test_turn_surfaces_tool_error_codes_to_the_model(use_stub):
     assert "PRODUCT_NOT_FOUND" in prompt_text(stub.calls[1])
 
 
+def test_model_cannot_replace_catalog_card_names_or_prices(use_stub):
+    use_stub(StubLLM(responses=[
+        tool_call("search_menu", {"product_name": "pizza slice"}),
+        final("Sushi Plate costs $1.00."),
+    ]))
+    response = run_conversation_turn("Show pizza slices")
+    assert response.cards[0].items[0].name == "Cheese Pizza Slice"
+    assert response.text.startswith("1. Cheese Pizza Slice - $5.50")
+    assert "Sushi Plate" not in response.text
+    assert "$1.00" not in response.text
+
+
+def test_no_tool_result_cannot_publish_a_menu_claim(use_stub):
+    use_stub(StubLLM(responses=[final("A sushi plate is $1.00.")]))
+    response = run_conversation_turn("What sushi do you have?")
+    assert response.cards == []
+    assert response.text.startswith("I couldn't verify")
+
+
 def test_turn_with_no_tool_call_answers_directly(use_stub):
     stub = use_stub(StubLLM(responses=[final("Which restaurant do you mean?")]))
 
@@ -55,14 +75,14 @@ def test_turn_with_no_tool_call_answers_directly(use_stub):
 
 
 def test_chat_endpoint_returns_flow_response(use_stub):
-    use_stub(StubLLM(responses=[final("Here is the menu.")]))
+    use_stub(StubLLM(responses=[final("Which restaurant would you like to browse?")]))
 
     response = TestClient(app).post(
         "/v1/chat", json={"message": "Show me Chateau Kabab's menu"}
     )
 
     assert response.status_code == 200
-    assert response.json()["message"] == "Here is the menu."
+    assert response.json()["message"] == "Which restaurant would you like to browse?"
 
 
 def test_followup_receives_displayed_ids_and_previous_messages(use_stub):
@@ -86,7 +106,7 @@ def test_followup_receives_displayed_ids_and_previous_messages(use_stub):
     assert second_id in prompt
     assert '"position": 2' in prompt
     assert "Browse Al-Taib" in prompt
-    assert "Here are the first five products." in prompt
+    assert first.text.splitlines()[0] in prompt
     assert products
 
     run_conversation_turn("What did I see?", create_conversation())
@@ -195,4 +215,5 @@ def test_simultaneous_turns_cannot_overwrite_each_other(monkeypatch):
     assert successful[0].cards[0].items
     saved = get_conversation_repository().load(conversation_id, "demo-user")
     assert saved.revision == 1
-    assert saved.snapshot["recent_turns"][0]["text"] == successful[0].text
+    assert saved.snapshot["recent_turns"][0]["text"] in {"first", "second"}
+    assert saved.snapshot["recent_turns"][1]["text"] == successful[0].text
