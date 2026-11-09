@@ -18,9 +18,9 @@ Updated: 2026-11-09. Work through these steps in order. A checked box needs conn
 
 ## 3. Deploy and operate both services
 
-- [ ] Deploy the LocalGo backend and the separate Goer service with production-appropriate availability and monitoring.
-- [ ] Give Goer's conversation and command journal durable, backed-up storage; verify account deletion and set retention rules.
-- [ ] Configure and alert on hourly payment reconciliation; validate the refund path in Stripe test mode.
+- [ ] Deploy the LocalGo backend and the separate Goer service with production-appropriate availability and monitoring. Both deployed 2026-11-09 from one Render blueprint (`localgo-backend-md2s`, `localgo-goer-md2s`) on the free plan by choice: they sleep when idle (30-50s cold start) and have no monitoring beyond health checks. The backend must not get `GROQ_API_KEY` on a 512 MB instance; the startup RAG build runs out of memory and the deploy fails.
+- [ ] Give Goer's conversation and command journal durable, backed-up storage; verify account deletion and set retention rules. Storage is Supabase Postgres (`GOER_DATABASE_URL`), retention is 90 days. Open: the free Supabase plan has no backups, and account deletion is not yet verified.
+- [ ] Configure and alert on hourly payment reconciliation; validate the refund path in Stripe test mode. Runs hourly in audit mode via `.github/workflows/payment-reconciliation.yml` (secrets set; a local run against live data found no orphans) and alerts through GitHub's failed-run email. Stripe test-mode webhook `we_1UZzsB8kU6bgrCcgCejFbHFA` is configured and rejects unsigned events. Open: first GitHub run, refund-path validation, then `--auto-refund`.
 
 ## 4. Configure production environments
 
