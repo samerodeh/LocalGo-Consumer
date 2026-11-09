@@ -11,9 +11,11 @@ on:
     branches: [dev, main]
     paths-ignore:
       - "backend/**"
+      - "goer/**"
   pull_request:
     paths-ignore:
       - "backend/**"
+      - "goer/**"
 
 jobs:
   client:
