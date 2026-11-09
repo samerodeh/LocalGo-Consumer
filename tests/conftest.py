@@ -37,6 +37,13 @@ def offline(monkeypatch, tmp_path):
     # Each test starts with an empty per-principal rate-limit window.
     from goer_localgo.api import guards
     guards.turn_limiter._events.clear()
+    test_url = os.environ.get("GOER_TEST_DATABASE_URL")
+    if test_url and os.environ.get("GOER_DATABASE_URL") == test_url:
+        # The Postgres matrix shares one disposable database across test cases.
+        # Reset persisted quota state just as the SQLite matrix resets memory.
+        from goer_localgo.domain.storage import get_database
+        with get_database().transaction() as tx:
+            tx.execute("DELETE FROM {rate_limits}")
     monkeypatch.setattr(socket.socket, "connect", guarded_connect)
     # Agents resolve their default LLM at construction; a dummy key keeps that
     # from failing before tests swap in the stub.

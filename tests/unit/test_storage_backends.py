@@ -20,10 +20,9 @@ from goer_localgo.domain.turns import TurnJournal, TurnPending
 PG_URL = os.environ.get("GOER_TEST_DATABASE_URL", "")
 
 
-def test_postgres_pool_returns_named_rows(monkeypatch):
-    """Rate limits and owned storage read columns by name on every host."""
+def test_postgres_pool_keeps_positional_rows(monkeypatch):
+    """Conversation, journal, and rate-limit callers share tuple rows."""
     import psycopg_pool
-    from psycopg.rows import dict_row
 
     captured = {}
 
@@ -34,7 +33,8 @@ def test_postgres_pool_returns_named_rows(monkeypatch):
     monkeypatch.setenv("GOER_DB_AUTO_MIGRATE", "false")
     monkeypatch.setattr(psycopg_pool, "ConnectionPool", Pool)
     PostgresDatabase("postgresql://unused")
-    assert captured["kwargs"]["row_factory"] is dict_row
+    assert captured["kwargs"]["autocommit"] is False
+    assert "row_factory" not in captured["kwargs"]
 
 
 @pytest.fixture(params=["sqlite", "postgres"])
@@ -76,9 +76,9 @@ def test_shared_rate_limit_is_atomic_across_independent_pools(postgres_database)
         assert limiters[0].retry_after("user:bob") is None
         with postgres_database.transaction() as tx:
             rows = tx.execute("SELECT key, events FROM {rate_limits}").fetchall()
-            assert sorted(len(row["events"]) for row in rows) == [1, 3]
-            assert all(len(row["key"]) == 64 and "alice" not in row["key"] for row in rows)
-            assert tx.execute("SELECT relrowsecurity FROM pg_class WHERE oid = 'goer.rate_limits'::regclass").fetchone()["relrowsecurity"]
+            assert sorted(len(row[1]) for row in rows) == [1, 3]
+            assert all(len(row[0]) == 64 and "alice" not in row[0] for row in rows)
+            assert tx.execute("SELECT relrowsecurity FROM pg_class WHERE oid = 'goer.rate_limits'::regclass").fetchone()[0]
     finally:
         other.close()
 
@@ -103,7 +103,7 @@ def test_shared_rate_limit_windows_expire_and_cleanup(postgres_database):
     assert limiter.retry_after("user:alice") is None
     with postgres_database.transaction() as tx:
         rows = tx.execute("SELECT key, events FROM {rate_limits}").fetchall()
-        assert len(rows) == 1 and rows[0]["key"] == key and len(rows[0]["events"]) == 1
+        assert len(rows) == 1 and rows[0][0] == key and len(rows[0][1]) == 1
 
 
 def test_conversations_are_owned_and_compare_and_swap(database):

@@ -89,13 +89,13 @@ class PostgresRateLimiter:
         with self._database.transaction() as tx:
             tx.execute("SET LOCAL lock_timeout = '2s'")
             tx.execute("SET LOCAL statement_timeout = '2s'")
-            now = tx.execute("SELECT EXTRACT(EPOCH FROM clock_timestamp())::double precision AS now").fetchone()["now"]
+            now = tx.execute("SELECT EXTRACT(EPOCH FROM clock_timestamp())::double precision AS now").fetchone()[0]
             tx.execute("""INSERT INTO {rate_limits} (key, events, expires_at)
                 VALUES (?, ARRAY[]::double precision[], ?) ON CONFLICT (key) DO NOTHING""",
                 (digest, now + longest))
             row = tx.execute("SELECT events FROM {rate_limits} WHERE key = ? FOR UPDATE", (digest,)).fetchone()
-            now = tx.execute("SELECT EXTRACT(EPOCH FROM clock_timestamp())::double precision AS now").fetchone()["now"]
-            events = [event for event in row["events"] if now - event < longest]
+            now = tx.execute("SELECT EXTRACT(EPOCH FROM clock_timestamp())::double precision AS now").fetchone()[0]
+            events = [event for event in row[0] if now - event < longest]
             for count, window in self._limits:
                 recent = [event for event in events if now - event < window]
                 if len(recent) >= count:
