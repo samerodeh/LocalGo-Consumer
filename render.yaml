@@ -13,9 +13,7 @@ services:
   - type: web
     name: localgo-backend
     runtime: python
-    # starter, not free: the free plan sleeps after ~15 min and a paid checkout
-    # must never wait 30-50s for a cold start.
-    plan: starter
+    plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -65,7 +63,9 @@ services:
   - type: web
     name: localgo-goer
     runtime: python
-    plan: starter
+    # Free plan: sleeps when idle like the backend; the first chat after a
+    # quiet spell takes 30-50s.
+    plan: free
     rootDir: goer
     buildCommand: pip install .
     startCommand: uvicorn goer_localgo.api.main:app --host 0.0.0.0 --port $PORT
@@ -97,28 +97,6 @@ services:
       - key: LANGFUSE_SECRET_KEY
         sync: false
 
-  # Hourly audit for charges that succeeded but never became an order.
-  # Exits nonzero when it finds one, so Render's failed-run notification is
-  # the alert. Audit only: add --auto-refund after the refund path has been
-  # validated in Stripe test mode (checklist step 3).
-  - type: cron
-    name: localgo-payment-reconciliation
-    runtime: python
-    plan: starter
-    rootDir: backend
-    schedule: "0 * * * *"
-    buildCommand: pip install -r requirements.txt
-    startCommand: python -m app.payment_reconciliation
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.0
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: STRIPE_SECRET_KEY
-        sync: false
-      - key: STRIPE_PUBLISHABLE_KEY
-        sync: false
+# Hourly payment reconciliation runs as a free GitHub Actions schedule, not a
+# Render cron job (Render has no free cron plan):
+# .github/workflows/payment-reconciliation.yml

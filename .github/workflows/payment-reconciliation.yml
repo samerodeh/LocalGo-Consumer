@@ -1,0 +1,53 @@
+# Hourly audit for charges that succeeded but never became an order.
+#
+# Runs here rather than as a Render cron job because Render has no free cron
+# plan. The script exits nonzero when it finds an orphaned charge (or cannot
+# finish), which fails this run, and GitHub emails the repo owner about failed
+# scheduled runs. That email is the alert.
+#
+# Audit only: it never refunds. Add --auto-refund to the run step after the
+# refund path has been validated in Stripe test mode (checklist step 3).
+#
+# Needs repository secrets (Settings -> Secrets and variables -> Actions) with
+# the same values as the deployed backend. Scheduled runs only fire from the
+# default branch (main), and GitHub pauses schedules after 60 days with no
+# repository activity.
+
+name: payment reconciliation
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: payment-reconciliation
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Reconcile payments
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+        run: python -m app.payment_reconciliation
