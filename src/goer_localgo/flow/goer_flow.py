@@ -9,6 +9,7 @@ from goer_localgo.crews.discovery_crew.discovery_crew import DiscoveryCrew
 from goer_localgo.domain.cards import build_cards, collect_catalog_results, shown_product_ids
 from goer_localgo.domain.catalog import get_product
 from goer_localgo.domain.conversations import get_conversation_repository
+from goer_localgo.domain.response_grounding import ground_discovery_reply
 from goer_localgo.flow.state import GoerState, TurnSummary
 from goer_localgo.observability import envelope_output, turn_trace
 from goer_localgo.schemas.chat import ChatEnvelope, OpenProductAction, ProductListCard
@@ -47,17 +48,22 @@ class GoerFlow(Flow[GoerState]):
     @listen(load_context)
     def answer_turn(self):
         with collect_catalog_results() as results:
+            completed = False
             try:
                 result = DiscoveryCrew().crew().kickoff(inputs={
                     "user_message": self.state.user_message,
                     "conversation_context": self.state.conversation_context,
                 })
                 self.state.answer = result.raw[:8000]
+                completed = True
             except Exception as exc:
                 # Never expose provider errors, credentials, or prompt contents.
                 logger.warning("Discovery turn failed (%s)", type(exc).__name__)
                 self.state.answer = "I couldn't finish that request. Please try again; here is anything I found."
             self.state.cards = build_cards(results, self.state.user_message)
+            if completed:
+                self.state.answer = ground_discovery_reply(
+                    self.state.answer, self.state.cards, self.state.user_message)
 
     @listen(answer_turn)
     def compose_response(self):
