@@ -1,0 +1,36 @@
+[project]
+name = "goer_localgo"
+version = "0.1.0"
+description = "goer_localgo using crewAI"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "crewai[tools]==1.14.4",
+    "fastapi>=0.141.1",
+    "httpx>=0.28.1",
+    "langfuse>=4.15.6",
+    "openinference-instrumentation-crewai>=1.1.23",
+    "openinference-instrumentation-openai>=0.1.69",
+    "psycopg-pool>=3.3.3",
+    "psycopg[binary]>=3.3.8",
+    "pytest>=9.2.0",
+    "python-dotenv>=1.2.2",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+kickoff = "goer_localgo.main:kickoff"
+run_crew = "goer_localgo.main:kickoff"
+plot = "goer_localgo.main:plot"
+goer = "goer_localgo.main:interactive_cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.crewai]
+type = "flow"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+filterwarnings = ["ignore::DeprecationWarning:crewai.*"]

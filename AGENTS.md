@@ -19,21 +19,21 @@
 
 - Goer's **agents run server-side** in `backend/app/goer/` (guard → router → six specialists, ChromaDB retrieval, Groq). Prompts, routing, and menu knowledge belong there — not in the app bundle.
 - The app side is `src/goer/` (transport, state, offline NLU) and `src/components/goer/` (UI). The legacy online/offline paths share `src/goer/tools/executors.ts`. In opt-in server-cart mode those executors and ordinary buttons use `/v1/cart`; Zustand is a cache, not another source of truth.
-- New authenticated CrewAI chat lives in the sibling `../goer-ai` service, selected with `EXPO_PUBLIC_GOER_API_URL` and `EXPO_PUBLIC_SERVER_CART_ENABLED`. That path receives completed backend outcomes, not client mutation actions: never execute its cart changes again locally or replay an uncertain request through offline NLU. Preserve pending request/order IDs across retries and fence account transitions.
+- New authenticated CrewAI chat lives in the `goer/` service, selected with `EXPO_PUBLIC_GOER_API_URL` and `EXPO_PUBLIC_SERVER_CART_ENABLED`. That path receives completed backend outcomes, not client mutation actions: never execute its cart changes again locally or replay an uncertain request through offline NLU. Preserve pending request/order IDs across retries and fence account transitions.
 - A backend turn returns `actions` naming those executors. Adding a capability means adding the executor here **and** teaching a specialist to emit it; never let the two drift.
 - Chat checkout must remain confirmation-gated: stage an order first, then place it only through the explicit confirmation flow. No server action may place an order. Do not bypass the stale-cart or duplicate-placement guards.
 - After editing `src/data/menu.ts`, re-run `backend/scripts/build_menu_dataset.py` and `backend/scripts/build_menu_prices.py`; commit derived changes. Signed-in CrewAI discovery uses `/v1/catalog/products` from the committed authoritative pricing/catalog artifact.
 - Server checkout locks a cart revision and binds the immutable quote to owner/order/revision/fingerprint. Only explicit user confirmation can pay. Never unlock paid/processing checkouts, clear a cart locally after payment, disable binding on rollback, or create a fresh order ID merely because a response was lost.
 - Account-linked display history uses `src/goer/history.ts` and `202611050001_goer_history.sql`. Owner-only SELECT/RPC access, immutable exact turn publication, and the cached completed response must survive retries. A history-only retry must not send Goer/cart HTTP again; historical cart cards must not update current cart state.
-- Serialize persisted session reads/writes across generations. Recheck ownership after async conversation creation and before persistence. New conversation locks synchronously against sends/restoration and preserves cloud history. Supabase transcripts do not replace the sibling Goer's SQLite reasoning/command journal; keep that database to resume a conversation.
+- Serialize persisted session reads/writes across generations. Recheck ownership after async conversation creation and before persistence. New conversation locks synchronously against sends/restoration and preserves cloud history. Supabase transcripts do not replace Goer's `goer/` SQLite reasoning/command journal; keep that database to resume a conversation.
 
 ## Active work
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-09 | AGENTS.md; goer/; .github/workflows/goer-tests.yml; .github/workflows/app-tests.yml; .easignore; render.yaml | Import Goer history into the LocalGo repository and wire independent builds | Active |
 
 ## Recent work
+- 2026-11-09: Imported the standalone Goer Git history under `goer/`. Added root Goer CI with a SQLite/Postgres matrix and all eight tool smoke scripts; scoped app CI away from Goer-only changes; excluded Goer from EAS archives. Updated repository guides and cart runbook for the combined layout. Goer validation in the imported path: 191 tests passed, seven environment-dependent skips, eight smoke scripts passed. This is a local migration only; no push or deployment occurred.
 - 2026-11-08: Added the one-hour automatic refund path for paid server-cart
   checkouts without a dispatch order. The new migration serializes refund claims
   with order inserts and records the provider refund ID; the backend verifies
