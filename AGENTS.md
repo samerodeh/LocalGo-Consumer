@@ -305,7 +305,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-09 | src/goer_localgo/domain/response_grounding.py; src/goer_localgo/flow/goer_flow.py; tests/unit/test_response_grounding.py; tests/unit/test_goer_flow.py; AGENTS.md | Ground discovery replies in catalog cards and suppress unverified price claims | Active |
+| Agent | 2026-11-09 | src/goer_localgo/domain/response_grounding.py; src/goer_localgo/flow/goer_flow.py; tests/unit/test_response_grounding.py; tests/unit/test_goer_flow.py; src/goer_localgo/domain/storage.py; tests/unit/test_storage_backends.py; AGENTS.md | Ground discovery replies and fix Postgres row shape found by CI | Active |
 
 ---
 
