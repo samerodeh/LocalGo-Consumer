@@ -305,11 +305,20 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-08 | src/goer_localgo/domain/catalog.py; src/goer_localgo/tools/catalog/search_menu.py; src/goer_localgo/crews/discovery_crew/config/tasks.yaml; tests/unit/test_catalog_search.py; tests/unit/test_catalog_tools.py; AGENTS.md | Improve catalog-backed recommendations with description and budget matching | Active |
+| *(No active work locks)* | - | - | - | - |
 
 ---
 
 ## 5. Recent Work
+
+- 2026-11-09: Catalog recommendations now find terms present only in descriptions
+  and enforce literal CAD price limits, including exclusive "under" and inclusive
+  "up to" wording. Budget-only searches return lower-priced items first. The
+  discovery task uses the customer's budget phrase and avoids unsupported
+  dietary, stock and opening-hour claims. Search smoke passed; the full offline
+  suite passed with 184 tests and seven Postgres-dependent skips. Follow up with
+  real-model conversation evaluations for relevance, grounding and follow-ups;
+  this was deferred by the owner until after recommendation work.
 
 - 2026-11-08: Shared Postgres turn rate limits now admit requests atomically
   across Goer hosts and return 503 when shared admission is unavailable. Local
