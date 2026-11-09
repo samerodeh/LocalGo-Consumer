@@ -31,6 +31,7 @@
 
 | Label | Date | Files | Goal | Status |
 |---|---|---|---|---|
+| Agent | 2026-11-09 | AGENTS.md; goer/; .github/workflows/goer-tests.yml; .github/workflows/app-tests.yml; .easignore; render.yaml | Import Goer history into the LocalGo repository and wire independent builds | Active |
 
 ## Recent work
 - 2026-11-08: Added the one-hour automatic refund path for paid server-cart
