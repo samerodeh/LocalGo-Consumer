@@ -5,6 +5,12 @@ client. It does not use preview/production profile endpoints. No build, upload,
 credential generation or production activation is authorized by this document.
 Keep Expo SDK 54 and the existing EAS project/package linkage unchanged.
 
+On this Windows OneDrive checkout, the normal EAS archive path copied directory
+mode `444` into the Linux build tarball and failed in **Prepare project**. The
+`cli.requireCommit` setting makes EAS prepare a shallow Git clone instead. Commit
+the intended source changes before building; ignored private `.env` files remain
+outside that clone and the `.easignore` exclusions still apply.
+
 ## Owner prerequisites
 
 1. Sign in to Expo and confirm access to the existing project in `app.json`
