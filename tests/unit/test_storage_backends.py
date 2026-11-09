@@ -20,6 +20,23 @@ from goer_localgo.domain.turns import TurnJournal, TurnPending
 PG_URL = os.environ.get("GOER_TEST_DATABASE_URL", "")
 
 
+def test_postgres_pool_returns_named_rows(monkeypatch):
+    """Rate limits and owned storage read columns by name on every host."""
+    import psycopg_pool
+    from psycopg.rows import dict_row
+
+    captured = {}
+
+    class Pool:
+        def __init__(self, url, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setenv("GOER_DB_AUTO_MIGRATE", "false")
+    monkeypatch.setattr(psycopg_pool, "ConnectionPool", Pool)
+    PostgresDatabase("postgresql://unused")
+    assert captured["kwargs"]["row_factory"] is dict_row
+
+
 @pytest.fixture(params=["sqlite", "postgres"])
 def database(request, tmp_path):
     if request.param == "sqlite":

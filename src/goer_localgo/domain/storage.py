@@ -85,9 +85,10 @@ class PostgresDatabase:
 
     def __init__(self, url: str, *, min_size: int = 1, max_size: int = 10):
         from psycopg_pool import ConnectionPool
+        from psycopg.rows import dict_row
 
         self.pool = ConnectionPool(url, min_size=min_size, max_size=max_size, open=True,
-                                   kwargs={"autocommit": False}, name="goer")
+                                   kwargs={"autocommit": False, "row_factory": dict_row}, name="goer")
         if os.environ.get("GOER_DB_AUTO_MIGRATE", "true").lower() == "true":
             self.migrate()
 
