@@ -305,7 +305,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-09 | src/goer_localgo/domain/storage.py; src/goer_localgo/api/guards.py; tests/unit/test_storage_backends.py; tests/conftest.py; AGENTS.md | Repair shared Postgres rate limits without changing storage row shape | Active |
+| *(No active work locks)* | - | - | - | - |
 
 ---
 
@@ -314,12 +314,13 @@ All AI agents working on this project **must adhere to these rules without excep
 - 2026-11-09: Discovery replies with catalog cards now use exact selected
   product names, prices, order and descriptions; no-card turns can only return
   price-free clarifying questions. This prevents model-written product/price
-  claims from contradicting the cards. The latest dev CI run failed because
-  Postgres connections returned tuple rows while storage and rate limits read
-  named columns; the pool now requests `dict_row`, with a regression check.
-  Full local offline suite: 191 passed, seven Postgres-dependent skips. Local
-  Docker/Postgres was unavailable, so the Postgres CI matrix still needs a run.
-  Changes are committed locally only; do not push without owner permission.
+  claims from contradicting the cards. The failed dev CI run was caused by the
+  shared Postgres rate limiter indexing tuple rows by column name. Storage and
+  journal callers already use positional rows; rate limits now do the same.
+  The Postgres test matrix also resets persisted rate-limit events per case in
+  its disposable database. Both CI pytest configurations passed locally against
+  an isolated temporary Postgres 18 cluster: 198 passed each, zero skips.
+  Changes remain local; never push without explicit owner permission.
 
 - 2026-11-09: Catalog recommendations now find terms present only in descriptions
   and enforce literal CAD price limits, including exclusive "under" and inclusive
