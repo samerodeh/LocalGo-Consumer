@@ -305,7 +305,7 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| *(No active work locks)* | - | - | - | - |
+| Agent | 2026-11-09 | AGENTS.md; README.md; docs/cart-integration-runbook.md; .github/workflows/tests.yml | Update Goer guidance and CI paths after monorepo import | Active |
 
 ---
 
