@@ -305,11 +305,21 @@ All AI agents working on this project **must adhere to these rules without excep
 
 | Agent | Date | Files | Goal | Status |
 |---|---|---|---|---|
-| Agent | 2026-11-09 | src/goer_localgo/domain/response_grounding.py; src/goer_localgo/flow/goer_flow.py; tests/unit/test_response_grounding.py; tests/unit/test_goer_flow.py; tests/integration/test_conversation_api.py; src/goer_localgo/domain/storage.py; tests/unit/test_storage_backends.py; AGENTS.md | Ground discovery replies and fix Postgres row shape found by CI | Active |
+| *(No active work locks)* | - | - | - | - |
 
 ---
 
 ## 5. Recent Work
+
+- 2026-11-09: Discovery replies with catalog cards now use exact selected
+  product names, prices, order and descriptions; no-card turns can only return
+  price-free clarifying questions. This prevents model-written product/price
+  claims from contradicting the cards. The latest dev CI run failed because
+  Postgres connections returned tuple rows while storage and rate limits read
+  named columns; the pool now requests `dict_row`, with a regression check.
+  Full local offline suite: 191 passed, seven Postgres-dependent skips. Local
+  Docker/Postgres was unavailable, so the Postgres CI matrix still needs a run.
+  Changes are committed locally only; do not push without owner permission.
 
 - 2026-11-09: Catalog recommendations now find terms present only in descriptions
   and enforce literal CAD price limits, including exclusive "under" and inclusive
