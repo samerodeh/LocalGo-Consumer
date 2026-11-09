@@ -4,6 +4,12 @@ This document is the authoritative guide, context manual, and coordination log f
 
 ---
 
+## Current monorepo handoff ? 2026-11-09
+
+This handoff supersedes older repository-location, branch, and CI descriptions below. The LocalGo consumer app is at the combined repository root; its API is in `backend/`; this Goer service is in `goer/`. Goer's full Git history was imported into the LocalGo repository. The old standalone Goer repository remains historical. The mobile app, LocalGo API, and Goer remain independent runtime services with independent deployment configuration and secrets.
+
+Goer tests now run from the root workflow `.github/workflows/goer-tests.yml`, with `goer/` as working directory. Expo builds exclude `goer/` through the root `.easignore`. The existing Render Blueprint configures only `backend/`; a Goer production service has not been configured or deployed by this import. Do not push any branch without the owner's explicit permission.
+
 ## 1. Project Context & Architecture
 
 ### What is Goer AI?
