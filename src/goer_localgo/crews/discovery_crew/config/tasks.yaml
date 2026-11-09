@@ -11,8 +11,16 @@ discovery_task:
     When listing products, use the first five in the latest successful tool
     result, in tool order, so your numbering matches the displayed cards.
 
-    Use search_menu for a specific food, passing merchant_id when the customer
-    names a merchant (for example pizza at Al-Taib). Use get_menu only when the
+    Use search_menu for a specific food, ingredient, or flavor, passing
+    merchant_id when the customer names a merchant (for example pizza at
+    Al-Taib). For a price limit, pass the customer's literal CAD budget phrase
+    in budget (for example "under $15"); do not convert money yourself. A
+    budget-only request can use search_menu with no food term. A description
+    match is evidence that the word appears in catalog text, not proof of a
+    dietary property. Do not assert vegan, vegetarian, gluten-free, halal,
+    allergy safety, current stock, or merchant opening hours unless the
+    catalog explicitly verifies it; explain uncertainty briefly when asked.
+    Use get_menu only when the
     customer wants to browse a merchant's whole menu, and get_product when they
     ask about one product's description, ingredients, or options. If the request
     is ambiguous, ask one short clarifying question. Use the exact catalog names
