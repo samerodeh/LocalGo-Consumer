@@ -41,7 +41,7 @@ npx eas-cli build:inspect --platform android --profile development --stage archi
 npx eas-cli build --platform android --profile development
 ```
 
-`.easignore` excludes root/nested private environment files and the backend.
+`.easignore` excludes root/nested private environment files, the backend, and Goer.
 Do not print private files while reviewing the archive. Install the generated APK.
 For LAN development, start Metro with the same four public development variables
 set privately in the process and run `npx expo start --dev-client --lan`.
@@ -57,10 +57,14 @@ history, plain-sentence address search plus explicit choice, summary and the exa
 before one paid order/one cart consumption is claimed. Verify decline, cancel,
 stale summary, restart during pending work, account switching and A→B→A recovery
 without a replacement payment or cross-account disclosure. Record dated results
-in the Goer development activation checklist without identifiers or secrets.
+in `goer/docs/development-activation-checklist.md` without identifiers or secrets.
 
-Current status: profile/instructions prepared only. No EAS upload/build, installed
-APK or native PaymentSheet acceptance has been performed. The owner must supply
-Expo access, reachable development endpoints and a device. Separately, return the
+Current status: development APK build `052cf5c8-0776-4f7b-8f8c-a1e3604587b1`
+finished on 2026-11-09 from commit `e2f8899`. Its app source is unchanged by
+later repository commits that imported Goer under `goer/`. No installed APK or
+native PaymentSheet acceptance has been performed. The EAS development environment
+has no public endpoint variables; Metro must supply them from local configuration
+for this dev-client build. The owner must supply reachable development endpoints
+and a device. Separately, return the
 read-only development `supabase/checks/verify_cart_security.sql` results for policy,
 grant and RPC review; do not blindly reapply migrations.

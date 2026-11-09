@@ -4,7 +4,8 @@ Updated: 2026-11-09. Work through these steps in order. A checked box needs conn
 
 ## 1. Native payment acceptance
 
-- [ ] Build the existing `development` EAS Android APK and install it on an Android device.
+- [x] Build the existing `development` EAS Android APK. Build `052cf5c8-0776-4f7b-8f8c-a1e3604587b1` finished on 2026-11-09 from commit `e2f8899` after fixing Windows archive directory permissions.
+- [ ] Install the APK on an Android device.
 - [ ] Test signed-in discovery, chat and button cart parity, a verified address, explicit confirmation, native Stripe PaymentSheet, one paid order, and one cart consumption in test mode.
 - [ ] Test declines, cancellation, stale confirmation, lost responses, app restart, and account switching without duplicate payment or order.
 - [ ] Record results in the sibling Goer development activation checklist.
