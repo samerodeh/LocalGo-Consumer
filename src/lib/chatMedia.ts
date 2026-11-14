@@ -2,15 +2,19 @@
 // note. Mirrors the driver app's proof-photo flow (orderPhotos.ts) — same
 // upload-to-public-bucket pattern — but usable by either chat participant for
 // an in-conversation attachment rather than a delivery-status photo.
-import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
+import { imagePickerModule as ImagePicker } from './imagePicker';
 import { supabase } from './supabase';
 
 /** Opens the photo library and returns the picked asset's local uri, or null
  *  if the user cancels or denies permission. Library (not camera) so it works
  *  the same on every platform, including the web preview. */
 export async function pickChatImage(): Promise<string | null> {
-  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!perm.granted) return null;
+  if (!ImagePicker) return null;
+  if (Platform.OS === 'ios') {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return null;
+  }
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     quality: 0.5,
