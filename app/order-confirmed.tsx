@@ -25,8 +25,14 @@ export default function OrderConfirmedScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const params = useLocalSearchParams<{ eta?: string; total?: string }>();
-  const eta = params.eta || '25–35 min';
+  const params = useLocalSearchParams<{
+    eta?: string;
+    total?: string;
+    mode?: string;
+    orderId?: string;
+  }>();
+  const eta = params.eta;
+  const pickup = params.mode === 'pickup';
 
   // Checkmark badge: pop in with a slight overshoot.
   const badge = useSharedValue(0);
@@ -72,9 +78,17 @@ export default function OrderConfirmedScreen() {
         <Reveal delay={500}>
           <View style={styles.riderRow}>
             <Animated.View style={bobStyle}>
-              <Ionicons name="bicycle" size={22} color={colors.orange} />
+              <Ionicons
+                name={pickup ? 'bag-handle-outline' : 'bicycle'}
+                size={22}
+                color={colors.orange}
+              />
             </Animated.View>
-            <Text style={styles.subtitle}>Your order is on its way</Text>
+            <Text style={styles.subtitle}>
+              {pickup
+                ? 'The store has received your pickup order'
+                : 'Your order has reached dispatch'}
+            </Text>
           </View>
         </Reveal>
 
@@ -82,8 +96,16 @@ export default function OrderConfirmedScreen() {
         <Reveal delay={640} style={styles.etaCard}>
           <Ionicons name="time-outline" size={20} color={colors.orange} />
           <View>
-            <Text style={styles.etaLabel}>Estimated arrival</Text>
-            <Text style={styles.etaValue}>{eta}</Text>
+            <Text style={styles.etaLabel}>
+              {eta
+                ? pickup
+                  ? 'Estimated preparation'
+                  : 'Estimated arrival'
+                : pickup
+                  ? 'Follow your pickup'
+                  : 'Follow your delivery'}
+            </Text>
+            <Text style={styles.etaValue}>{eta || 'Live updates on Home'}</Text>
           </View>
         </Reveal>
 
@@ -101,8 +123,13 @@ export default function OrderConfirmedScreen() {
 
       <Reveal delay={1040} style={styles.footer}>
         <GradientButton title="Back to Home" onPress={() => router.replace('/(tabs)')} />
-        <Pressable style={styles.secondary} onPress={() => router.replace('/(tabs)/settings')}>
-          <Text style={styles.secondaryText}>View your orders</Text>
+        <Pressable
+          style={styles.secondary}
+          onPress={() =>
+            router.replace({ pathname: '/(tabs)', params: { trackOrderId: params.orderId ?? '' } })
+          }
+        >
+          <Text style={styles.secondaryText}>Track your order</Text>
         </Pressable>
       </Reveal>
     </SafeAreaView>
@@ -145,7 +172,9 @@ function PulseRing({ delay, color }: { delay: number; color: string }) {
     transform: [{ scale: 0.7 + p.value * 1.2 }],
     opacity: 0.5 * (1 - p.value),
   }));
-  return <Animated.View pointerEvents="none" style={[ringStyles.ring, { borderColor: color }, style]} />;
+  return (
+    <Animated.View pointerEvents="none" style={[ringStyles.ring, { borderColor: color }, style]} />
+  );
 }
 
 /** A single bouncing dot in the progress indicator. */
@@ -177,8 +206,20 @@ const ringStyles = StyleSheet.create({
 
 const makeStyles = (colors: ThemePalette) =>
   StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.offWhite },
-    content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, gap: 16 },
+    safe: {
+      flex: 1,
+      width: '100%',
+      maxWidth: 720,
+      alignSelf: 'center',
+      backgroundColor: colors.offWhite,
+    },
+    content: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+      gap: 16,
+    },
     badgeWrap: {
       width: 160,
       height: 160,
@@ -205,17 +246,17 @@ const makeStyles = (colors: ThemePalette) =>
     etaCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: 16,
       backgroundColor: colors.white,
-      borderRadius: 16,
+      borderRadius: 22,
       borderWidth: 1,
       borderColor: colors.gray200,
-      paddingVertical: 14,
-      paddingHorizontal: 18,
-      marginTop: 4,
+      paddingVertical: 20,
+      paddingHorizontal: 28,
+      marginTop: 12,
     },
-    etaLabel: { fontSize: 12, color: colors.gray400, fontWeight: '600' },
-    etaValue: { fontSize: 17, color: colors.navy, fontWeight: '800' },
+    etaLabel: { fontSize: 12, color: colors.textLight, fontWeight: '600', marginBottom: 6 },
+    etaValue: { fontSize: 24, color: colors.navy, fontWeight: '800' },
     dots: { flexDirection: 'row', gap: 8, marginTop: 6 },
     thanks: { fontSize: 14, color: colors.textLight, marginTop: 8 },
     footer: { paddingHorizontal: 24, paddingBottom: 12, gap: 8 },

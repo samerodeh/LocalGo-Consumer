@@ -1,0 +1,41 @@
+import { act, renderHook } from '@testing-library/react-native';
+import { useOrderTracking } from '../../../src/store/useOrderTracking';
+import { usePendingOrders } from '../../../src/store/usePendingOrders';
+import { supabase } from '../../../src/lib/supabase';
+jest.mock('../../../src/store/authStore', () => ({ useAuthStore: (selector: Function) => selector({ isLoggedIn: true }) }));
+jest.mock('../../../src/lib/notifications', () => ({ presentLocalNotification: jest.fn() }));
+jest.mock('../../../src/lib/supabase', () => ({ isSupabaseConfigured:true, supabase: { auth:{getUser:jest.fn()},from:jest.fn(),channel:jest.fn(),removeChannel:jest.fn() } }));
+const response=jest.fn();
+const row={id:'one',order_number:'#LG-1',eta_minutes:null,accepted_by:'driver',accepted_at:new Date().toISOString(),created_at:new Date().toISOString(),delivery_status:'accepted'};
+beforeEach(()=>{
+  jest.useFakeTimers();
+  (supabase!.auth.getUser as jest.Mock).mockResolvedValue({data:{user:{id:'customer'}}});
+  const query: Record<string,unknown>={};
+  for(const key of ['select','eq','not','neq','is','gte']) query[key]=()=>query;
+  query.order=response;
+  (supabase!.from as jest.Mock).mockReturnValue(query);
+  const channel={on:()=>channel,subscribe:()=>channel};
+  (supabase!.channel as jest.Mock).mockReturnValue(channel);
+});
+afterEach(()=>jest.useRealTimers());
+it('recovers pickup and delivered progress by polling without websocket events',async()=>{
+  response.mockResolvedValueOnce({data:[row],error:null}).mockResolvedValueOnce({data:[{...row,delivery_status:'picked_up'}],error:null}).mockResolvedValueOnce({data:[{...row,delivery_status:'delivered'}],error:null});
+  const view=renderHook(useOrderTracking);
+  await act(async()=>{});
+  expect(view.result.current.orders[0].deliveryStatus).toBe('accepted');
+  expect(view.result.current.orders[0].etaMinutes).toBeNull();
+  await act(async()=>{await jest.advanceTimersByTimeAsync(10000);});
+  expect(view.result.current.orders[0].deliveryStatus).toBe('picked_up');
+  await act(async()=>{await jest.advanceTimersByTimeAsync(10000);});
+  expect(view.result.current.orders).toEqual([]);
+  view.unmount();
+});
+it('removes a pending card after polling sees that the driver claimed it',async()=>{
+  response.mockResolvedValueOnce({data:[{...row,accepted_by:null,delivery_status:'available'}],error:null}).mockResolvedValueOnce({data:[],error:null});
+  const view=renderHook(usePendingOrders);
+  await act(async()=>{});
+  expect(view.result.current.pending).toHaveLength(1);
+  await act(async()=>{await jest.advanceTimersByTimeAsync(10000);});
+  expect(view.result.current.pending).toEqual([]);
+  view.unmount();
+});

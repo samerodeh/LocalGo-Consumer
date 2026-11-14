@@ -4,11 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { radius } from '../theme/theme';
 import { useTheme, type ThemePalette } from '../theme/ThemeContext';
-import {
-  etaWindow,
-  type DeliveryStatus,
-  type OrderTrackingItem,
-} from '../store/useOrderTracking';
+import { etaWindow, type DeliveryStatus, type OrderTrackingItem } from '../store/useOrderTracking';
 
 /** The three customer-visible milestones of a delivery, in order. */
 const STEPS: { key: DeliveryStatus; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -55,7 +51,7 @@ export function OrderTrackingStack({
     <View style={styles.stack}>
       {orders.map((order) => {
         const current = STEP_INDEX[order.deliveryStatus];
-        const { min, max } = etaWindow(order.etaMinutes);
+        const estimate = order.etaMinutes == null ? null : etaWindow(order.etaMinutes);
         return (
           <View key={order.id} style={styles.card}>
             <View style={styles.topRow}>
@@ -67,9 +63,7 @@ export function OrderTrackingStack({
 
             <Text style={styles.orderNo}>
               Order {order.orderNumber}
-              {order.deliveryStatus !== 'delivered'
-                ? ` · arriving in about ${min}–${max} min`
-                : ''}
+              {order.deliveryStatus !== 'delivered' && estimate ? ` · arriving in about ${estimate.min}–${estimate.max} min` : ''}
             </Text>
 
             {/* Progress timeline. */}
@@ -82,29 +76,21 @@ export function OrderTrackingStack({
                     <View style={styles.stepRow}>
                       {/* Connector to the previous node. */}
                       {i > 0 ? (
-                        <View
-                          style={[styles.connector, i <= current && styles.connectorDone]}
-                        />
+                        <View style={[styles.connector, i <= current && styles.connectorDone]} />
                       ) : (
                         <View style={styles.connectorSpacer} />
                       )}
                       <View
-                        style={[
-                          styles.node,
-                          done && styles.nodeDone,
-                          active && styles.nodeActive,
-                        ]}
+                        style={[styles.node, done && styles.nodeDone, active && styles.nodeActive]}
                       >
                         <Ionicons
                           name={step.icon}
                           size={13}
-                          color={done ? colors.white : colors.gray400}
+                          color={done ? colors.onBrand : colors.gray400}
                         />
                       </View>
                       {i < STEPS.length - 1 ? (
-                        <View
-                          style={[styles.connector, i < current && styles.connectorDone]}
-                        />
+                        <View style={[styles.connector, i < current && styles.connectorDone]} />
                       ) : (
                         <View style={styles.connectorSpacer} />
                       )}
@@ -133,26 +119,26 @@ export function OrderTrackingStack({
 
 const makeStyles = (colors: ThemePalette) =>
   StyleSheet.create({
-    stack: { gap: 12, marginTop: 20, marginHorizontal: 16 },
+    stack: { gap: 16, marginTop: 24, marginHorizontal: 20 },
     card: {
       backgroundColor: colors.white,
       borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: colors.gray200,
-      padding: 16,
-      gap: 12,
-      shadowColor: colors.navy,
-      shadowOpacity: 0.06,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 2,
+      padding: 20,
+      gap: 16,
     },
     topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     title: { fontSize: 16, fontWeight: '800', color: colors.navy, flex: 1 },
     orderNo: { fontSize: 13, color: colors.textLight, marginTop: -4 },
     timeline: { flexDirection: 'row', marginTop: 2 },
     stepWrap: { flex: 1, alignItems: 'center', gap: 6 },
-    stepRow: { flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'center' },
+    stepRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      width: '100%',
+      justifyContent: 'center',
+    },
     connector: { flex: 1, height: 3, backgroundColor: colors.gray200, borderRadius: 2 },
     connectorDone: { backgroundColor: colors.orange },
     connectorSpacer: { flex: 1 },
@@ -181,9 +167,9 @@ const makeStyles = (colors: ThemePalette) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      backgroundColor: colors.orange,
+      backgroundColor: colors.brandNavy,
       borderRadius: radius.md,
-      paddingVertical: 12,
+      paddingVertical: 16,
     },
-    chatButtonText: { fontSize: 14, fontWeight: '700', color: colors.white },
+    chatButtonText: { fontSize: 14, fontWeight: '700', color: colors.onBrand },
   });

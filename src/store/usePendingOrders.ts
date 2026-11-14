@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { presentLocalNotification } from '../lib/notifications';
 import { useAuthStore } from './authStore';
@@ -84,22 +85,29 @@ export function usePendingOrders(): { pending: PendingOrder[] } {
     const sb = supabase;
     let channel: ReturnType<typeof sb.channel> | null = null;
     let cancelled = false;
+    let poll: ReturnType<typeof setInterval> | null = null;
+    let foreground: ReturnType<typeof AppState.addEventListener> | null = null;
 
     (async () => {
       const { data: userData } = await sb.auth.getUser();
       const uid = userData.user?.id;
       if (!uid || cancelled) return;
 
-      const since = new Date(Date.now() - LOOKBACK_MS).toISOString();
-      const { data } = await sb
-        .from('orders')
-        .select('id, order_number, created_at, accepted_by, delivery_status')
-        .eq('customer_id', uid)
-        .is('accepted_by', null)
-        .gte('created_at', since)
-        .order('created_at', { ascending: false });
+      const refresh = async () => {
+        const since = new Date(Date.now() - LOOKBACK_MS).toISOString();
+        const { data, error } = await sb.from('orders')
+          .select('id, order_number, created_at, accepted_by, delivery_status')
+          .eq('customer_id', uid).is('accepted_by', null)
+          .gte('created_at', since).order('created_at', { ascending: false });
+        if (cancelled || error) return;
+        const ids = new Set((data ?? []).map((row) => row.id));
+        setPending((previous) => previous.filter((order) => ids.has(order.id)));
+        (data ?? []).forEach((row) => apply(row as PendingRow));
+      };
+      await refresh();
       if (cancelled) return;
-      (data ?? []).forEach((row) => apply(row as PendingRow));
+      poll = setInterval(() => void refresh(), 10000);
+      foreground = AppState.addEventListener('change', (state) => { if (state === 'active') void refresh(); });
 
       channel = sb
         .channel(`customer-pending-${++channelSeq}`)
@@ -117,6 +125,8 @@ export function usePendingOrders(): { pending: PendingOrder[] } {
 
     return () => {
       cancelled = true;
+      if (poll) clearInterval(poll);
+      foreground?.remove();
       if (channel) sb.removeChannel(channel);
     };
   }, [isLoggedIn, apply]);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { presentLocalNotification } from '../lib/notifications';
 import { useAuthStore } from './authStore';
@@ -11,7 +12,7 @@ export type DeliveryStatus = 'available' | 'accepted' | 'picked_up' | 'delivered
 export interface OrderTrackingItem {
   id: string;
   orderNumber: string;
-  etaMinutes: number;
+  etaMinutes: number | null;
   /** The driver's uid — the other participant of this order's chat thread. */
   driverId: string;
   deliveryStatus: DeliveryStatus;
@@ -29,11 +30,12 @@ export function etaWindow(etaMinutes: number): { min: number; max: number } {
  *  customer hears progress in Expo Go / simulators too. `available` never
  *  alerts (that's the pre-driver state handled by usePendingOrders). */
 const STATUS_ALERT: Partial<
-  Record<DeliveryStatus, { title: string; body: (orderNumber: string, eta: number) => string }>
+  Record<DeliveryStatus, { title: string; body: (orderNumber: string, eta: number | null) => string }>
 > = {
   accepted: {
     title: 'A driver accepted your order! 🎉',
     body: (n, eta) => {
+      if (eta === null) return `${n} — your driver is heading to the restaurant.`;
       const { min, max } = etaWindow(eta);
       return `${n} — your driver is heading to the restaurant, arriving in about ${min}–${max} min.`;
     },
@@ -65,7 +67,7 @@ function toItem(row: OrderRow): OrderTrackingItem | null {
   return {
     id: row.id,
     orderNumber: row.order_number,
-    etaMinutes: row.eta_minutes ?? 45,
+    etaMinutes: row.eta_minutes,
     driverId: row.accepted_by,
     deliveryStatus: (row.delivery_status as DeliveryStatus) ?? 'accepted',
     acceptedAt: row.accepted_at ?? new Date().toISOString(),
@@ -135,6 +137,8 @@ export function useOrderTracking(): {
     const sb = supabase;
     let channel: ReturnType<typeof sb.channel> | null = null;
     let cancelled = false;
+    let poll: ReturnType<typeof setInterval> | null = null;
+    let foreground: ReturnType<typeof AppState.addEventListener> | null = null;
     // Keep the (re)subscription's backfill pass silent even across remounts.
     readyRef.current = false;
 
@@ -145,19 +149,21 @@ export function useOrderTracking(): {
 
       // Catch orders accepted/progressed while the app was backgrounded: every
       // claimed, not-yet-delivered order from the last few hours.
-      const since = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
-      const { data } = await sb
-        .from('orders')
-        .select('id, order_number, eta_minutes, accepted_by, accepted_at, delivery_status')
-        .eq('customer_id', uid)
-        .not('accepted_by', 'is', null)
-        .neq('delivery_status', 'delivered')
-        .gte('accepted_at', since)
-        .order('accepted_at', { ascending: false });
+      const refresh = async () => {
+        const since = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+        const { data, error } = await sb.from('orders')
+          .select('id, order_number, eta_minutes, accepted_by, accepted_at, delivery_status')
+          .eq('customer_id', uid).not('accepted_by', 'is', null)
+          .gte('accepted_at', since).order('accepted_at', { ascending: false });
+        if (cancelled || error) return;
+        // Include delivered rows so polling can remove completed tracking cards.
+        (data ?? []).forEach((row) => upsert(row as OrderRow));
+        readyRef.current = true;
+      };
+      await refresh();
       if (cancelled) return;
-      (data ?? []).forEach((row) => upsert(row as OrderRow));
-      // Backfill seeded; every subsequent upsert is a live change worth alerting.
-      readyRef.current = true;
+      poll = setInterval(() => void refresh(), 10000);
+      foreground = AppState.addEventListener('change', (state) => { if (state === 'active') void refresh(); });
 
       // Unique topic per mount: a fixed name hands back a still-subscribed
       // channel on quick remount and .on() then throws.
@@ -177,6 +183,8 @@ export function useOrderTracking(): {
 
     return () => {
       cancelled = true;
+      if (poll) clearInterval(poll);
+      foreground?.remove();
       if (channel) sb.removeChannel(channel);
     };
   }, [isLoggedIn, upsert]);

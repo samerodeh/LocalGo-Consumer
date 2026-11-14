@@ -44,23 +44,18 @@ export function PendingOrderStack({ orders }: { orders: PendingOrder[] }) {
 
 const makeStyles = (colors: ThemePalette) =>
   StyleSheet.create({
-    stack: { gap: 12, marginTop: 20, marginHorizontal: 16 },
+    stack: { gap: 16, marginTop: 24, marginHorizontal: 20 },
     card: {
       backgroundColor: colors.white,
       borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: colors.gray200,
-      padding: 16,
-      gap: 8,
-      shadowColor: colors.navy,
-      shadowOpacity: 0.06,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 2,
+      padding: 20,
+      gap: 12,
     },
     // Warm the card once we're reassuring the customer.
-    cardPatient: { borderColor: colors.orangeLight, backgroundColor: '#FFF7ED' },
+    cardPatient: { borderColor: colors.orangeLight, backgroundColor: colors.accentSoft },
     headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     title: { fontSize: 15, fontWeight: '800', color: colors.navy, flex: 1 },
-    body: { fontSize: 13, color: colors.textLight, lineHeight: 19 },
+    body: { fontSize: 14, color: colors.textLight, lineHeight: 22 },
   });
