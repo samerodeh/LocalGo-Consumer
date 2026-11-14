@@ -1,13 +1,24 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import {
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { radius } from '../../src/theme/theme';
 import { useTheme, type ThemePalette } from '../../src/theme/ThemeContext';
 import { DisplayText } from '../../src/components/DisplayText';
 import { ConfirmModal } from '../../src/components/ConfirmModal';
 import { useAuthStore } from '../../src/store/authStore';
+import { PRIVACY_URL } from '../../src/lib/support';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -18,27 +29,25 @@ export default function SettingsScreen() {
   const [signOutVisible, setSignOutVisible] = useState(false);
 
   const fullName = user ? `${user.firstName} ${user.lastName}` : 'Guest';
-  const initials = user
-    ? `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase()
-    : '?';
+  const initials = user ? `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase() : '?';
   const version = Constants.expoConfig?.version ?? '1.0';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.titleBar}>
-        <DisplayText size={26} weight="bold" color={colors.navy}>
+        <DisplayText size={34} weight="bold" color={colors.navy}>
           Settings
         </DisplayText>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 24 }}>
+      <ScrollView contentContainerStyle={{ padding: 20, gap: 28 }}>
         {/* Profile */}
         <View style={styles.card}>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
               <Text style={styles.initials}>{initials}</Text>
             </View>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.profileName}>{fullName}</Text>
               <Text style={styles.profileEmail}>{user?.email ?? ''}</Text>
             </View>
@@ -47,7 +56,19 @@ export default function SettingsScreen() {
 
         {/* Account */}
         <Section title="Account" styles={styles}>
-          <SettingsRow icon="notifications-outline" label="Notifications" styles={styles} colors={colors} />
+          <SettingsRow
+            icon="trash-outline"
+            label="Delete Account"
+            onPress={() => router.push('/delete-account')}
+            styles={styles}
+            colors={colors}
+          />
+          <SettingsRow
+            icon="notifications-outline"
+            label="Notifications"
+            styles={styles}
+            colors={colors}
+          />
           <SettingsRow
             icon="card-outline"
             label="Payment Methods"
@@ -82,6 +103,17 @@ export default function SettingsScreen() {
 
         {/* About */}
         <Section title="About" styles={styles}>
+          <SettingsRow
+            icon="shield-checkmark-outline"
+            label="Privacy Policy"
+            onPress={() => {
+              void Linking.openURL(PRIVACY_URL).catch(() =>
+                Alert.alert('Privacy Policy', `Read the policy at ${PRIVACY_URL}`),
+              );
+            }}
+            styles={styles}
+            colors={colors}
+          />
           <View style={styles.settingsRow}>
             <Text style={styles.rowLabel}>Version</Text>
             <Text style={styles.rowValue}>{version}</Text>
@@ -152,50 +184,68 @@ function SettingsRow({
 
 const makeStyles = (colors: ThemePalette) =>
   StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.offWhite },
-    titleBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+    safe: {
+      flex: 1,
+      width: '100%',
+      maxWidth: 720,
+      alignSelf: 'center',
+      backgroundColor: colors.offWhite,
+    },
+    titleBar: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 4 },
     card: {
       backgroundColor: colors.white,
-      borderRadius: 14,
-      paddingHorizontal: 16,
+      borderRadius: radius.lg,
+      paddingHorizontal: 18,
       overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.gray200,
     },
-    profileRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 16 },
+    profileRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 24 },
     avatar: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: 'rgba(249,115,22,0.15)',
+      width: 64,
+      height: 64,
+      borderRadius: radius.lg,
+      backgroundColor: colors.brandNavy,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    initials: { fontSize: 18, fontWeight: '700', color: colors.orange },
-    profileName: { fontSize: 15, fontWeight: '700', color: colors.navy },
-    profileEmail: { fontSize: 12, color: colors.textLight, marginTop: 2 },
+    initials: { fontSize: 22, fontWeight: '700', color: colors.onBrand },
+    profileName: { fontSize: 20, fontWeight: '700', color: colors.navy },
+    profileEmail: {
+      fontSize: 13,
+      lineHeight: 20,
+      color: colors.textLight,
+      marginTop: 4,
+      flexShrink: 1,
+    },
     sectionTitle: {
-      fontSize: 12,
-      fontWeight: '700',
+      fontSize: 10,
+      fontWeight: '800',
       color: colors.textLight,
       textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      letterSpacing: 1.5,
       paddingHorizontal: 4,
+      marginBottom: 4,
     },
     settingsRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: 14,
+      minHeight: 60,
+      paddingVertical: 18,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.gray200,
+      borderBottomColor: colors.gray100,
     },
     rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     rowLabel: { fontSize: 15, color: colors.navy },
     rowValue: { fontSize: 15, color: colors.textLight },
     signOut: {
       backgroundColor: colors.white,
-      borderRadius: 14,
-      paddingVertical: 16,
+      borderRadius: radius.md,
+      paddingVertical: 18,
       alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.gray200,
     },
     signOutText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
   });

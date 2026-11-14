@@ -62,11 +62,15 @@ function RootNavigator() {
     if (isLoggedIn) warmImageCache();
   }, [isLoggedIn]);
 
-  // Tapping a "new message" push opens that order's chat directly.
+  // Message alerts open chat; fulfillment alerts open the order tracker.
   useEffect(() => {
     return onNotificationTapped((data) => {
       if (typeof data.orderId === 'string') {
-        router.push({ pathname: '/chat', params: { orderId: data.orderId } });
+        if (data.kind === 'new_message' || !data.kind) {
+          router.push({ pathname: '/chat', params: { orderId: data.orderId } });
+        } else {
+          router.push({ pathname: '/(tabs)', params: { trackOrderId: data.orderId } });
+        }
       }
     });
   }, [router]);
@@ -94,7 +98,9 @@ function RootNavigator() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.offWhite } }}>
+      <Stack
+        screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.offWhite } }}
+      >
         <Stack.Protected guard={isLoggedIn}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
@@ -115,6 +121,7 @@ function RootNavigator() {
         {/* Reachable whether signed in or not — the password-reset deep link can
             land here either way (e.g. reset requested while already logged in). */}
         <Stack.Screen name="reset-password" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="delete-account" options={{ presentation: 'modal' }} />
       </Stack>
     </>
   );
@@ -131,7 +138,7 @@ export default function RootLayout() {
     'BarlowCondensed-SemiBold': require('../assets/fonts/BarlowCondensed-SemiBold.ttf'),
   });
 
-  if ((!fontsLoaded && !fontError)) {
+  if (!fontsLoaded && !fontError) {
     return <BootSplash />;
   }
 
@@ -147,4 +154,3 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
-

@@ -44,6 +44,24 @@ export default function PaymentScreen() {
 
   const brand: CardBrand = detectBrand(number.replace(/\D/g, ''));
 
+  if (!__DEV__) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <View style={styles.header}>
+          <DisplayText size={30} weight="bold" color={colors.navy}>
+            Payment Methods
+          </DisplayText>
+          <Pressable onPress={() => router.back()} hitSlop={10}>
+            <Ionicons name="close" size={26} color={colors.navy} />
+          </Pressable>
+        </View>
+        <Text style={{ padding: 16, color: colors.navy }}>
+          Payments are currently unavailable. No card details can be saved or charged.
+        </Text>
+      </SafeAreaView>
+    );
+  }
+
   const onSave = async () => {
     const check = validateCard({ number, expiry, cvv, cardholder });
     if (!check.valid) {
@@ -62,7 +80,7 @@ export default function PaymentScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <DisplayText size={24} weight="bold" color={colors.navy}>
+        <DisplayText size={30} weight="bold" color={colors.navy}>
           Payment Methods
         </DisplayText>
         <Pressable onPress={() => router.back()} hitSlop={10}>
@@ -70,12 +88,18 @@ export default function PaymentScreen() {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={{ padding: 20, gap: 16 }}
+          keyboardShouldPersistTaps="handled"
+        >
           {cards.map((card) => (
             <Pressable key={card.id} style={styles.cardRow} onPress={() => setDefault(card.id)}>
               <View style={styles.brandChip}>
-                <Ionicons name="card" size={20} color={colors.white} />
+                <Ionicons name="card" size={20} color={colors.onBrand} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardBrand}>
@@ -101,14 +125,16 @@ export default function PaymentScreen() {
               {/* Card preview */}
               <View style={styles.preview}>
                 <View style={styles.previewTop}>
-                  <Ionicons name="card" size={26} color={colors.white} />
+                  <Ionicons name="card" size={26} color={colors.onBrand} />
                   <Text style={styles.previewBrand}>{brand}</Text>
                 </View>
                 <Text style={styles.previewNumber}>
                   {formatCardNumber(number) || '•••• •••• •••• ••••'}
                 </Text>
                 <View style={styles.previewBottom}>
-                  <Text style={styles.previewName}>{cardholder.toUpperCase() || 'CARDHOLDER NAME'}</Text>
+                  <Text style={styles.previewName}>
+                    {cardholder.toUpperCase() || 'CARDHOLDER NAME'}
+                  </Text>
                   <Text style={styles.previewExp}>{expiry || 'MM/YY'}</Text>
                 </View>
               </View>
@@ -186,23 +212,29 @@ export default function PaymentScreen() {
 
 const makeStyles = (colors: ThemePalette) =>
   StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.offWhite },
+    safe: {
+      flex: 1,
+      width: '100%',
+      maxWidth: 720,
+      alignSelf: 'center',
+      backgroundColor: colors.offWhite,
+    },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: 24,
+      paddingVertical: 20,
     },
     cardRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: 14,
       backgroundColor: colors.white,
-      borderRadius: 14,
+      borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: colors.gray200,
-      padding: 14,
+      padding: 20,
     },
     brandChip: {
       width: 42,
@@ -220,26 +252,38 @@ const makeStyles = (colors: ThemePalette) =>
       paddingVertical: 3,
       borderRadius: 999,
     },
-    defaultPillText: { color: colors.white, fontSize: 11, fontWeight: '700' },
-    form: { backgroundColor: colors.white, borderRadius: 14, padding: 14, gap: 12, marginTop: 4 },
-    preview: {
-      backgroundColor: colors.navy,
+    defaultPillText: { color: colors.onBrand, fontSize: 11, fontWeight: '700' },
+    form: {
+      backgroundColor: colors.white,
       borderRadius: radius.lg,
-      padding: 18,
-      gap: 18,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      padding: 20,
+      gap: 16,
+      marginTop: 8,
+    },
+    preview: {
+      backgroundColor: colors.brandNavy,
+      borderRadius: radius.lg,
+      padding: 24,
+      gap: 24,
       justifyContent: 'space-between',
-      minHeight: 150,
+      minHeight: 180,
     },
     previewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    previewBrand: { color: colors.offWhite, fontSize: 15, fontWeight: '700' },
-    previewNumber: { color: colors.offWhite, fontSize: 20, letterSpacing: 2, fontWeight: '600' },
+    previewBrand: { color: colors.onBrand, fontSize: 15, fontWeight: '700' },
+    previewNumber: { color: colors.onBrand, fontSize: 20, letterSpacing: 2, fontWeight: '600' },
     previewBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    previewName: { color: colors.gray400, fontSize: 12, fontWeight: '600' },
-    previewExp: { color: colors.gray400, fontSize: 12, fontWeight: '600' },
+    previewName: { color: colors.onBrandMuted, fontSize: 12, fontWeight: '600' },
+    previewExp: { color: colors.onBrandMuted, fontSize: 12, fontWeight: '600' },
     input: {
-      backgroundColor: colors.gray100,
+      minWidth: 0,
+      backgroundColor: colors.offWhite,
       borderRadius: radius.md,
-      padding: 14,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      padding: 16,
+      minHeight: 54,
       fontSize: 15,
       color: colors.navy,
     },
@@ -253,12 +297,11 @@ const makeStyles = (colors: ThemePalette) =>
       justifyContent: 'center',
       gap: 8,
       backgroundColor: colors.white,
-      borderRadius: 14,
+      borderRadius: radius.md,
       borderWidth: 1,
       borderColor: colors.gray200,
-      borderStyle: 'dashed',
+      minHeight: 56,
       paddingVertical: 16,
     },
     addButtonText: { fontSize: 15, fontWeight: '600', color: colors.orange },
   });
-

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { audioModule } from '../../lib/audio';
 import { radius } from '../../theme/theme';
 import { useTheme, type ThemePalette } from '../../theme/ThemeContext';
 import type { Message } from '../../types';
@@ -17,7 +17,27 @@ const formatDuration = (sec: number) => {
 
 /** Play/pause row for a voice-note bubble. Its own component so the
  *  useAudioPlayer hook only loads audio for messages actually rendered. */
-function VoicePlayer({ url, durationSec, mine }: { url: string; durationSec: number | null; mine: boolean }) {
+type VoicePlayerProps = { url: string; durationSec: number | null; mine: boolean };
+
+function VoicePlayer(props: VoicePlayerProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return audioModule ? (
+    <AvailableVoicePlayer {...props} audio={audioModule} />
+  ) : (
+    <Text style={props.mine ? styles.textMine : styles.textTheirs}>Voice message unavailable</Text>
+  );
+}
+
+function AvailableVoicePlayer({
+  url,
+  durationSec,
+  mine,
+  audio,
+}: VoicePlayerProps & {
+  audio: NonNullable<typeof audioModule>;
+}) {
+  const { useAudioPlayer, useAudioPlayerStatus } = audio;
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const player = useAudioPlayer(url);
@@ -26,7 +46,8 @@ function VoicePlayer({ url, durationSec, mine }: { url: string; durationSec: num
   const toggle = () => {
     if (status.playing) player.pause();
     else {
-      if (status.didJustFinish || status.currentTime >= (status.duration || Infinity)) player.seekTo(0);
+      if (status.didJustFinish || status.currentTime >= (status.duration || Infinity))
+        player.seekTo(0);
       player.play();
     }
   };
@@ -34,7 +55,12 @@ function VoicePlayer({ url, durationSec, mine }: { url: string; durationSec: num
   const remaining = status.duration > 0 ? status.duration - status.currentTime : (durationSec ?? 0);
 
   return (
-    <Pressable onPress={toggle} style={styles.voiceRow} accessibilityRole="button" accessibilityLabel="Play voice message">
+    <Pressable
+      onPress={toggle}
+      style={styles.voiceRow}
+      accessibilityRole="button"
+      accessibilityLabel="Play voice message"
+    >
       <Ionicons
         name={status.playing ? 'pause-circle' : 'play-circle'}
         size={32}
@@ -96,17 +122,22 @@ export function ChatMessageBubble({ message, mine }: { message: Message; mine: b
 
 const makeStyles = (colors: ThemePalette) =>
   StyleSheet.create({
-    row: { marginVertical: 3, maxWidth: '82%' },
+    row: { marginVertical: 6, maxWidth: '82%' },
     rowMine: { alignSelf: 'flex-end', alignItems: 'flex-end' },
     rowTheirs: { alignSelf: 'flex-start', alignItems: 'flex-start' },
-    bubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.lg },
+    bubble: { paddingHorizontal: 16, paddingVertical: 14, borderRadius: radius.lg },
     photo: { width: 220, height: 220, borderRadius: radius.md, backgroundColor: colors.gray100 },
     captionSpacing: { marginTop: 8 },
-    bubbleMine: { backgroundColor: colors.orange, borderBottomRightRadius: 4 },
-    bubbleTheirs: { backgroundColor: colors.white, borderBottomLeftRadius: 4 },
+    bubbleMine: { backgroundColor: colors.buttonStart, borderBottomRightRadius: 6 },
+    bubbleTheirs: {
+      backgroundColor: colors.white,
+      borderBottomLeftRadius: 6,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+    },
     textMine: { fontSize: 15, lineHeight: 21, color: '#FFFFFF' },
     textTheirs: { fontSize: 15, lineHeight: 21, color: colors.navy },
-    time: { fontSize: 10, marginTop: 2, marginHorizontal: 4, color: colors.gray400 },
+    time: { fontSize: 11, marginTop: 6, marginHorizontal: 4, color: colors.textLight },
     timeMine: { textAlign: 'right' },
     timeTheirs: { textAlign: 'left' },
     voiceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 170 },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -13,7 +13,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radius } from '../src/theme/theme';
+import { radius } from '../src/theme/theme';
+import { useTheme, type ThemePalette } from '../src/theme/ThemeContext';
 import { DisplayText } from '../src/components/DisplayText';
 import { GradientButton } from '../src/components/GradientButton';
 import { useAuthStore } from '../src/store/authStore';
@@ -27,6 +28,8 @@ import { useAuthStore } from '../src/store/authStore';
  */
 export default function ResetPasswordScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const { resetPassword, isLoggedIn, isLoading, errorMessage, clearError } = useAuthStore();
@@ -64,7 +67,9 @@ export default function ResetPasswordScreen() {
           </View>
 
           <View style={styles.fields}>
+            <Text style={styles.fieldLabel}>New password</Text>
             <TextInput
+              accessibilityLabel="New password"
               placeholder="New password"
               placeholderTextColor={colors.gray400}
               value={newPassword}
@@ -76,7 +81,9 @@ export default function ResetPasswordScreen() {
               autoComplete="new-password"
               style={styles.input}
             />
+            <Text style={styles.fieldLabel}>Confirm new password</Text>
             <TextInput
+              accessibilityLabel="Confirm new password"
               placeholder="Confirm new password"
               placeholderTextColor={colors.gray400}
               value={confirmPassword}
@@ -103,20 +110,31 @@ export default function ResetPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.white },
-  topBar: { paddingHorizontal: 16, paddingTop: 4 },
-  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 32 },
-  header: { paddingTop: 8, paddingBottom: 32 },
-  subtitle: { color: colors.textLight, fontSize: 14, marginTop: 8, lineHeight: 20 },
-  fields: { gap: 14 },
-  input: {
-    backgroundColor: colors.gray100,
-    borderRadius: radius.md,
-    padding: 16,
-    fontSize: 16,
-    color: colors.navy,
-  },
-  error: { color: colors.danger, fontSize: 13 },
-  cta: { marginTop: 20 },
-});
+const makeStyles = (colors: ThemePalette) =>
+  StyleSheet.create({
+    fieldLabel: { fontSize: 12, fontWeight: '700', color: colors.navy, marginBottom: -4 },
+    safe: {
+      flex: 1,
+      width: '100%',
+      maxWidth: 720,
+      alignSelf: 'center',
+      backgroundColor: colors.offWhite,
+    },
+    topBar: { paddingHorizontal: 24, paddingTop: 12, minHeight: 48 },
+    scroll: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 32 },
+    header: { paddingTop: 28, paddingBottom: 32 },
+    subtitle: { color: colors.textLight, fontSize: 15, marginTop: 10, lineHeight: 23 },
+    fields: { gap: 14 },
+    input: {
+      backgroundColor: colors.white,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      padding: 18,
+      minHeight: 56,
+      fontSize: 16,
+      color: colors.navy,
+    },
+    error: { color: colors.danger, fontSize: 13 },
+    cta: { marginTop: 24 },
+  });

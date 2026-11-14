@@ -1,13 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  RecordingPresets,
-  requestRecordingPermissionsAsync,
-  setAudioModeAsync,
-  useAudioRecorder,
-  useAudioRecorderState,
-} from 'expo-audio';
+import { audioModule } from '../../lib/audio';
 import { useTheme, type ThemePalette } from '../../theme/ThemeContext';
 import { useChatStore } from '../../store/chatStore';
 import { uploadChatAudio } from '../../lib/chatMedia';
@@ -23,6 +17,30 @@ const formatDuration = (ms: number) => {
  *  sends immediately (no separate confirm step, matching the app's other
  *  instant-send attachment flow — see the driver's proof-photo capture). */
 export function VoiceRecordButton({ orderId }: { orderId: string }) {
+  const { colors } = useTheme();
+  return audioModule ? (
+    <AvailableVoiceRecordButton orderId={orderId} audio={audioModule} />
+  ) : (
+    <Ionicons
+      name="mic-off-outline"
+      size={24}
+      color={colors.gray400}
+      accessibilityLabel="Voice recording unavailable"
+    />
+  );
+}
+
+function AvailableVoiceRecordButton({ orderId, audio }: {
+  orderId: string;
+  audio: NonNullable<typeof audioModule>;
+}) {
+  const {
+    RecordingPresets,
+    requestRecordingPermissionsAsync,
+    setAudioModeAsync,
+    useAudioRecorder,
+    useAudioRecorderState,
+  } = audio;
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);

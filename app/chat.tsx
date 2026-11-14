@@ -20,6 +20,7 @@ import { ChatMessageBubble } from '../src/components/chat/ChatMessageBubble';
 import { VoiceRecordButton } from '../src/components/chat/VoiceRecordButton';
 import { useChatStore } from '../src/store/chatStore';
 import { pickChatImage, uploadChatImage } from '../src/lib/chatMedia';
+import { imagePickerModule } from '../src/lib/imagePicker';
 import type { Message } from '../src/types';
 
 /** Chat with the driver who accepted the current order. Route: /chat?orderId=<orders.id>. */
@@ -70,7 +71,9 @@ export default function ChatScreen() {
   }, [orderId, attachingImage, send]);
 
   const renderItem = useCallback(
-    ({ item }: { item: Message }) => <ChatMessageBubble message={item} mine={item.senderId === myUid} />,
+    ({ item }: { item: Message }) => (
+      <ChatMessageBubble message={item} mine={item.senderId === myUid} />
+    ),
     [myUid],
   );
 
@@ -114,12 +117,19 @@ export default function ChatScreen() {
         <View style={styles.composer}>
           <Pressable
             onPress={() => void handleAttachImage()}
-            disabled={attachingImage}
+            disabled={attachingImage || !imagePickerModule}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Attach a photo"
+            accessibilityLabel={
+              imagePickerModule ? 'Attach a photo' : 'Photo attachments unavailable'
+            }
+            accessibilityState={{ disabled: attachingImage || !imagePickerModule }}
           >
-            <Ionicons name="image" size={24} color={attachingImage ? colors.gray400 : colors.orange} />
+            <Ionicons
+              name="image"
+              size={24}
+              color={attachingImage || !imagePickerModule ? colors.gray400 : colors.orange}
+            />
           </Pressable>
           <TextInput
             value={input}
@@ -145,7 +155,10 @@ export default function ChatScreen() {
               colors={accentGradient as unknown as [string, string]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={[styles.sendButton, (sending || input.trim().length === 0) && { opacity: 0.4 }]}
+              style={[
+                styles.sendButton,
+                (sending || input.trim().length === 0) && { opacity: 0.4 },
+              ]}
             >
               <Ionicons name="arrow-up" size={20} color="#FFFFFF" />
             </LinearGradient>
@@ -158,42 +171,57 @@ export default function ChatScreen() {
 
 const makeStyles = (colors: ThemePalette) =>
   StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.offWhite },
+    safe: {
+      flex: 1,
+      width: '100%',
+      maxWidth: 720,
+      alignSelf: 'center',
+      backgroundColor: colors.offWhite,
+    },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 18,
       borderBottomWidth: 1,
       borderBottomColor: colors.gray200,
       backgroundColor: colors.white,
     },
-    empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 40 },
-    emptyText: { fontSize: 14, color: colors.textLight, textAlign: 'center' },
-    transcript: { paddingHorizontal: 14, paddingVertical: 12 },
+    empty: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      paddingHorizontal: 40,
+    },
+    emptyText: { fontSize: 15, lineHeight: 23, color: colors.textLight, textAlign: 'center' },
+    transcript: { paddingHorizontal: 20, paddingVertical: 20 },
     composer: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
       backgroundColor: colors.white,
       borderTopWidth: 1,
       borderTopColor: colors.gray200,
     },
     input: {
       flex: 1,
-      height: 44,
-      borderRadius: radius.xl,
-      backgroundColor: colors.gray100,
-      paddingHorizontal: 16,
+      minWidth: 0,
+      height: 48,
+      borderRadius: radius.md,
+      backgroundColor: colors.offWhite,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      paddingHorizontal: 14,
       fontSize: 15,
       color: colors.navy,
     },
     sendButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: 46,
+      height: 46,
+      borderRadius: radius.md,
       alignItems: 'center',
       justifyContent: 'center',
     },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,13 +12,16 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radius } from '../../src/theme/theme';
+import { radius } from '../../src/theme/theme';
+import { useTheme, type ThemePalette } from '../../src/theme/ThemeContext';
 import { DisplayText } from '../../src/components/DisplayText';
 import { GradientButton } from '../../src/components/GradientButton';
 import { useAuthStore } from '../../src/store/authStore';
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -56,24 +59,34 @@ export default function SignUpScreen() {
 
           <View style={styles.fields}>
             <View style={styles.nameRow}>
-              <TextInput
-                placeholder="First Name"
-                placeholderTextColor={colors.gray400}
-                value={firstName}
-                onChangeText={onChange(setFirstName)}
-                autoComplete="name-given"
-                style={[styles.input, { flex: 1 }]}
-              />
-              <TextInput
-                placeholder="Last Name"
-                placeholderTextColor={colors.gray400}
-                value={lastName}
-                onChangeText={onChange(setLastName)}
-                autoComplete="name-family"
-                style={[styles.input, { flex: 1 }]}
-              />
+              <View style={{ flex: 1, minWidth: 0, gap: 10 }}>
+                <Text style={styles.fieldLabel}>First Name</Text>
+                <TextInput
+                  accessibilityLabel="First Name"
+                  placeholder="First Name"
+                  placeholderTextColor={colors.gray400}
+                  value={firstName}
+                  onChangeText={onChange(setFirstName)}
+                  autoComplete="name-given"
+                  style={styles.input}
+                />
+              </View>
+              <View style={{ flex: 1, minWidth: 0, gap: 10 }}>
+                <Text style={styles.fieldLabel}>Last Name</Text>
+                <TextInput
+                  accessibilityLabel="Last Name"
+                  placeholder="Last Name"
+                  placeholderTextColor={colors.gray400}
+                  value={lastName}
+                  onChangeText={onChange(setLastName)}
+                  autoComplete="name-family"
+                  style={styles.input}
+                />
+              </View>
             </View>
+            <Text style={styles.fieldLabel}>Email</Text>
             <TextInput
+              accessibilityLabel="Email"
               placeholder="Email"
               placeholderTextColor={colors.gray400}
               value={email}
@@ -83,7 +96,9 @@ export default function SignUpScreen() {
               autoComplete="email"
               style={styles.input}
             />
+            <Text style={styles.fieldLabel}>Password</Text>
             <TextInput
+              accessibilityLabel="Password"
               placeholder="Password"
               placeholderTextColor={colors.gray400}
               value={password}
@@ -91,7 +106,9 @@ export default function SignUpScreen() {
               secureTextEntry
               style={styles.input}
             />
+            <Text style={styles.fieldLabel}>Confirm Password</Text>
             <TextInput
+              accessibilityLabel="Confirm Password"
               placeholder="Confirm Password"
               placeholderTextColor={colors.gray400}
               value={confirmPassword}
@@ -105,9 +122,7 @@ export default function SignUpScreen() {
           <GradientButton
             title="Create Account"
             loading={isLoading}
-            onPress={() =>
-              signUp({ firstName, lastName, email, password, confirmPassword })
-            }
+            onPress={() => signUp({ firstName, lastName, email, password, confirmPassword })}
             style={styles.cta}
           />
 
@@ -123,29 +138,41 @@ export default function SignUpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.white },
-  topBar: { paddingHorizontal: 16, paddingTop: 4 },
-  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 32 },
-  header: { paddingTop: 8, paddingBottom: 32 },
-  subtitle: { color: colors.textLight, fontSize: 14, marginTop: 4 },
-  fields: { gap: 14 },
-  nameRow: { flexDirection: 'row', gap: 14 },
-  input: {
-    backgroundColor: colors.gray100,
-    borderRadius: radius.md,
-    padding: 16,
-    fontSize: 16,
-    color: colors.navy,
-  },
-  error: { color: colors.danger, fontSize: 13 },
-  cta: { marginTop: 20 },
-  signinLink: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 24,
-  },
-  mutedText: { color: colors.textLight, fontSize: 14 },
-  accentText: { color: colors.orange, fontSize: 14, fontWeight: '600' },
-});
+const makeStyles = (colors: ThemePalette) =>
+  StyleSheet.create({
+    fieldLabel: { fontSize: 12, fontWeight: '700', color: colors.navy, marginBottom: -4 },
+    safe: {
+      flex: 1,
+      width: '100%',
+      maxWidth: 720,
+      alignSelf: 'center',
+      backgroundColor: colors.offWhite,
+    },
+    topBar: { paddingHorizontal: 24, paddingTop: 12, minHeight: 48 },
+    scroll: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 32 },
+    header: { paddingTop: 28, paddingBottom: 32 },
+    subtitle: { color: colors.textLight, fontSize: 15, marginTop: 10, lineHeight: 23 },
+    fields: { gap: 14 },
+    nameRow: { flexDirection: 'row', gap: 14 },
+    input: {
+      minWidth: 0,
+      backgroundColor: colors.white,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      padding: 18,
+      minHeight: 56,
+      fontSize: 16,
+      color: colors.navy,
+    },
+    error: { color: colors.danger, fontSize: 13 },
+    cta: { marginTop: 24 },
+    signinLink: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingTop: 24,
+    },
+    mutedText: { color: colors.textLight, fontSize: 14 },
+    accentText: { color: colors.accentInk, fontSize: 14, fontWeight: '600' },
+  });
