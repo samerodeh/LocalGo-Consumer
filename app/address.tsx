@@ -22,6 +22,8 @@ import { GradientButton } from '../src/components/GradientButton';
 import { useAddressStore, addressDisplayName } from '../src/store/addressStore';
 import { searchAddresses, reverseGeocode, type GeoResult } from '../src/lib/geocoding';
 import { DELIVERY_ZONE, isInDeliveryZone } from '../src/lib/deliveryZone';
+import LocalMap from '../src/components/maps/LocalMap';
+import { PinNudges } from '../src/components/maps/PinNudges';
 import type { DeliveryPreference, PersonalLabel } from '../src/types';
 
 const LABELS: PersonalLabel[] = ['Home', 'Work', 'None'];
@@ -52,11 +54,21 @@ export default function AddressScreen() {
   const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [adjustingPin, setAdjustingPin] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const adjustPin = (point: { latitude: number; longitude: number }) => {
+    if (!isInDeliveryZone(point.latitude, point.longitude)) {
+      setPinError('Keep your delivery pin inside our service area.');
+      return;
+    }
+    setPinError('');
+    setCoords({ lat: point.latitude, lng: point.longitude });
+  };
   // Set right after a suggestion/GPS fill so the effect below doesn't immediately
   // re-search the text we just injected.
   const suppressSearch = useRef(false);
 
-  const canSave = addressLine.trim().length > 0;
+  const canSave = addressLine.trim().length >= 4;
 
   // Debounced address search as the user types.
   useEffect(() => {
@@ -176,10 +188,7 @@ export default function AddressScreen() {
         (a) => key(a.addressLine, a.postalCode, a.apartmentSuite) === newKey,
       );
       if (isDuplicate) {
-        Alert.alert(
-          'Address already saved',
-          'You already have this address in your list.',
-        );
+        Alert.alert('Address already saved', 'You already have this address in your list.');
         return;
       }
       await save({
@@ -215,7 +224,7 @@ export default function AddressScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <DisplayText size={24} weight="bold" color={colors.navy}>
+        <DisplayText size={30} weight="bold" color={colors.navy}>
           Delivery Address
         </DisplayText>
         <Pressable onPress={handleClose} hitSlop={10}>
@@ -228,7 +237,7 @@ export default function AddressScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={{ padding: 16, gap: 12 }}
+          contentContainerStyle={{ padding: 20, gap: 16 }}
           keyboardShouldPersistTaps="handled"
         >
           {addresses.map((address) => {
@@ -283,7 +292,11 @@ export default function AddressScreen() {
                     placeholder="Search your street address"
                     placeholderTextColor={colors.gray400}
                     value={addressLine}
-                    onChangeText={setAddressLine}
+                    onChangeText={(value) => {
+                      setAddressLine(value);
+                      setCoords(null);
+                      setAdjustingPin(false);
+                    }}
                     style={styles.searchInput}
                     autoCorrect={false}
                   />
@@ -308,6 +321,49 @@ export default function AddressScreen() {
                 ) : null}
               </View>
 
+              <View style={{ gap: 12 }}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setAdjustingPin((v) => !v)}
+                  style={styles.locateButton}
+                >
+                  <Ionicons name="map-outline" size={20} color={colors.accentInk} />
+                  <Text style={styles.locateText}>
+                    {adjustingPin
+                      ? 'Hide delivery pin'
+                      : coords
+                        ? 'Adjust delivery pin on map'
+                        : 'Choose a delivery pin on map'}
+                  </Text>
+                </Pressable>
+                {adjustingPin ? (
+                  <>
+                    <Text style={{ color: colors.textLight, fontSize: 13, lineHeight: 20 }}>
+                      Tap your entrance on the map, or use the direction buttons below. Your street
+                      address stays unchanged.
+                    </Text>
+                    <LocalMap
+                      points={[]}
+                      pin={coords ? { latitude: coords.lat, longitude: coords.lng } : undefined}
+                      onPinChange={adjustPin}
+                      label="Adjust your delivery entrance pin"
+                    />
+                    <PinNudges
+                      point={
+                        coords
+                          ? { latitude: coords.lat, longitude: coords.lng }
+                          : { latitude: DELIVERY_ZONE.latitude, longitude: DELIVERY_ZONE.longitude }
+                      }
+                      onChange={adjustPin}
+                    />
+                    {pinError ? (
+                      <Text accessibilityRole="alert" style={{ color: colors.danger }}>
+                        {pinError}
+                      </Text>
+                    ) : null}
+                  </>
+                ) : null}
+              </View>
               <TextInput
                 placeholder="Postal code"
                 placeholderTextColor={colors.gray400}
@@ -404,90 +460,110 @@ function Chip({
 
 const makeStyles = (colors: ThemePalette) =>
   StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.offWhite },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  addressCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.white,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.gray200,
-    padding: 14,
-  },
-  addressCardActive: { borderColor: colors.orange },
-  addressName: { fontSize: 15, fontWeight: '700', color: colors.navy },
-  addressLine: { fontSize: 13, color: colors.textLight, marginTop: 2 },
-  form: { backgroundColor: colors.white, borderRadius: 14, padding: 14, gap: 12, marginTop: 4 },
-  locateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.orange,
-    borderRadius: radius.md,
-    paddingVertical: 12,
-  },
-  locateText: { fontSize: 14, fontWeight: '700', color: colors.orange },
-  searchField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.gray100,
-    borderRadius: radius.md,
-    paddingHorizontal: 14,
-  },
-  searchInput: { flex: 1, paddingVertical: 14, fontSize: 15, color: colors.navy },
-  suggestions: {
-    marginTop: 6,
-    backgroundColor: colors.white,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.gray200,
-    overflow: 'hidden',
-  },
-  suggestionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
-  suggestionDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.gray200 },
-  suggestionText: { flex: 1, fontSize: 13.5, color: colors.navy },
-  input: {
-    backgroundColor: colors.gray100,
-    borderRadius: radius.md,
-    padding: 14,
-    fontSize: 15,
-    color: colors.navy,
-  },
-  fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.navy, marginTop: 4 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.gray200,
-    backgroundColor: colors.white,
-  },
-  chipActive: { backgroundColor: colors.orange, borderColor: colors.orange },
-  chipText: { fontSize: 13, color: colors.navy, fontWeight: '600' },
-  chipTextActive: { color: colors.white },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.white,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.gray200,
-    borderStyle: 'dashed',
-    paddingVertical: 16,
-  },
-  addButtonText: { fontSize: 15, fontWeight: '600', color: colors.orange },
-});
+    safe: {
+      flex: 1,
+      width: '100%',
+      maxWidth: 720,
+      alignSelf: 'center',
+      backgroundColor: colors.offWhite,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 24,
+      paddingVertical: 20,
+    },
+    addressCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      backgroundColor: colors.white,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      padding: 20,
+    },
+    addressCardActive: { borderColor: colors.orange, backgroundColor: colors.accentSoft },
+    addressName: { fontSize: 15, fontWeight: '700', color: colors.navy },
+    addressLine: { fontSize: 13, color: colors.textLight, marginTop: 2 },
+    form: {
+      backgroundColor: colors.white,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      padding: 20,
+      gap: 16,
+      marginTop: 8,
+    },
+    locateButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: colors.accentSoft,
+      borderRadius: radius.md,
+      paddingVertical: 16,
+    },
+    locateText: { fontSize: 14, fontWeight: '700', color: colors.accentInk },
+    searchField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: colors.offWhite,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      paddingHorizontal: 14,
+    },
+    searchInput: { flex: 1, paddingVertical: 14, fontSize: 15, color: colors.navy },
+    suggestions: {
+      marginTop: 6,
+      backgroundColor: colors.white,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      overflow: 'hidden',
+    },
+    suggestionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
+    suggestionDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.gray200 },
+    suggestionText: { flex: 1, fontSize: 13.5, color: colors.navy },
+    input: {
+      backgroundColor: colors.offWhite,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      padding: 16,
+      minHeight: 54,
+      fontSize: 15,
+      color: colors.navy,
+    },
+    fieldLabel: { fontSize: 13, fontWeight: '700', color: colors.navy, marginTop: 4 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: {
+      paddingHorizontal: 16,
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingVertical: 12,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      backgroundColor: colors.white,
+    },
+    chipActive: { backgroundColor: colors.brandNavy, borderColor: colors.brandNavy },
+    chipText: { fontSize: 13, color: colors.navy, fontWeight: '600' },
+    chipTextActive: { color: colors.onBrand },
+    addButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: colors.white,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.gray200,
+      minHeight: 56,
+      paddingVertical: 16,
+    },
+    addButtonText: { fontSize: 15, fontWeight: '600', color: colors.orange },
+  });
