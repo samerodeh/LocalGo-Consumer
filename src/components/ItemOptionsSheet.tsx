@@ -68,7 +68,9 @@ export function ItemOptionsSheet({ visible, item, onClose, onAddToCart }: Props)
     });
   };
 
-  const unsatisfiedRequired = groups.filter((g) => g.required && (selected[g.id]?.length ?? 0) === 0);
+  const unsatisfiedRequired = groups.filter(
+    (g) => g.required && (selected[g.id]?.length ?? 0) === 0,
+  );
   const canAdd = unsatisfiedRequired.length === 0;
 
   const optionsTotal = groups.reduce((sum, g) => {
@@ -105,7 +107,10 @@ export function ItemOptionsSheet({ visible, item, onClose, onAddToCart }: Props)
         <Pressable style={styles.backdrop} onPress={onClose}>
           {/* Stop taps inside the sheet from dismissing it. */}
           <Pressable style={styles.sheet} onPress={() => {}}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 24 }}
+            >
               <View>
                 <RemoteImage
                   urlString={item.imageURL}
@@ -125,10 +130,12 @@ export function ItemOptionsSheet({ visible, item, onClose, onAddToCart }: Props)
               </View>
 
               <View style={styles.headerBlock}>
-                <DisplayText size={22} weight="bold" color={colors.navy}>
+                <DisplayText size={30} weight="bold" color={colors.navy}>
                   {item.name}
                 </DisplayText>
-                {item.itemDescription ? <Text style={styles.description}>{item.itemDescription}</Text> : null}
+                {item.itemDescription ? (
+                  <Text style={styles.description}>{item.itemDescription}</Text>
+                ) : null}
                 <Text style={styles.basePrice}>${item.price.toFixed(2)}</Text>
               </View>
 
@@ -175,11 +182,15 @@ export function ItemOptionsSheet({ visible, item, onClose, onAddToCart }: Props)
                               size={20}
                               color={isSelected ? colors.orange : colors.gray400}
                             />
-                            <Text style={[styles.choiceName, disabled && styles.choiceNameDisabled]}>
+                            <Text
+                              style={[styles.choiceName, disabled && styles.choiceNameDisabled]}
+                            >
                               {choice.name}
                             </Text>
                             {choice.priceDelta > 0 ? (
-                              <Text style={styles.choiceDelta}>+${choice.priceDelta.toFixed(2)}</Text>
+                              <Text style={styles.choiceDelta}>
+                                +${choice.priceDelta.toFixed(2)}
+                              </Text>
                             ) : null}
                           </Pressable>
                         );
@@ -250,49 +261,54 @@ const makeStyles = (colors: ThemePalette) =>
   StyleSheet.create({
     backdrop: {
       flex: 1,
-      backgroundColor: 'rgba(2,6,23,0.55)',
+      backgroundColor: colors.overlay,
       justifyContent: 'flex-end',
     },
     sheet: {
       maxHeight: '88%',
+      width: '100%',
+      maxWidth: 680,
+      alignSelf: 'center',
       backgroundColor: colors.white,
       borderTopLeftRadius: radius.xl,
       borderTopRightRadius: radius.xl,
       overflow: 'hidden',
     },
-    hero: { height: 180, width: '100%' },
+    hero: { height: 220, width: '100%' },
     closeButton: {
       position: 'absolute',
-      top: 14,
-      right: 14,
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: 'rgba(255,255,255,0.92)',
+      top: 16,
+      right: 16,
+      width: 44,
+      height: 44,
+      borderRadius: radius.md,
+      backgroundColor: colors.white,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    headerBlock: { paddingHorizontal: 20, paddingTop: 16, gap: 4 },
-    description: { fontSize: 13.5, color: colors.textLight, lineHeight: 19 },
-    basePrice: { fontSize: 15, fontWeight: '700', color: colors.orange, marginTop: 2 },
-    groupBlock: { paddingHorizontal: 20, paddingTop: 20, gap: 10 },
+    headerBlock: { paddingHorizontal: 24, paddingTop: 24, gap: 8 },
+    description: { fontSize: 14, color: colors.textLight, lineHeight: 22 },
+    basePrice: { fontSize: 18, fontWeight: '700', color: colors.navy, marginTop: 4 },
+    groupBlock: { paddingHorizontal: 24, paddingTop: 28, gap: 12 },
     groupHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     groupTitle: { fontSize: 15, fontWeight: '700', color: colors.navy },
     groupSub: { fontSize: 12, color: colors.textLight },
     requiredPill: {
-      backgroundColor: colors.orangeLight,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
+      backgroundColor: colors.accentSoft,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
       borderRadius: radius.sm,
     },
-    requiredPillText: { fontSize: 11, fontWeight: '700', color: colors.white },
+    requiredPillText: { fontSize: 11, fontWeight: '700', color: colors.accentInk },
     choiceList: { gap: 2 },
     choiceRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingVertical: 10,
-      minHeight: 44,
+      paddingVertical: 16,
+      minHeight: 52,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.gray200,
     },
     choiceRowDisabled: { opacity: 0.4 },
     choiceName: { flex: 1, fontSize: 14.5, color: colors.navy },
@@ -308,9 +324,15 @@ const makeStyles = (colors: ThemePalette) =>
       color: colors.navy,
       textAlignVertical: 'top',
     },
-    qtyBlock: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8, gap: 10 },
+    qtyBlock: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 8, gap: 14 },
     qtyControl: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-    qtyText: { fontSize: 17, fontWeight: '700', minWidth: 24, textAlign: 'center', color: colors.navy },
+    qtyText: {
+      fontSize: 17,
+      fontWeight: '700',
+      minWidth: 24,
+      textAlign: 'center',
+      color: colors.navy,
+    },
     footer: {
       paddingHorizontal: 20,
       paddingTop: 12,

@@ -1,264 +1,382 @@
-import { useMemo, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { useRouter } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { radius } from '../../src/theme/theme';
-import { useTheme, type ThemePalette } from '../../src/theme/ThemeContext';
+import { useTheme } from '../../src/theme/ThemeContext';
 import { DisplayText } from '../../src/components/DisplayText';
 import { RemoteImage } from '../../src/components/RemoteImage';
 import { restaurants } from '../../src/data/restaurants';
-import type { Restaurant } from '../../src/types';
+import { menuItems } from '../../src/data/menu';
 import { useAuthStore } from '../../src/store/authStore';
-import { useAddressStore, addressDisplayName } from '../../src/store/addressStore';
+import { useAddressStore } from '../../src/store/addressStore';
 import { useOrderTracking } from '../../src/store/useOrderTracking';
 import { usePendingOrders } from '../../src/store/usePendingOrders';
 import { OrderTrackingStack } from '../../src/components/OrderTrackingStack';
 import { PendingOrderStack } from '../../src/components/PendingOrderStack';
+import { CategoryStories } from '../../src/components/discovery/CategoryStories';
+import { MerchantCard } from '../../src/components/discovery/MerchantCard';
+import { MerchantRail } from '../../src/components/discovery/MerchantRail';
+import { AddressPickerSheet } from '../../src/components/address/AddressPickerSheet';
+import { MicroCart } from '../../src/components/cart/MicroCart';
+import { Skeleton } from '../../src/components/ui/Skeleton';
+import { useCommerceStore } from '../../src/store/commerceStore';
+import { distanceKm } from '../../src/lib/deliveryZone';
+import type { MerchantCategory } from '../../src/types/commerce';
+import { useConsumerOrders } from '../../src/store/useConsumerOrders';
+import { ConsumerOrderStack } from '../../src/components/tracking/ConsumerOrderStack';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  const [searchText, setSearchText] = useState('');
+  const { trackOrderId } = useLocalSearchParams<{ trackOrderId?: string }>();
+  const { colors: c } = useTheme();
+  const [search, setSearch] = useState('');
+  const [addressOpen, setAddressOpen] = useState(false);
   const firstName = useAuthStore((s) => s.currentUser?.firstName ?? '');
-  const defaultAddress = useAddressStore((s) => s.defaultAddress);
+  const address = useAddressStore((s) => s.defaultAddress);
+  const live = useConsumerOrders();
+  useEffect(() => {
+    if (trackOrderId) live.refresh();
+  }, [trackOrderId, live.refresh]);
   const { orders: activeOrders, dismiss } = useOrderTracking();
-  const { pending: pendingOrders } = usePendingOrders();
-
-  const results = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
-    if (!query) return restaurants;
-    return restaurants.filter(
-      (r) => r.name.toLowerCase().includes(query) || r.cuisine.toLowerCase().includes(query),
-    );
-  }, [searchText]);
-
-  const greeting = firstName ? `Hungry, ${firstName}?` : 'What are you craving?';
-
+  const { pending } = usePendingOrders();
+  const { mode, category, merchants, ready, loading, refresh, setMode, setCategory } =
+    useCommerceStore();
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+  const available = useMemo(
+    () => new Set<MerchantCategory>(ready ? merchants.map((m) => m.category) : ['restaurants']),
+    [ready, merchants],
+  );
+  const catalog = useMemo(() => {
+    const source = ready ? merchants : restaurants;
+    return source
+      .filter(
+        (m) =>
+          (!ready || merchants.find((x) => x.id === m.id)?.category === category) &&
+          (mode !== 'pickup' || merchants.find((x) => x.id === m.id)?.pickupEnabled),
+      )
+      .map((m) => {
+        const meta = merchants.find((x) => x.id === m.id);
+        const km =
+          address && meta?.latitude != null && meta.longitude != null
+            ? distanceKm(address.latitude, address.longitude, meta.latitude, meta.longitude)
+            : null;
+        return {
+          ...m,
+          distance: km == null ? '' : km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`,
+          deliveryFee: mode === 'pickup' ? 'Pickup · no delivery fee' : m.deliveryFee,
+        };
+      });
+  }, [ready, merchants, category, mode, address]);
+  const results = catalog.filter((m) =>
+    `${m.name} ${m.cuisine}`.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+  const fastest = [...catalog].sort(
+    (a, b) =>
+      (merchants.find((m) => m.id === a.id)?.etaMin ?? parseInt(a.deliveryTime)) -
+      (merchants.find((m) => m.id === b.id)?.etaMin ?? parseInt(b.deliveryTime)),
+  );
+  const favorites = [...catalog].sort(
+    (a, b) =>
+      (merchants.find((m) => m.id === b.id)?.rating ?? 0) -
+      (merchants.find((m) => m.id === a.id)?.rating ?? 0),
+  );
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerRow}>
-            <Pressable onPress={() => router.push('/address')}>
-              <Text style={styles.deliverTo}>DELIVER TO</Text>
-              <View style={styles.locationRow}>
-                <Ionicons name="location" size={16} color={colors.navy} />
-                <Text style={styles.locationText} numberOfLines={1}>
-                  {defaultAddress ? addressDisplayName(defaultAddress) : 'Set your location'}
-                </Text>
-                <Ionicons name="chevron-down" size={14} color={colors.navy} />
-              </View>
-            </Pressable>
-            <Pressable onPress={() => router.push('/(tabs)/settings')} hitSlop={8}>
-              <Ionicons name="person-circle" size={34} color={colors.orange} />
-            </Pressable>
+    <SafeAreaView style={[styles.safe, { backgroundColor: c.offWhite }]} edges={['top']}>
+      <View style={styles.topbar}>
+        <View style={{ flex: 1, gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <DisplayText size={26} weight="heavy">
+              Local<Text style={{ color: c.orange }}>GO</Text>
+            </DisplayText>
+            <Text
+              style={{ color: c.textLight, fontSize: 10, fontWeight: '600', letterSpacing: 0.7 }}
+            >
+              YOUR NEIGHBOURHOOD
+            </Text>
           </View>
-          <DisplayText size={30} weight="bold" color={colors.navy} style={{ marginTop: 16 }}>
-            {greeting}
-          </DisplayText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Change delivery address or pickup mode"
+            onPress={() => setAddressOpen(true)}
+            style={styles.address}
+          >
+            <Ionicons
+              name={mode === 'delivery' ? 'location' : 'bag-handle'}
+              color={c.accentInk}
+              size={16}
+            />
+            <View style={{ flexShrink: 1 }}>
+              <Text style={{ fontSize: 10, color: c.textLight, fontWeight: '600' }}>
+                {mode === 'delivery' ? 'Deliver now to' : 'Picking up from'}
+              </Text>
+              <Text
+                numberOfLines={1}
+                style={{ fontSize: 14, fontWeight: '700', color: c.navy, maxWidth: 260 }}
+              >
+                {mode === 'delivery'
+                  ? (address?.addressLine ?? 'Choose your address')
+                  : 'Local stores'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-down" size={15} color={c.navy} />
+          </Pressable>
         </View>
-
-        {/* Just-placed orders still waiting for a driver to accept. */}
-        <PendingOrderStack orders={pendingOrders} />
-
-        {/* Live tracking for every in-flight order — each with its own driver chat. */}
-        <OrderTrackingStack orders={activeOrders} onDismiss={dismiss} />
-
-        {/* Search */}
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color={colors.textLight} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open settings"
+          onPress={() => router.push('/(tabs)/settings')}
+          style={[styles.profile, { backgroundColor: c.white, borderColor: c.gray200 }]}
+        >
+          <Ionicons name="person-outline" size={21} color={c.navy} />
+        </Pressable>
+      </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
+        <View style={[styles.search, { backgroundColor: c.white, borderColor: c.gray200 }]}>
+          <Ionicons name="search" size={21} color={c.navy} />
           <TextInput
-            placeholder="Search restaurants or cuisines…"
-            placeholderTextColor={colors.gray400}
-            value={searchText}
-            onChangeText={setSearchText}
-            style={styles.searchInput}
-            returnKeyType="search"
+            accessibilityLabel="Search restaurants or cuisines"
+            placeholder="What are you craving?"
+            placeholderTextColor={c.textLight}
+            value={search}
+            onChangeText={setSearch}
             autoCorrect={false}
+            returnKeyType="search"
+            style={[styles.searchInput, { color: c.navy }]}
           />
-          {searchText ? (
-            <Pressable onPress={() => setSearchText('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={18} color={colors.gray300} />
+          {search ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+              onPress={() => setSearch('')}
+              style={styles.clear}
+            >
+              <Ionicons name="close-circle" size={20} color={c.textLight} />
             </Pressable>
           ) : null}
         </View>
-
-        {/* Restaurants */}
-        <DisplayText size={22} weight="bold" color={colors.navy} style={styles.sectionTitle}>
-          Available Partners
-        </DisplayText>
-
-        {results.length === 0 ? (
-          <View style={styles.noResults}>
-            <Ionicons name="search" size={36} color={colors.gray300} />
-            <Text style={styles.noResultsText}>No matches for “{searchText}”</Text>
+        <CategoryStories selected={category} available={available} onSelect={setCategory} />
+        <PendingOrderStack
+          orders={pending.filter((o) => !live.orders.some((n) => n.id === o.id))}
+        />
+        <OrderTrackingStack
+          orders={activeOrders.filter((o) => !live.orders.some((n) => n.id === o.id))}
+          onDismiss={dismiss}
+        />
+        {live.error && (live.orders.length || trackOrderId) ? (
+          <View
+            style={{
+              marginHorizontal: 20,
+              padding: 12,
+              backgroundColor: c.accentSoft,
+              borderRadius: 14,
+            }}
+          >
+            <Text
+              accessibilityRole="alert"
+              style={{ color: c.accentInk, fontSize: 12, lineHeight: 19 }}
+            >
+              {live.orders.length
+                ? 'Live updates are paused. Showing your last known order status.'
+                : 'Could not load order updates. Please try again.'}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={live.refresh}
+              style={{ minHeight: 44, justifyContent: 'center' }}
+            >
+              <Text style={{ color: c.accentInk, fontWeight: '700' }}>Try again</Text>
+            </Pressable>
           </View>
-        ) : (
-          <View style={styles.cardList}>
-            {results.map((restaurant) => (
-              <RestaurantCard
-                key={restaurant.id}
-                restaurant={restaurant}
-                onPress={() => router.push(`/restaurant/${restaurant.id}`)}
-                styles={styles}
-                colors={colors}
-              />
-            ))}
+        ) : null}
+        <ConsumerOrderStack
+          orders={live.orders}
+          refresh={live.refresh}
+          initialOrderId={trackOrderId}
+        />
+        {!search.trim() ? (
+          <>
+            <View style={styles.greeting}>
+              <Text
+                style={{ color: c.accentInk, fontWeight: '800', fontSize: 10, letterSpacing: 1.8 }}
+              >
+                {firstName ? `HEY, ${firstName.toUpperCase()}` : 'YOUR DAILY DOSE OF LOCAL'}
+              </Text>
+              <DisplayText size={32} weight="heavy">
+                Find your local favourite.
+              </DisplayText>
+            </View>
+            <View style={[styles.editorial, { backgroundColor: c.butter }]}>
+              <View style={{ flex: 1, gap: 9, paddingVertical: 6 }}>
+                <Text
+                  style={{
+                    color: c.butterMuted,
+                    fontSize: 9,
+                    letterSpacing: 1.2,
+                    fontWeight: '800',
+                  }}
+                >
+                  A LITTLE CLOSER. A LOT TASTIER.
+                </Text>
+                <DisplayText size={29} weight="heavy" color={c.onButter}>
+                  Big cravings.{'\n'}Local love.
+                </DisplayText>
+                <Text style={{ color: c.butterMuted, fontSize: 12, lineHeight: 18, maxWidth: 180 }}>
+                  Made around the corner. Enjoyed wherever you are.
+                </Text>
+              </View>
+              <View style={styles.plate}>
+                <RemoteImage
+                  urlString={menuItems[0]?.imageURL ?? null}
+                  fallbackIcon="restaurant-outline"
+                  style={{ width: 128, height: 128 }}
+                  borderRadius={64}
+                />
+              </View>
+            </View>
+            {loading && !ready ? (
+              <View style={{ padding: 20, gap: 12 }} accessibilityLabel="Loading local stores">
+                <Skeleton style={{ height: 150 }} />
+                <Skeleton style={{ height: 20, width: '65%' }} />
+              </View>
+            ) : null}
+            <MerchantRail
+              title="Local favourites"
+              subtitle="A little neighbourhood love in every order."
+              merchants={favorites}
+              metadata={merchants}
+            />
+            <MerchantRail
+              title="Fastest near you"
+              subtitle="Less waiting. More enjoying."
+              merchants={fastest}
+              metadata={merchants}
+            />
+          </>
+        ) : null}
+        <View style={styles.section}>
+          <View style={{ gap: 4 }}>
+            <DisplayText size={29}>
+              {search.trim() ? 'Search results' : 'Explore your neighbourhood'}
+            </DisplayText>
+            <Text style={{ color: c.textLight, fontSize: 13 }}>
+              {results.length} {results.length === 1 ? 'store' : 'stores'}{' '}
+              {mode === 'pickup' ? 'available for pickup' : 'to discover'}
+            </Text>
           </View>
-        )}
+          <View style={[styles.count, { backgroundColor: c.accentSoft }]}>
+            <Text style={{ color: c.accentInk, fontWeight: '800' }}>{results.length}</Text>
+          </View>
+        </View>
+        <View style={{ paddingHorizontal: 20, gap: 26 }}>
+          {results.map((m) => (
+            <MerchantCard
+              key={m.id}
+              merchant={m}
+              metadata={merchants.find((x) => x.id === m.id)}
+              onPress={() => router.push(`/restaurant/${m.id}`)}
+            />
+          ))}
+          {!results.length ? (
+            <View style={{ alignItems: 'center', padding: 32, gap: 12 }}>
+              <Ionicons name="search-outline" size={36} color={c.textLight} />
+              <Text style={{ color: c.navy, fontSize: 16, fontWeight: '700' }}>
+                No stores found
+              </Text>
+              <Text style={{ color: c.textLight, lineHeight: 21, textAlign: 'center' }}>
+                Try another search or switch your category or order type.
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={{ alignItems: 'center', paddingTop: 36, gap: 6 }}>
+          <Ionicons name="heart-outline" color={c.accentInk} size={20} />
+          <Text style={{ fontSize: 12, color: c.textLight }}>
+            Small businesses. Big part of your day.
+          </Text>
+        </View>
       </ScrollView>
+      <MicroCart />
+      <AddressPickerSheet
+        visible={addressOpen}
+        onClose={() => setAddressOpen(false)}
+        mode={mode}
+        onModeChange={setMode}
+        pickupAvailable={merchants.some((m) => m.pickupEnabled)}
+      />
     </SafeAreaView>
   );
 }
-
-function RestaurantCard({
-  restaurant,
-  onPress,
-  styles,
-  colors,
-}: {
-  restaurant: Restaurant;
-  onPress: () => void;
-  styles: ReturnType<typeof makeStyles>;
-  colors: ThemePalette;
-}) {
-  return (
-    <Pressable style={styles.card} onPress={onPress}>
-      <View>
-        <RemoteImage
-          urlString={restaurant.heroImageURL}
-          fallbackIcon={restaurant.heroIcon}
-          style={styles.cardHero}
-          iconSize={44}
-          priority="high"
-        />
-        <RemoteImage
-          urlString={restaurant.logoURL}
-          fallbackIcon={restaurant.heroIcon}
-          style={styles.cardLogo}
-          iconSize={18}
-          borderRadius={23}
-        />
-      </View>
-      <View style={styles.cardBody}>
-        <View style={styles.cardTitleRow}>
-          <Text style={styles.cardName}>{restaurant.name}</Text>
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={12} color={colors.star} />
-            <Text style={styles.ratingText}>{restaurant.rating}</Text>
-          </View>
-        </View>
-        <Text style={styles.cardCuisine}>{restaurant.cuisine}</Text>
-        <View style={styles.metaRow}>
-          <Meta icon="time-outline" text={restaurant.deliveryTime} styles={styles} colors={colors} />
-          <Meta icon="location-outline" text={restaurant.distance} styles={styles} colors={colors} />
-          <Meta icon="bicycle-outline" text={restaurant.deliveryFee} styles={styles} colors={colors} />
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
-function Meta({
-  icon,
-  text,
-  styles,
-  colors,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  text: string;
-  styles: ReturnType<typeof makeStyles>;
-  colors: ThemePalette;
-}) {
-  return (
-    <View style={styles.meta}>
-      <Ionicons name={icon} size={12} color={colors.textLight} />
-      <Text style={styles.metaText} numberOfLines={1}>
-        {text}
-      </Text>
-    </View>
-  );
-}
-
-const makeStyles = (colors: ThemePalette) =>
-  StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.offWhite },
-    scroll: { paddingBottom: 32 },
-    header: { paddingHorizontal: 16, paddingTop: 8 },
-    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    deliverTo: {
-      color: colors.orange,
-      fontSize: 11,
-      fontWeight: '700',
-      letterSpacing: 0.5,
-      marginBottom: 2,
-    },
-    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    locationText: { color: colors.navy, fontSize: 17, fontWeight: '700', maxWidth: 220 },
-    searchBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      backgroundColor: colors.white,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: colors.gray200,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      marginHorizontal: 16,
-      marginTop: 24,
-      shadowColor: '#000',
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 2,
-    },
-    searchInput: { flex: 1, fontSize: 14, color: colors.navy },
-    sectionTitle: { marginHorizontal: 16, marginTop: 24, marginBottom: 14 },
-    noResults: { alignItems: 'center', paddingTop: 32, gap: 8 },
-    noResultsText: { color: colors.textLight, fontSize: 14 },
-    cardList: { paddingHorizontal: 16, gap: 16 },
-    card: {
-      backgroundColor: colors.white,
-      borderRadius: radius.lg,
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOpacity: 0.07,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 3,
-    },
-    cardHero: { height: 150, width: '100%' },
-    cardLogo: {
-      position: 'absolute',
-      left: 12,
-      bottom: 12,
-      width: 46,
-      height: 46,
-      borderWidth: 2,
-      borderColor: colors.white,
-    },
-    cardBody: { padding: 12, gap: 6 },
-    cardTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    cardName: { fontSize: 17, fontWeight: '700', color: colors.navy },
-    ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-    ratingText: { fontSize: 13, fontWeight: '700', color: colors.navy },
-    cardCuisine: { fontSize: 14, color: colors.textLight },
-    metaRow: { flexDirection: 'row', gap: 12 },
-    meta: { flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 1 },
-    metaText: { fontSize: 12, color: colors.textLight },
-  });
+const styles = StyleSheet.create({
+  safe: { flex: 1, width: '100%', maxWidth: 720, alignSelf: 'center' },
+  topbar: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  address: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44 },
+  profile: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  search: {
+    marginHorizontal: 20,
+    minHeight: 54,
+    paddingLeft: 16,
+    paddingRight: 8,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  searchInput: { flex: 1, minWidth: 0, fontSize: 15, paddingVertical: 16 },
+  clear: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  greeting: { paddingHorizontal: 20, gap: 8, marginTop: 6, marginBottom: 18 },
+  editorial: {
+    marginHorizontal: 20,
+    padding: 20,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    gap: 8,
+  },
+  plate: {
+    width: 124,
+    height: 132,
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '-12deg' }],
+  },
+  section: {
+    paddingHorizontal: 20,
+    marginTop: 32,
+    marginBottom: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  count: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
