@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import config
-from .routers import notify, orders, driver
+from .routers import notify, orders, driver, consumer
 
 app = FastAPI(title="LocalGO Backend", version="1.0.0")
 
@@ -32,6 +32,7 @@ app.add_middleware(
 app.include_router(orders.router)
 app.include_router(notify.router)
 app.include_router(driver.router)
+app.include_router(consumer.router)
 
 
 @app.get("/health")

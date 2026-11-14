@@ -1,0 +1,1096 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LocalGO Backend",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/consumer/catalog": {
+      "get": {
+        "tags": [
+          "Consumer experience"
+        ],
+        "summary": "Catalog",
+        "operationId": "catalog_consumer_catalog_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/consumer/quote": {
+      "post": {
+        "tags": [
+          "Consumer experience"
+        ],
+        "summary": "Quote",
+        "operationId": "quote_consumer_quote_post",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ConsumerBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/consumer/checkout": {
+      "post": {
+        "tags": [
+          "Consumer experience"
+        ],
+        "summary": "Checkout",
+        "operationId": "checkout_consumer_checkout_post",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ConsumerBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/consumer/orders": {
+      "get": {
+        "tags": [
+          "Consumer experience"
+        ],
+        "summary": "My Orders",
+        "operationId": "my_orders_consumer_orders_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ConsumerBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/consumer/orders/{order_id}": {
+      "get": {
+        "tags": [
+          "Consumer experience"
+        ],
+        "summary": "My Order",
+        "operationId": "my_order_consumer_orders__order_id__get",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ConsumerBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/consumer/orders/{order_id}/location": {
+      "post": {
+        "tags": [
+          "Consumer experience"
+        ],
+        "summary": "Share Location",
+        "operationId": "share_location_consumer_orders__order_id__location_post",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ConsumerBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/consumer/merchant/orders/{order_id}/status": {
+      "post": {
+        "tags": [
+          "Consumer experience"
+        ],
+        "summary": "Pickup Status",
+        "operationId": "pickup_status_consumer_merchant_orders__order_id__status_post",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PickupStatusBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ConsumerBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/consumer/merchant/orders": {
+      "get": {
+        "tags": [
+          "Consumer experience"
+        ],
+        "summary": "Merchant Orders",
+        "operationId": "merchant_orders_consumer_merchant_orders_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ConsumerBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/consumer/orders/{order_id}/review": {
+      "post": {
+        "tags": [
+          "Consumer experience"
+        ],
+        "summary": "Review",
+        "operationId": "review_consumer_orders__order_id__review_post",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ConsumerBearerAuth": []
+          }
+        ]
+      }
+    },
+    "/consumer/merchants/{merchant_id}/menu": {
+      "get": {
+        "tags": [
+          "Consumer experience"
+        ],
+        "summary": "Merchant Menu",
+        "operationId": "merchant_menu_consumer_merchants__merchant_id__menu_get",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Merchant Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AvailabilityBody": {
+        "properties": {
+          "online": {
+            "type": "boolean",
+            "title": "Online"
+          }
+        },
+        "type": "object",
+        "required": [
+          "online"
+        ],
+        "title": "AvailabilityBody"
+      },
+      "CheckoutBody": {
+        "properties": {
+          "merchantId": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9-]+$",
+            "title": "Merchantid"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "delivery",
+              "pickup"
+            ],
+            "title": "Mode",
+            "default": "delivery"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Line"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items"
+          },
+          "tipCents": {
+            "type": "integer",
+            "maximum": 200000.0,
+            "minimum": 0.0,
+            "title": "Tipcents",
+            "default": 0
+          },
+          "promoCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^[A-Za-z0-9_-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promocode"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "expectedTotalCents": {
+            "type": "integer",
+            "maximum": 500000.0,
+            "minimum": 0.0,
+            "title": "Expectedtotalcents"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryAddress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customerName": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Customername",
+            "default": "LocalGO Customer"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "merchantId",
+          "items",
+          "id",
+          "expectedTotalCents"
+        ],
+        "title": "CheckoutBody"
+      },
+      "DeliveryAddress": {
+        "properties": {
+          "addressLine": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 4,
+            "title": "Addressline"
+          },
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          },
+          "apartmentSuite": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Apartmentsuite",
+            "default": ""
+          },
+          "instructions": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Instructions",
+            "default": ""
+          },
+          "entryCode": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Entrycode",
+            "default": ""
+          },
+          "preference": {
+            "type": "string",
+            "enum": [
+              "Leave at door",
+              "Meet at door"
+            ],
+            "title": "Preference",
+            "default": "Leave at door"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "addressLine",
+          "latitude",
+          "longitude"
+        ],
+        "title": "DeliveryAddress"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Line": {
+        "properties": {
+          "productId": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Productid"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity"
+          },
+          "selections": {
+            "items": {
+              "$ref": "#/components/schemas/Selection"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Selections"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Notes",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "productId",
+          "quantity"
+        ],
+        "title": "Line"
+      },
+      "LocationBody": {
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          },
+          "accuracy": {
+            "type": "number",
+            "maximum": 500.0,
+            "minimum": 0.0,
+            "title": "Accuracy"
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recordedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "latitude",
+          "longitude",
+          "accuracy",
+          "recordedAt"
+        ],
+        "title": "LocationBody"
+      },
+      "NotifyBody": {
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Orderid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "new_order",
+              "order_accepted",
+              "order_picked_up",
+              "order_delivered",
+              "new_message"
+            ],
+            "title": "Kind"
+          },
+          "senderId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Senderid"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview"
+          }
+        },
+        "type": "object",
+        "required": [
+          "orderId",
+          "kind"
+        ],
+        "title": "NotifyBody"
+      },
+      "OrderItem": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "quantity"
+        ],
+        "title": "OrderItem"
+      },
+      "PickupStatusBody": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "preparing",
+              "ready",
+              "completed"
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "PickupStatusBody"
+      },
+      "PlaceOrderBody": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "restaurant_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Restaurant Name"
+          },
+          "restaurant_address": {
+            "type": "string",
+            "title": "Restaurant Address",
+            "default": ""
+          },
+          "customer_name": {
+            "type": "string",
+            "title": "Customer Name",
+            "default": "LocalGO Customer"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "dropoff_address": {
+            "type": "string",
+            "title": "Dropoff Address"
+          },
+          "latitude": {
+            "type": "number",
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "title": "Longitude"
+          },
+          "delivery_instructions": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Delivery Instructions",
+            "default": ""
+          },
+          "delivery_preference": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Leave at door",
+                  "Meet at door"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Preference"
+          },
+          "entry_code": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Entry Code",
+            "default": ""
+          },
+          "subtotal": {
+            "type": "number",
+            "maximum": 2000.0,
+            "minimum": 0.0,
+            "title": "Subtotal"
+          },
+          "delivery_fee": {
+            "type": "number",
+            "maximum": 2000.0,
+            "minimum": 0.0,
+            "title": "Delivery Fee"
+          },
+          "tip": {
+            "type": "number",
+            "maximum": 2000.0,
+            "minimum": 0.0,
+            "title": "Tip"
+          },
+          "total": {
+            "type": "number",
+            "maximum": 2000.0,
+            "minimum": 0.0,
+            "title": "Total"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrderItem"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "restaurant_name",
+          "dropoff_address",
+          "latitude",
+          "longitude",
+          "subtotal",
+          "delivery_fee",
+          "tip",
+          "total",
+          "items"
+        ],
+        "title": "PlaceOrderBody"
+      },
+      "QuoteBody": {
+        "properties": {
+          "merchantId": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z0-9-]+$",
+            "title": "Merchantid"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "delivery",
+              "pickup"
+            ],
+            "title": "Mode",
+            "default": "delivery"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Line"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items"
+          },
+          "tipCents": {
+            "type": "integer",
+            "maximum": 200000.0,
+            "minimum": 0.0,
+            "title": "Tipcents",
+            "default": 0
+          },
+          "promoCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^[A-Za-z0-9_-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promocode"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "merchantId",
+          "items"
+        ],
+        "title": "QuoteBody"
+      },
+      "ReviewBody": {
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rating"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rating"
+        ],
+        "title": "ReviewBody"
+      },
+      "Selection": {
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Groupid"
+          },
+          "choiceNames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Choicenames"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "groupId",
+          "choiceNames"
+        ],
+        "title": "Selection"
+      },
+      "StatusBody": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "picked_up",
+              "delivered",
+              "declined"
+            ],
+            "title": "Status"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
+          },
+          "verified_items": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "StatusBody"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "ConsumerBearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Supabase Auth session, verified by the backend."
+      }
+    }
+  }
+}
