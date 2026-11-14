@@ -17,21 +17,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import config
-from .routers import notify, orders
+from .routers import notify, orders, driver
 
 app = FastAPI(title="LocalGO Backend", version="1.0.0")
 
-# Same posture as the edge functions: public demo endpoints, CORS wide open
-# so the Expo web preview works.
+# Native clients do not need CORS. Explicitly allow only owned web origins.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=config.CORS_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.include_router(orders.router)
 app.include_router(notify.router)
+app.include_router(driver.router)
 
 
 @app.get("/health")

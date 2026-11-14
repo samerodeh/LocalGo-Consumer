@@ -1,3 +1,4 @@
+import { authHeaders } from './authHeaders';
 // Real Stripe checkout: the backend mints a PaymentIntent, then Stripe's own
 // native PaymentSheet collects card details and confirms it — no card data
 // ever touches this app's code or storage. See backend/app/routers/payments.py.
@@ -19,7 +20,7 @@ export async function payWithCard(amountCents: number, currency = 'cad'): Promis
   try {
     const res = await fetch(`${API_URL}/payments/create-intent`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authHeaders(),
       body: JSON.stringify({ amount_cents: amountCents, currency }),
     });
     if (!res.ok) {

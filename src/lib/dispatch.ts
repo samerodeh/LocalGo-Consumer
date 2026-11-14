@@ -1,3 +1,4 @@
+import { authHeaders } from './authHeaders';
 // Bridges a placed consumer order to the driver dashboard through the
 // Python/FastAPI backend (backend/, POST /orders) — the server validates the
 // delivery location again, computes the item summary, inserts the shared
@@ -51,7 +52,7 @@ export async function publishOrderToDispatch(
   try {
     const res = await fetch(`${API_URL}/orders`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authHeaders(),
       body: JSON.stringify({
         id,
         restaurant_name: input.restaurantName,
@@ -61,6 +62,9 @@ export async function publishOrderToDispatch(
         dropoff_address: dropoff,
         latitude: deliveryAddress?.latitude ?? 0,
         longitude: deliveryAddress?.longitude ?? 0,
+        delivery_instructions: deliveryAddress?.instructions ?? '',
+        delivery_preference: deliveryAddress?.deliveryPreference ?? null,
+        entry_code: deliveryAddress?.entryCode ?? '',
         subtotal: input.subtotal,
         delivery_fee: input.deliveryFee,
         tip: input.tip,

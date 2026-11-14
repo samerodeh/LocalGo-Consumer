@@ -5,13 +5,15 @@ the caller only says WHAT happened (orderId + kind [+ senderId for messages]);
 this endpoint decides WHO gets notified and fetches their device token(s)."""
 
 from typing import Literal
+from uuid import UUID
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from .. import config
+from ..auth import require_user
 from ..postgrest import REST_URL, client, headers
 
 router = APIRouter()
@@ -28,10 +30,10 @@ NotifyKind = Literal[
 
 
 class NotifyBody(BaseModel):
-    orderId: str = Field(min_length=1)
+    orderId: UUID
     kind: NotifyKind
     senderId: str | None = None
-    preview: str | None = None
+    preview: str | None = Field(default=None, max_length=120)
 
 
 def _json(status: int, content: dict) -> JSONResponse:
@@ -65,13 +67,22 @@ async def send_notification(body: NotifyBody) -> JSONResponse:
     message_body = ""
 
     if body.kind == "new_order":
-        # Broadcast to every driver — single-driver today, multi-driver later
-        # for free, no code change needed here.
+        # Only the approved, online driver with no active delivery receives offers.
         drivers_res = await client.get(
-            f"{REST_URL}/drivers", headers=admin, params={"select": "id"}
+            f"{REST_URL}/driver_dispatch", headers=admin, params={"select": "driver_id", "is_online": "eq.true"}
         )
         drivers = drivers_res.json() if drivers_res.status_code == 200 else []
-        recipient_ids = [d["id"] for d in drivers]
+        recipient_ids = [d["driver_id"] for d in drivers]
+        if recipient_ids:
+            active_res = await client.get(
+                f"{REST_URL}/orders", headers=admin,
+                params={"select": "accepted_by", "accepted_by": f"in.({','.join(recipient_ids)})", "delivery_status": "in.(accepted,picked_up)"},
+            )
+            if active_res.status_code != 200:
+                return _json(503, {"error": "Could not verify driver availability"})
+            busy_ids = {row["accepted_by"] for row in active_res.json()}
+            recipient_ids = [uid for uid in recipient_ids if uid not in busy_ids]
+
         count = order["item_count"]
         title = "New order available"
         message_body = (
@@ -143,7 +154,7 @@ async def send_notification(body: NotifyBody) -> JSONResponse:
             "title": title,
             "body": message_body,
             "sound": "default",
-            "data": {"orderId": body.orderId, "kind": body.kind},
+            "data": {"orderId": str(body.orderId), "kind": body.kind},
         }
         for to in tokens
     ]
@@ -164,6 +175,20 @@ async def send_notification(body: NotifyBody) -> JSONResponse:
 
 
 @router.post("/notify")
-async def notify(body: NotifyBody):
-    return await send_notification(body)
+async def notify(body: NotifyBody, authorization: str | None = Header(default=None)):
+    bearer, uid = await require_user(authorization)
+    # Order lifecycle alerts are emitted only by the backend after a write.
+    if body.kind != "new_message":
+        raise HTTPException(403, "Order notifications are managed by the server")
+    response = await client.get(
+        f"{REST_URL}/orders", headers=headers(bearer),
+        params={"id": f"eq.{body.orderId}", "select": "customer_id,accepted_by", "limit": "1"},
+    )
+    if response.status_code != 200:
+        raise HTTPException(502, "Could not verify notification access")
+    rows = response.json()
+    if not rows or not rows[0].get("accepted_by") or uid not in (rows[0].get("customer_id"), rows[0].get("accepted_by")):
+        raise HTTPException(403, "Only order participants can send notifications")
+    # Never trust a client-supplied sender or expose chat contents on lock screens.
+    return await send_notification(body.model_copy(update={"senderId": uid, "preview": "You have a new message."}))
 

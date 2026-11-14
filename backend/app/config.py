@@ -30,3 +30,13 @@ GROQ_API_KEY = _env("GROQ_API_KEY")
 
 SUPABASE_CONFIGURED = bool(SUPABASE_URL and SUPABASE_ANON_KEY)
 
+
+# Legacy client-priced orders are permitted only in an explicitly configured
+# development environment. Never enable this on the public service.
+APP_ENV = _env("APP_ENV") or "production"
+ALLOW_DEMO_ORDERS = APP_ENV == "development" and _env("ALLOW_DEMO_ORDERS").lower() == "true"
+CORS_ORIGINS = [value.strip() for value in _env("CORS_ORIGINS").split(",") if value.strip()]
+
+# Business rule confirmed by Samer: CAD $5 flat per delivery.
+DRIVER_GUARANTEED_PAY_CENTS = 500
+DRIVER_SUPPORT_EMAIL = _env("DRIVER_SUPPORT_EMAIL") or "samerodeh.dev@gmail.com"

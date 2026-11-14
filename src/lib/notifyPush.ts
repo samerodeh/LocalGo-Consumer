@@ -1,3 +1,4 @@
+import { authHeaders } from './authHeaders';
 // Fire-and-forget call to the FastAPI backend's `/notify` endpoint (the
 // Python port of the old `notify-push` edge function). Recipients are derived
 // server-side from the order row — this call only says what happened. Never
@@ -16,7 +17,7 @@ export async function notifyPush(
   try {
     await fetch(`${API_URL}/notify`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authHeaders(),
       body: JSON.stringify({ orderId, kind, ...extra }),
     });
   } catch (err) {
