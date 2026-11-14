@@ -24,6 +24,9 @@ interface OrdersState {
     restaurantName: string;
     deliveryAddress: Address | null;
     paymentIntentID: string;
+    discountCents?: number;
+    fulfillmentMode?: 'delivery' | 'pickup';
+    serverOrderId?: string;
   }) => Promise<void>;
 }
 
@@ -65,6 +68,9 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
     restaurantName,
     deliveryAddress,
     paymentIntentID,
+    discountCents,
+    fulfillmentMode,
+    serverOrderId,
   }) => {
     const email = get().ownerEmail;
     if (!email) return;
@@ -81,6 +87,9 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
       deliveryFeeCents: cents(deliveryFee),
       tipCents: cents(tip),
       totalCents: cents(total),
+      ...(discountCents !== undefined ? { discountCents } : {}),
+      ...(fulfillmentMode ? { fulfillmentMode } : {}),
+      ...(serverOrderId ? { serverOrderId } : {}),
       paymentIntentID,
       items: lines.map((line) => ({
         id: Crypto.randomUUID(),
@@ -101,4 +110,3 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
     set({ orders, recentRestaurants: deriveRecent(orders) });
   },
 }));
-
