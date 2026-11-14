@@ -1,0 +1,10 @@
+version: 1
+name: localgo-consumer-supabase-contract
+slug: localgo-consumer-supabase-contract
+protocol: http
+port: 4501
+interceptRequests: true
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true

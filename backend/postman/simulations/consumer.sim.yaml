@@ -1,0 +1,6 @@
+simulation: localgo-consumer
+routing: path
+mocks:
+  - name: consumer-supabase-contract
+    routeKey: supabase
+    path: postman/mocks/consumer-supabase-contract
