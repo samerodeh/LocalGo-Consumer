@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View, type ViewStyle, type StyleProp } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { Skeleton } from './ui/Skeleton';
 import { useTheme } from '../theme/ThemeContext';
 import type { IoniconName } from '../types';
 
@@ -35,6 +36,8 @@ export function RemoteImage({
 }: Props) {
   const { colors } = useTheme();
   const [failed, setFailed] = useState(false);
+  const [loading, setLoading] = useState(Boolean(urlString));
+  useEffect(() => { setFailed(false); setLoading(Boolean(urlString)); }, [urlString]);
 
   return (
     <View
@@ -54,9 +57,11 @@ export function RemoteImage({
           priority={priority}
           transition={150}
           recyclingKey={urlString}
-          onError={() => setFailed(true)}
+          onLoad={() => setLoading(false)}
+          onError={() => { setFailed(true); setLoading(false); }}
         />
       ) : null}
+      {loading && !failed ? <Skeleton style={[StyleSheet.absoluteFill, { borderRadius }]} /> : null}
     </View>
   );
 }

@@ -6,5 +6,4 @@ export const Partner = {
   logoURL:
     'https://betterresto.s3.us-west-1.wasabisys.com/production/13143/Al_taib_logo_ea0ac3f5c9.jpeg',
   etaMinutes: '20 min',
-  rating: '4.7',
 } as const;

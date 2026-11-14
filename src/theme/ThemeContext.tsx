@@ -21,6 +21,8 @@ const darkColors: ThemePalette = {
   orange: '#F97316',
   orangeLight: '#FB923C',
   orangeDark: '#FB923C',
+  buttonStart: lightColors.buttonStart,
+  buttonEnd: lightColors.buttonEnd,
 
   offWhite: '#0B1220',
   white: '#111C2E',
@@ -31,6 +33,18 @@ const darkColors: ThemePalette = {
   textLight: '#94A3B8',
   danger: '#F87171',
   star: '#FACC15',
+  brandNavy: lightColors.brandNavy,
+  onBrand: lightColors.onBrand,
+  onBrandMuted: lightColors.onBrandMuted,
+  butter: lightColors.butter,
+  onButter: lightColors.onButter,
+  butterMuted: lightColors.butterMuted,
+  brandLine: lightColors.brandLine,
+  accentSoft: '#32271F',
+  accentInk: '#FFB37B',
+  shadow: '#000000',
+  skeletonShine: 'rgba(255,255,255,0.07)',
+  overlay: lightColors.overlay,
 };
 
 const STORAGE_KEY = 'localgo.theme';
@@ -78,7 +92,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
   if (!ctx) {
-    return { mode: 'light', isDark: false, colors: lightColors, toggle: () => {}, setMode: () => {} };
+    return {
+      mode: 'light',
+      isDark: false,
+      colors: lightColors,
+      toggle: () => {},
+      setMode: () => {},
+    };
   }
   return ctx;
 }

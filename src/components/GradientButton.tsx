@@ -8,6 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { selectionFeedback } from '../lib/haptics';
 import { accentGradient, colors, radius } from '../theme/theme';
 
 interface Props {
@@ -19,20 +20,22 @@ interface Props {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Primary CTA — the orange→orangeDark accent gradient used across the app. */
+/** Shared primary action using the accessible brand-orange gradient. */
 export function GradientButton({
   title,
   onPress,
   loading = false,
   disabled = false,
-  height = 52,
+  height = 56,
   style,
 }: Props) {
   return (
     <Pressable
-      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      onPress={() => { selectionFeedback(); onPress(); }}
       disabled={disabled || loading}
-      style={({ pressed }) => [{ opacity: pressed || disabled ? 0.85 : 1 }, style]}
+      style={({ pressed }) => [{ opacity: disabled ? 0.5 : pressed ? 0.85 : 1 }, style]}
     >
       <LinearGradient
         colors={accentGradient as unknown as [string, string]}
@@ -57,12 +60,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.orange,
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    shadowColor: colors.orangeDark,
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { color: colors.white, fontSize: 16, fontWeight: '600' },
+  label: { color: colors.onBrand, fontSize: 16, fontWeight: '700', letterSpacing: 0.2 },
 });

@@ -1,5 +1,7 @@
 import { Text, type TextProps, type TextStyle } from 'react-native';
-import { colors, fonts } from '../theme/theme';
+import { fonts } from '../theme/theme';
+
+import { useTheme } from '../theme/ThemeContext';
 
 type Weight = 'black' | 'heavy' | 'bold' | 'semibold';
 
@@ -20,13 +22,14 @@ const familyFor: Record<Weight, string> = {
  * Barlow Condensed display text for logos, section titles, and hero numbers —
  * the RN counterpart to SwiftUI's `Font.display(_:weight:)`.
  */
-export function DisplayText({ size, weight = 'bold', color = colors.navy, style, ...rest }: Props) {
+export function DisplayText({ size, weight = 'bold', color, style, ...rest }: Props) {
+  const { colors } = useTheme();
   const textStyle: TextStyle = {
     fontFamily: familyFor[weight],
     fontSize: size,
-    color,
+    color: color ?? colors.navy,
     // Barlow Condensed sits tight; give headings a touch of breathing room.
-    lineHeight: size * 1.05,
+    lineHeight: size * 1.12,
   };
   return <Text {...rest} style={[textStyle, style]} />;
 }

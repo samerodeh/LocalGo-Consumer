@@ -12,8 +12,6 @@ export interface Restaurant {
   heroImageURL: string | null;
   /** Ionicon shown when there's no hero/logo image (placeholder partners). */
   heroIcon: IoniconName;
-  rating: string;
-  reviewCount: string;
   distance: string;
   deliveryTime: string;
   deliveryFee: string;
@@ -146,12 +144,7 @@ export interface PaymentCard {
   isDefault: boolean;
 }
 
-export type OrderStatus =
-  | 'Placed'
-  | 'Preparing'
-  | 'Out for Delivery'
-  | 'Delivered'
-  | 'Cancelled';
+export type OrderStatus = 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
 
 export interface OrderItemRecord {
   id: string;
@@ -175,6 +168,9 @@ export interface OrderRecord {
   deliveryFeeCents: number;
   tipCents: number;
   totalCents: number;
+  discountCents?: number;
+  fulfillmentMode?: 'delivery' | 'pickup';
+  serverOrderId?: string;
   paymentIntentID: string;
   items: OrderItemRecord[];
   // Delivery address snapshot, copied at checkout time.

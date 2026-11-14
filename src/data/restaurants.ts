@@ -11,8 +11,6 @@ export const alTaib: Restaurant = {
   heroImageURL:
     'https://betterresto.s3.us-west-1.wasabisys.com/production/13125/all_dressed_pizza_bb4e2f9ccd.png',
   heroIcon: 'flame',
-  rating: '4.0',
-  reviewCount: '1.4k',
   distance: '400 m',
   deliveryTime: Partner.etaMinutes,
   deliveryFee: '$5.00 delivery fee',
@@ -30,8 +28,6 @@ export const chateauKabab: Restaurant = {
   heroImageURL:
     'https://betterresto.s3.us-west-1.wasabisys.com/production/13126/18_151_Chateau_Kabab_226_79bd645e70.jpg',
   heroIcon: 'flame',
-  rating: '4.0',
-  reviewCount: '2.4k',
   distance: '1.2 km',
   deliveryTime: '30 min',
   deliveryFee: '$5.00 delivery fee',
