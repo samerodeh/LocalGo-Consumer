@@ -87,6 +87,11 @@ async def delete_account(authorization: str | None = Header(default=None)):
                 "customer_id": None,
                 "customer_name": REDACTED_NAME,
                 "dropoff_address": REDACTED_ADDRESS,
+                "dropoff_latitude": None,
+                "dropoff_longitude": None,
+                "delivery_instructions": "",
+                "entry_code": "",
+                "delivery_preference": None,
             },
         )
     except Exception as exc:  # noqa: BLE001

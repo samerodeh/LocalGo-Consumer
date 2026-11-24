@@ -138,3 +138,22 @@ def test_delivery_location_gate_runs_before_payment(client, stripe_on, supabase_
         "items": [{"name": "Cheese Pizza Slice", "quantity": 2}],
     })
     assert r.status_code == 422, label
+
+
+def test_driver_tip_comes_from_verified_payment_metadata(stripe_on, monkeypatch):
+    intent = FakeIntent(status='succeeded', amount=4108, order_id=ORDER_ID)
+    intent.metadata['tip_cents'] = '250'
+    monkeypatch.setattr(stripe.PaymentIntent, 'retrieve', lambda _: intent)
+    details = {}
+    assert orders._verify_payment(ORDER_ID, Body(), details) == 41.08
+    assert details == {'tip_cents': 250}
+
+
+@pytest.mark.parametrize('tip', [None, '-1', '99999999', 'not-a-number'])
+def test_unverified_legacy_tip_keeps_earnings_unknown(stripe_on, monkeypatch, tip):
+    intent = FakeIntent(status='succeeded', amount=4108, order_id=ORDER_ID)
+    intent.metadata['tip_cents'] = tip
+    monkeypatch.setattr(stripe.PaymentIntent, 'retrieve', lambda _: intent)
+    details = {}
+    orders._verify_payment(ORDER_ID, Body(), details)
+    assert 'tip_cents' not in details

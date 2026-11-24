@@ -71,6 +71,12 @@ def stripe_on(monkeypatch):
 @pytest.fixture
 def supabase_on(monkeypatch):
     monkeypatch.setattr(config, "SUPABASE_CONFIGURED", True)
+    from uuid import UUID
+    from unittest.mock import AsyncMock
+    from app.auth import CustomerSession
+    from app.routers import orders
+    monkeypatch.setattr(orders, "require_customer", AsyncMock(return_value=CustomerSession(
+        UUID("c0000000-0000-4000-8000-000000000009"), "customer_fixture")))
     monkeypatch.setattr(config, "SUPABASE_ANON_KEY", "anon_stub")
     monkeypatch.setattr(config, "SUPABASE_SERVICE_ROLE_KEY", "service_stub")
 

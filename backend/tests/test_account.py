@@ -113,6 +113,10 @@ def test_scrub_keeps_the_order_but_removes_the_person(client, supabase_on, monke
     assert payload["customer_id"] is None
     assert payload["customer_name"] == account.REDACTED_NAME
     assert payload["dropoff_address"] == account.REDACTED_ADDRESS
+    assert payload["dropoff_latitude"] is None
+    assert payload["dropoff_longitude"] is None
+    assert payload["delivery_instructions"] == ""
+    assert payload["entry_code"] == ""
     # The money and the row itself survive — these are business records.
     assert "order_total" not in payload
     assert "id" not in payload
