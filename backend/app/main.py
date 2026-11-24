@@ -21,7 +21,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import config
-from .routers import account, cart, catalog, goer, notify, orders, payments, session
+from .routers import account, cart, catalog, driver, goer, notify, orders, payments, session
 
 
 @asynccontextmanager
@@ -63,6 +63,7 @@ app.add_middleware(
 )
 
 app.include_router(orders.router)
+app.include_router(driver.router)
 app.include_router(goer.router)
 app.include_router(notify.router)
 app.include_router(payments.router)

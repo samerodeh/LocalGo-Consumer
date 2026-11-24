@@ -90,3 +90,6 @@ GOER_CONFIGURED = bool(GROQ_API_KEY)
 # Checkout needs both halves of the pair: the secret to create the intent, the
 # publishable to let the app's PaymentSheet talk to Stripe directly.
 STRIPE_CONFIGURED = bool(STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY)
+
+# Public courier support contact; never included in authentication decisions.
+DRIVER_SUPPORT_EMAIL = os.getenv("DRIVER_SUPPORT_EMAIL", "samerodeh.dev@gmail.com").strip()

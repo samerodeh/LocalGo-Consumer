@@ -1,0 +1,6 @@
+simulation: localgo-dispatch
+routing: path
+mocks:
+  - name: supabase-contract
+    routeKey: supabase
+    path: postman/mocks/supabase-contract

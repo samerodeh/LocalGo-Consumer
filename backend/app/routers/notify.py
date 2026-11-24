@@ -91,13 +91,24 @@ async def send_notification(body: NotifyBody) -> JSONResponse:
     message_body = ""
 
     if body.kind == "new_order":
-        # Broadcast to every driver — single-driver today, multi-driver later
-        # for free, no code change needed here.
         drivers_res = await client.get(
-            f"{REST_URL}/drivers", headers=admin, params={"select": "id"}
+            f"{REST_URL}/driver_dispatch", headers=admin,
+            params={"select": "driver_id", "is_online": "eq.true"},
         )
-        drivers = drivers_res.json() if drivers_res.status_code == 200 else []
-        recipient_ids = [d["id"] for d in drivers]
+        if drivers_res.status_code != 200:
+            return _json(503, {"error": "Could not verify driver availability"})
+        recipient_ids = [row["driver_id"] for row in drivers_res.json()]
+        if recipient_ids:
+            active_res = await client.get(
+                f"{REST_URL}/orders", headers=admin,
+                params={"select": "accepted_by", "accepted_by": f"in.({','.join(recipient_ids)})",
+                        "delivery_status": "in.(accepted,picked_up,nearby,arrived)"},
+            )
+            if active_res.status_code != 200:
+                return _json(503, {"error": "Could not verify driver availability"})
+            busy_ids = {row["accepted_by"] for row in active_res.json()}
+            recipient_ids = [uid for uid in recipient_ids if uid not in busy_ids]
+
         count = order["item_count"]
         title = "New order available"
         message_body = (

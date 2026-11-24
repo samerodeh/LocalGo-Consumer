@@ -1,0 +1,1281 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LocalGO Backend",
+    "version": "1.1.0"
+  },
+  "paths": {
+    "/orders": {
+      "post": {
+        "summary": "Place Order",
+        "operationId": "place_order_orders_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceOrderBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/feed": {
+      "get": {
+        "summary": "Order Feed",
+        "operationId": "order_feed_orders_feed_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{order_id}/accept": {
+      "post": {
+        "summary": "Accept Order",
+        "description": "Atomic claim: stamps accepted_by only while the order is unclaimed.\nLosing the race returns 409 so the app can drop the card locally.",
+        "operationId": "accept_order_orders__order_id__accept_post",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{order_id}/status": {
+      "post": {
+        "summary": "Update Status",
+        "description": "Everything except the accept-claim (decline / picked_up / delivered).\nWrites the driver's private overlay row, mirrors forward progress onto the\nshared orders row so the customer can follow it, and pushes the customer a\n'on the way' / 'arrived' notification.",
+        "operationId": "update_status_orders__order_id__status_post",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/history": {
+      "get": {
+        "summary": "Order History",
+        "description": "Every delivery this driver has completed \u2014 today's, or all time.\n\nReads `driver_orders` with the driver's OWN token: its self-only RLS\npolicies are what scope the result to this driver. Deliberately not filtered\nby the unverified `sub` from the JWT (see postgrest.jwt_sub) \u2014 that would be\nforgeable, and this endpoint returns customer names and addresses.\n\nThe `orders(...)` embed relies on the driver_orders \u2192 orders foreign key.",
+        "operationId": "order_history_orders_history_get",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "today",
+                "all"
+              ],
+              "type": "string",
+              "default": "all",
+              "title": "Scope"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/driver/availability": {
+      "get": {
+        "tags": [
+          "Driver workflow"
+        ],
+        "summary": "Availability",
+        "operationId": "availability_driver_availability_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Driver workflow"
+        ],
+        "summary": "Set Availability",
+        "operationId": "set_availability_driver_availability_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/driver/offers/next": {
+      "post": {
+        "tags": [
+          "Driver workflow"
+        ],
+        "summary": "Next Offer",
+        "operationId": "next_offer_driver_offers_next_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/driver/activity": {
+      "get": {
+        "tags": [
+          "Driver workflow"
+        ],
+        "summary": "Activity",
+        "operationId": "activity_driver_activity_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AddLineInput": {
+        "properties": {
+          "cart_revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Cart Revision"
+          },
+          "product_id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Product Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cart_revision",
+          "product_id"
+        ],
+        "title": "AddLineInput"
+      },
+      "AddressIn": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "default": ""
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "default": ""
+          },
+          "addressLine": {
+            "type": "string",
+            "title": "Addressline",
+            "default": ""
+          },
+          "isDefault": {
+            "type": "boolean",
+            "title": "Isdefault",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "AddressIn"
+      },
+      "AvailabilityBody": {
+        "properties": {
+          "online": {
+            "type": "boolean",
+            "title": "Online"
+          }
+        },
+        "type": "object",
+        "required": [
+          "online"
+        ],
+        "title": "AvailabilityBody"
+      },
+      "Cart": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision",
+            "default": 0
+          },
+          "merchant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant Id"
+          },
+          "currency": {
+            "type": "string",
+            "const": "CAD",
+            "title": "Currency",
+            "default": "CAD"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CartLine"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Lines"
+          },
+          "subtotal_cents": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Subtotal Cents",
+            "default": 0
+          },
+          "delivery_fee_cents": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Delivery Fee Cents",
+            "default": 0
+          },
+          "total_cents": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Cents",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Cart"
+      },
+      "CartLine": {
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "title": "Product Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity"
+          },
+          "unit_price_cents": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unit Price Cents"
+          },
+          "line_total_cents": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Line Total Cents"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "product_id",
+          "name",
+          "quantity",
+          "unit_price_cents",
+          "line_total_cents"
+        ],
+        "title": "CartLine"
+      },
+      "CartLineIn": {
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "title": "Itemid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": ""
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity",
+            "default": 1
+          },
+          "unitPrice": {
+            "type": "number",
+            "title": "Unitprice",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "itemId"
+        ],
+        "title": "CartLineIn"
+      },
+      "ChatRequest": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "history": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "History"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "default": "guest"
+          },
+          "context": {
+            "$ref": "#/components/schemas/GoerContext"
+          },
+          "active_agent": {
+            "type": "string",
+            "title": "Active Agent",
+            "default": "concierge"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "ChatRequest",
+        "description": "`POST /goer/chat` body. Mirrors SufraAI's `llm_response` schema, plus the\non-device context Goer needs."
+      },
+      "DietaryProfileIn": {
+        "properties": {
+          "halal": {
+            "type": "boolean",
+            "title": "Halal",
+            "default": false
+          },
+          "vegan": {
+            "type": "boolean",
+            "title": "Vegan",
+            "default": false
+          },
+          "vegetarian": {
+            "type": "boolean",
+            "title": "Vegetarian",
+            "default": false
+          },
+          "allergies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allergies"
+          }
+        },
+        "type": "object",
+        "title": "DietaryProfileIn"
+      },
+      "GoerContext": {
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "title": "Firstname",
+            "default": ""
+          },
+          "languagePreference": {
+            "type": "string",
+            "title": "Languagepreference",
+            "default": "auto"
+          },
+          "cart": {
+            "items": {
+              "$ref": "#/components/schemas/CartLineIn"
+            },
+            "type": "array",
+            "title": "Cart"
+          },
+          "restaurantId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restaurantid"
+          },
+          "subtotal": {
+            "type": "number",
+            "title": "Subtotal",
+            "default": 0.0
+          },
+          "deliveryFee": {
+            "type": "number",
+            "title": "Deliveryfee",
+            "default": 0.0
+          },
+          "tip": {
+            "$ref": "#/components/schemas/TipIn"
+          },
+          "addresses": {
+            "items": {
+              "$ref": "#/components/schemas/AddressIn"
+            },
+            "type": "array",
+            "title": "Addresses"
+          },
+          "selectedAddressId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selectedaddressid"
+          },
+          "orders": {
+            "items": {
+              "$ref": "#/components/schemas/OrderIn"
+            },
+            "type": "array",
+            "title": "Orders"
+          },
+          "dietaryProfile": {
+            "$ref": "#/components/schemas/DietaryProfileIn"
+          }
+        },
+        "type": "object",
+        "title": "GoerContext",
+        "description": "The live app state a turn is answered against."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IntentBody": {
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Order Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteItem"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Items"
+          },
+          "cart_revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cart Revision"
+          },
+          "tip_cents": {
+            "type": "integer",
+            "maximum": 20000.0,
+            "minimum": 0.0,
+            "title": "Tip Cents",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "order_id"
+        ],
+        "title": "IntentBody"
+      },
+      "NotifyBody": {
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Orderid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "new_order",
+              "order_accepted",
+              "order_picked_up",
+              "order_nearby",
+              "order_arrived",
+              "order_delivered",
+              "new_message"
+            ],
+            "title": "Kind"
+          },
+          "senderId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Senderid"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview"
+          }
+        },
+        "type": "object",
+        "required": [
+          "orderId",
+          "kind"
+        ],
+        "title": "NotifyBody"
+      },
+      "OrderIn": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "default": ""
+          },
+          "restaurantName": {
+            "type": "string",
+            "title": "Restaurantname",
+            "default": ""
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": ""
+          },
+          "placedAt": {
+            "type": "string",
+            "title": "Placedat",
+            "default": ""
+          },
+          "totalCents": {
+            "type": "integer",
+            "title": "Totalcents",
+            "default": 0
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CartLineIn"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "title": "OrderIn",
+        "description": "One past order, as the phone's ordersStore knows it (money in cents)."
+      },
+      "OrderItem": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "quantity"
+        ],
+        "title": "OrderItem"
+      },
+      "PlaceOrderBody": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "payment_intent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Intent Id"
+          },
+          "restaurant_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Restaurant Name"
+          },
+          "restaurant_address": {
+            "type": "string",
+            "title": "Restaurant Address",
+            "default": ""
+          },
+          "customer_name": {
+            "type": "string",
+            "title": "Customer Name",
+            "default": "LocalGO Customer"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "dropoff_address": {
+            "type": "string",
+            "title": "Dropoff Address"
+          },
+          "latitude": {
+            "type": "number",
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "title": "Longitude"
+          },
+          "subtotal": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Subtotal"
+          },
+          "delivery_fee": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Delivery Fee"
+          },
+          "tip": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Tip"
+          },
+          "total": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Total"
+          },
+          "delivery_instructions": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Delivery Instructions",
+            "default": ""
+          },
+          "delivery_preference": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Leave at door",
+                  "Meet at door"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Preference"
+          },
+          "entry_code": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Entry Code",
+            "default": ""
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrderItem"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "restaurant_name",
+          "dropoff_address",
+          "latitude",
+          "longitude",
+          "subtotal",
+          "delivery_fee",
+          "tip",
+          "total",
+          "items"
+        ],
+        "title": "PlaceOrderBody"
+      },
+      "QuoteItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "quantity"
+        ],
+        "title": "QuoteItem"
+      },
+      "RevisionInput": {
+        "properties": {
+          "cart_revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Cart Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cart_revision"
+        ],
+        "title": "RevisionInput"
+      },
+      "SetQuantityInput": {
+        "properties": {
+          "cart_revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Cart Revision"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cart_revision",
+          "quantity"
+        ],
+        "title": "SetQuantityInput"
+      },
+      "StatusBody": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "picked_up",
+              "nearby",
+              "arrived",
+              "delivered",
+              "declined"
+            ],
+            "title": "Status"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
+          },
+          "verified_items": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "StatusBody"
+      },
+      "TipIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "percent",
+              "amount"
+            ],
+            "title": "Kind",
+            "default": "percent"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value",
+            "default": 18
+          }
+        },
+        "type": "object",
+        "title": "TipIn"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -64,6 +64,16 @@ ORDER_ROW = {
 }
 
 
+@pytest.fixture(autouse=True)
+def approved_history_driver(monkeypatch):
+    # Authentication/approval itself is covered in test_driver_authorization.
+    async def require_driver(authorization):
+        if not authorization:
+            raise HTTPException(401, "Sign in required")
+        return TOKEN, DRIVER
+    monkeypatch.setattr(orders_router, "_require_driver", require_driver)
+
+
 @pytest.fixture
 def history_client(monkeypatch):
     monkeypatch.setattr(config, "SUPABASE_CONFIGURED", True)

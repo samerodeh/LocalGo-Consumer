@@ -45,14 +45,18 @@ def _require_supabase() -> None:
         raise HTTPException(503, "Supabase is not configured on the backend")
 
 
-def _require_driver(authorization: str | None) -> tuple[str, str]:
-    """Returns (bearer, driver uid) or raises 401. The uid is only a query
-    filter — RLS on the forwarded token is the real enforcement."""
-    bearer = bearer_from(authorization)
-    sub = jwt_sub(bearer)
-    if not bearer or not sub:
-        raise HTTPException(401, "A signed-in driver token is required")
-    return bearer, sub
+async def _require_driver(authorization: str | None) -> tuple[str, str]:
+    session = await require_customer(authorization)
+    bearer, uid = session.bearer, str(session.user_id)
+    response = await client.get(
+        f"{REST_URL}/approved_drivers", headers=headers(bearer),
+        params={"id": f"eq.{uid}", "select": "id", "limit": "1"},
+    )
+    if response.status_code != 200:
+        raise HTTPException(503, "Driver authorization is unavailable")
+    if not response.json():
+        raise HTTPException(403, "An approved driver account is required")
+    return bearer, uid
 
 
 class OrderItem(BaseModel):
@@ -77,6 +81,9 @@ class PlaceOrderBody(BaseModel):
     delivery_fee: float = Field(ge=0)
     tip: float = Field(ge=0)
     total: float = Field(ge=0)
+    delivery_instructions: str = Field(default="", max_length=2000)
+    delivery_preference: Literal["Leave at door", "Meet at door"] | None = None
+    entry_code: str = Field(default="", max_length=100)
     items: list[OrderItem] = Field(min_length=1)
 
 
@@ -93,7 +100,7 @@ def _delivery_location_problem(body: PlaceOrderBody) -> str | None:
     return None
 
 
-def _verify_payment(order_id: str, body: PlaceOrderBody) -> float | None:
+def _verify_payment(order_id: str, body: PlaceOrderBody, details: dict | None = None) -> float | None:
     """Confirm this order was actually paid for, and return the charged total.
 
     Returns the amount Stripe really captured, in dollars — deliberately NOT
@@ -139,6 +146,13 @@ def _verify_payment(order_id: str, body: PlaceOrderBody) -> float | None:
     if metadata.get("order_id") != order_id:
         raise HTTPException(402, "That payment belongs to a different order.")
 
+    if details is not None:
+        try:
+            tip = int(metadata["tip_cents"])
+            if 0 <= tip <= intent.amount:
+                details["tip_cents"] = tip
+        except (KeyError, TypeError, ValueError):
+            pass  # A legacy payment without a verified tip keeps earnings unknown.
     return round2(intent.amount / 100)
 
 
@@ -150,7 +164,12 @@ async def place_order(body: PlaceOrderBody, authorization: str | None = Header(d
     if problem:
         raise HTTPException(422, problem)
 
+    customer = await require_customer(authorization)
+    if not config.SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(503, "Verified dispatch is not configured")
     order_id = body.id or str(uuid.uuid4())
+    payment_details: dict[str, int] = {}
+
 
     # Money gate. Runs before anything is written, so a failed or forged
     # payment never produces a row the drivers can see.
@@ -185,8 +204,15 @@ async def place_order(body: PlaceOrderBody, authorization: str | None = Header(d
             "restaurant_name": merchant[0], "restaurant_address": merchant[1],
             "items": [OrderItem(name=line.name, quantity=line.quantity) for line in quote.lines]})
         charged_total = quote.total_cents / 100
+        payment_details["tip_cents"] = quote.tip_cents
     else:
-        charged_total = _verify_payment(order_id, body)
+        if body.customer_id and body.customer_id != str(customer.user_id):
+            raise HTTPException(403, "Orders must belong to the signed-in customer")
+        body = body.model_copy(update={"customer_id": str(customer.user_id)})
+        charged_total = _verify_payment(order_id, body, payment_details)
+        if not config.STRIPE_CONFIGURED:
+            payment_details["tip_cents"] = round(body.tip * 100)
+
 
     order_number = f"#LG-{str(int(time.time() * 1000))[-4:]}"
 
@@ -203,16 +229,22 @@ async def place_order(body: PlaceOrderBody, authorization: str | None = Header(d
         # What Stripe actually took, when there was a charge. body.total is
         # only a fallback for demo mode.
         "order_total": charged_total if charged_total is not None else round2(body.total),
-        # Placeholder — no routing in scope yet (coords are validated above
-        # but the schema has no dropoff lat/lng columns).
-        "distance_km": 2.5,
+        # No road-route estimate is available; zero is stored as unknown and mapped to null.
+        "distance_km": 0,
+        "dropoff_latitude": body.latitude,
+        "dropoff_longitude": body.longitude,
+        "delivery_instructions": body.delivery_instructions.strip(),
+        "delivery_preference": body.delivery_preference,
+        "entry_code": body.entry_code.strip(),
+        "driver_pay_cents": 500 + payment_details["tip_cents"] if "tip_cents" in payment_details else None,
+        "driver_tip_cents": payment_details.get("tip_cents", 0),
         "status": "available",
         "items": [f"{i.quantity}× {i.name}" for i in body.items],
     }
 
     res = await client.post(
         f"{REST_URL}/orders",
-        headers=headers(prefer="return=minimal"),
+        headers=headers(service=True, prefer="return=minimal"),
         json=row,
     )
     if res.status_code == 409:
@@ -263,8 +295,19 @@ def _map_row(row: dict[str, Any], overlay: dict[str, Any] | None) -> dict[str, A
         "dropoffAddress": row["dropoff_address"],
         "itemCount": row["item_count"],
         "orderTotal": float(row["order_total"]),
-        "distanceKm": float(row["distance_km"]),
-        "status": overlay["status"] if overlay else "available",
+        "distanceKm": float(row["distance_km"]) if row.get("distance_km") and float(row["distance_km"]) > 0 else None,
+        "dropoffLatitude": row.get("dropoff_latitude"),
+        "dropoffLongitude": row.get("dropoff_longitude"),
+        "deliveryInstructions": row.get("delivery_instructions") or "",
+        "deliveryPreference": row.get("delivery_preference"),
+        "entryCode": row.get("entry_code") or "",
+        "pickupNotes": row.get("pickup_notes") or "",
+        "guaranteedPayCents": row.get("driver_pay_cents"),
+        "tipCents": row.get("driver_tip_cents", 0),
+        "acceptedAt": row.get("accepted_at"),
+        "deliveredAt": row.get("delivered_at"),
+        "status": (row.get("delivery_status") or (overlay["status"] if overlay else "accepted"))
+        if row.get("accepted_by") else (overlay["status"] if overlay else "available"),
         "statusUpdatedAt": overlay["updated_at"] if overlay else None,
         "acceptedBy": row.get("accepted_by"),
         "customerId": row.get("customer_id"),
@@ -276,7 +319,7 @@ def _map_row(row: dict[str, Any], overlay: dict[str, Any] | None) -> dict[str, A
 @router.get("/orders/feed")
 async def order_feed(authorization: str | None = Header(default=None)):
     _require_supabase()
-    bearer, driver_id = _require_driver(authorization)
+    bearer, driver_id = await _require_driver(authorization)
     auth = headers(bearer)
 
     orders_res = await client.get(
@@ -299,50 +342,32 @@ async def order_feed(authorization: str | None = Header(default=None)):
         headers=auth,
         params={"select": "order_id,status,updated_at", "driver_id": f"eq.{driver_id}"},
     )
-    overlay_rows = overlay_res.json() if overlay_res.status_code == 200 else []
+    if overlay_res.status_code != 200:
+        raise HTTPException(502, "Could not fetch delivery progress")
+    overlay_rows = overlay_res.json()
     overlay = {r["order_id"]: r for r in overlay_rows}
 
     return {"orders": [_map_row(r, overlay.get(r["id"])) for r in orders_res.json()]}
 
 
-async def _upsert_overlay(bearer: str, driver_id: str, order_id: str, status: str, now: str) -> None:
-    res = await client.post(
-        f"{REST_URL}/driver_orders",
-        headers=headers(bearer, prefer="resolution=merge-duplicates,return=minimal"),
-        params={"on_conflict": "driver_id,order_id"},
-        json={"driver_id": driver_id, "order_id": order_id, "status": status, "updated_at": now},
-    )
-    if res.status_code not in (200, 201, 204):
-        print(f"[orders] driver_orders upsert failed {res.status_code} {res.text[:300]}")
-        raise HTTPException(502, "Could not save the order status")
-
-
 @router.post("/orders/{order_id}/accept")
-async def accept_order(order_id: str, authorization: str | None = Header(default=None)):
+async def accept_order(order_id: uuid.UUID, authorization: str | None = Header(default=None)):
     """Atomic claim: stamps accepted_by only while the order is unclaimed.
     Losing the race returns 409 so the app can drop the card locally."""
     _require_supabase()
-    bearer, driver_id = _require_driver(authorization)
+    order_id = str(order_id)
+    bearer, driver_id = await _require_driver(authorization)
     now = datetime.now(timezone.utc).isoformat()
 
-    res = await client.patch(
-        f"{REST_URL}/orders",
-        headers=headers(bearer, prefer="return=representation"),
-        params={"id": f"eq.{order_id}", "accepted_by": "is.null"},
-        json={
-            "accepted_by": driver_id,
-            "accepted_at": now,
-            "eta_minutes": ETA_MINUTES,
-            "delivery_status": "accepted",
-        },
+    res = await client.post(
+        f"{REST_URL}/rpc/driver_accept_offer", headers=headers(bearer),
+        json={"p_order_id": order_id},
     )
-    if res.status_code not in (200, 201):
-        print(f"[orders] claim failed {res.status_code} {res.text[:300]}")
-        raise HTTPException(502, "Could not claim the order")
-    if not res.json():
-        raise HTTPException(409, "Another driver already took this order")
-
-    await _upsert_overlay(bearer, driver_id, order_id, "accepted", now)
+    if res.status_code != 200:
+        raise HTTPException(502, "Could not accept this offer")
+    claimed = res.json()
+    if not claimed:
+        raise HTTPException(409, "Offer expired, driver offline, or another delivery is active")
 
     # Let the customer know — unlocks their "Chat with driver" button.
     try:
@@ -350,15 +375,15 @@ async def accept_order(order_id: str, authorization: str | None = Header(default
     except Exception as exc:  # noqa: BLE001
         print(f"[orders] order_accepted notify failed: {exc}")
 
-    return {"ok": True, "etaMinutes": ETA_MINUTES, "acceptedAt": now}
+    return {"ok": True, "acceptedAt": claimed.get("acceptedAt", now)}
 
 
 class StatusBody(BaseModel):
     status: Literal["accepted", "picked_up", "nearby", "arrived", "delivered", "declined"]
     # Proof photo URL (order-photos bucket): the order at pickup, or dropped at
-    # the customer's location. Optional so the statuses without a camera step
-    # ('accepted'/'nearby'/'arrived'/'declined') can omit it.
-    photo_url: str | None = None
+    # the customer's location. Optional so 'accepted'/'declined' can omit it.
+    photo_url: str | None = Field(default=None, max_length=2048)
+    verified_items: list[int] | None = Field(default=None, max_length=100)
 
 
 # Which customer-facing push fires for each driver status change. Membership in
@@ -372,45 +397,6 @@ _STATUS_NOTIFY = {
     "arrived": "order_arrived",
     "delivered": "order_delivered",
 }
-
-# The column stamped with `now` for each milestone, so the customer's history
-# can show when each beat happened rather than just where the order got to.
-_STATUS_TIMESTAMP = {
-    "picked_up": "picked_up_at",
-    "nearby": "nearby_at",
-    "arrived": "arrived_at",
-    "delivered": "delivered_at",
-}
-
-# Which photo column a proof shot belongs in. Only the two ends of the trip
-# have a camera step; nearby/arrived are one-tap.
-_STATUS_PHOTO_COLUMN = {"picked_up": "pickup_photo_url", "delivered": "dropoff_photo_url"}
-
-
-async def _mirror_status_to_order(
-    order_id: str, status: str, now: str, photo_url: str | None
-) -> None:
-    """Copy a driver's progress onto the shared orders row (service role, so it
-    lands regardless of the driver's own RLS) — this is what the customer, who
-    can't read driver_orders, actually subscribes to."""
-    if not config.SUPABASE_SERVICE_ROLE_KEY:
-        return
-    patch: dict[str, Any] = {"delivery_status": status}
-    stamp = _STATUS_TIMESTAMP.get(status)
-    if stamp:
-        patch[stamp] = now
-    photo_column = _STATUS_PHOTO_COLUMN.get(status)
-    if photo_column and photo_url:
-        patch[photo_column] = photo_url
-    res = await client.patch(
-        f"{REST_URL}/orders",
-        headers=headers(service=True, prefer="return=minimal"),
-        params={"id": f"eq.{order_id}"},
-        json=patch,
-    )
-    if res.status_code not in (200, 204):
-        print(f"[orders] status mirror failed {res.status_code} {res.text[:300]}")
-
 
 async def _email_pickup_photo(order_id: str) -> None:
     """Mail the customer the photo their driver just took of the order.
@@ -450,42 +436,80 @@ async def _email_pickup_photo(order_id: str) -> None:
 
 @router.post("/orders/{order_id}/status")
 async def update_status(
-    order_id: str,
+    order_id: uuid.UUID,
     body: StatusBody,
     authorization: str | None = Header(default=None),
 ):
-    """Everything except the accept-claim (decline / picked_up / nearby /
-    arrived / delivered). Writes the driver's private overlay row, mirrors
-    forward progress onto the shared orders row so the customer can follow it,
-    and pushes the customer the milestone notification for that step.
-
-    The four customer-visible milestones are one narrative — 'picked up' →
-    'almost there' → 'here' → 'delivered' — so they all take the same path;
-    only 'declined' stays private to the driver."""
+    """Everything except the accept-claim (decline / picked_up / delivered).
+    Writes the driver's private overlay row, mirrors forward progress onto the
+    shared orders row so the customer can follow it, and pushes the customer a
+    'on the way' / 'arrived' notification."""
     _require_supabase()
-    bearer, driver_id = _require_driver(authorization)
+    order_id = str(order_id)
+    bearer, driver_id = await _require_driver(authorization)
     now = datetime.now(timezone.utc).isoformat()
-    await _upsert_overlay(bearer, driver_id, order_id, body.status, now)
-
-    kind = _STATUS_NOTIFY.get(body.status)
-    if kind:
-        await _mirror_status_to_order(order_id, body.status, now, body.photo_url)
-        try:
-            await send_notification(NotifyBody(orderId=order_id, kind=kind))  # type: ignore[arg-type]
-        except Exception as exc:  # noqa: BLE001
-            print(f"[orders] {kind} notify failed: {exc}")
-
-        # Pickup also mails the customer the photo the driver just took. Runs
-        # after the mirror so the URL is already on the row, and is best-effort
-        # for the same reason the push is: a mail relay being down must never
-        # leave a driver unable to advance a delivery they've already made.
+    # Check ownership before ANY overlay write or service-role status update.
+    response = await client.get(
+        f"{REST_URL}/orders", headers=headers(bearer),
+        params={"id": f"eq.{order_id}", "select": "accepted_by,delivery_status,items", "limit": "1"},
+    )
+    if response.status_code != 200:
+        raise HTTPException(502, "Could not verify order ownership")
+    rows = response.json()
+    if not rows:
+        raise HTTPException(404, "Order not found")
+    order = rows[0]
+    if body.status == "declined":
+        if order.get("accepted_by") is not None:
+            raise HTTPException(409, "A claimed order cannot be declined")
+        declined = await client.post(f"{REST_URL}/rpc/driver_decline_offer", headers=headers(bearer), json={"p_order_id": order_id})
+        if declined.status_code != 200:
+            raise HTTPException(502, "Could not decline this offer")
+        if not declined.json():
+            raise HTTPException(409, "This offer is no longer available")
+        return {"ok": True, "updatedAt": now}
+    else:
+        if order.get("accepted_by") != driver_id:
+            raise HTTPException(403, "Only the assigned driver can update this order")
+        current = order.get("delivery_status", "available")
+        permitted = {"accepted": {"accepted", "picked_up"}, "picked_up": {"picked_up", "nearby", "arrived", "delivered"}, "nearby": {"nearby", "arrived", "delivered"}, "arrived": {"arrived", "delivered"}, "delivered": {"delivered"}}
+        if body.status not in permitted.get(current, set()):
+            raise HTTPException(409, "Invalid delivery status transition")
         if body.status == "picked_up":
-            try:
-                await _email_pickup_photo(order_id)
-            except Exception as exc:  # noqa: BLE001
-                print(f"[orders] pickup email failed: {exc}")
+            items = order.get("items") or []
+            if not items or body.verified_items is None or sorted(body.verified_items) != list(range(len(items))):
+                raise HTTPException(422, "Verify every pickup item before confirming")
+        if body.status == "delivered" and (not body.photo_url or not body.photo_url.startswith(("https://", "http://"))):
+            raise HTTPException(422, "A successfully uploaded drop-off photo is required")
+    result = await client.post(
+        f"{REST_URL}/rpc/driver_update_status", headers=headers(bearer),
+        json={"p_order_id": order_id, "p_status": body.status,
+              "p_photo_url": body.photo_url, "p_verified_items": body.verified_items},
+    )
+    if result.status_code != 200:
+        error = result.json()
+        code = error.get("code") if isinstance(error, dict) else None
+        if code == "42501":
+            raise HTTPException(403, "Only the assigned approved driver can update this order")
+        if code == "22023":
+            raise HTTPException(422, "Verify the delivery stage, every pickup item, and the uploaded proof photo")
+        raise HTTPException(502, "Delivery progress was not saved")
+    saved = result.json()
+    if not saved.get("changed"):
+        return {"ok": True, "updatedAt": saved["updatedAt"]}
+    if body.status in _STATUS_NOTIFY:
+        try:
+            await send_notification(NotifyBody(orderId=order_id, kind=_STATUS_NOTIFY[body.status]))
+        except Exception as exc:
+            print(f"[orders] status notification unavailable: {type(exc).__name__}")
 
-    return {"ok": True, "updatedAt": now}
+    if body.status == "picked_up":
+        try:
+            await _email_pickup_photo(order_id)
+        except Exception as exc:
+            print(f"[orders] pickup receipt unavailable: {type(exc).__name__}")
+
+    return {"ok": True, "updatedAt": saved["updatedAt"]}
 
 
 @router.get("/orders/history")
@@ -503,7 +527,7 @@ async def order_history(
     The `orders(...)` embed relies on the driver_orders → orders foreign key.
     """
     _require_supabase()
-    bearer, _ = _require_driver(authorization)
+    bearer, _ = await _require_driver(authorization)
 
     params: dict[str, str] = {
         "select": "order_id,status,updated_at,orders(*)",
